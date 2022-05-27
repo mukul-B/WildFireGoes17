@@ -1,5 +1,6 @@
 from awsDownload import download_goes
-from longLatProj import lat_lon_reproj, show_plot2
+from longLatProj import lat_lon_reproj
+from plotGoesViirs import show_plot2
 
 file = "goestemp/files/satfile2.nc"
 
@@ -7,7 +8,7 @@ map_dat="2021-08-0"
 hour="04"
 min="23"
 
-for day in range(4,8):
+for day in range(4,5):
     map_date=map_dat + str(day)
     print(map_date)
     download_goes(map_date,hour,min)
