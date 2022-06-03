@@ -11,11 +11,9 @@ def lat_lon_reproj(nc_folder, var_name=None):
     # designate dataset
     g16nc = Dataset(g16_data_file, 'r')
     var_names = [ii for ii in g16nc.variables]
-    if (var_name is None):
+    if var_name is None:
         var_name = var_names[0]
-    # var_name="Power"
     print(var_name)
-    # exit(0)
     try:
         band_id = g16nc.variables['band_id'][:]
         band_id = ' (Band: {},'.format(band_id[0])
