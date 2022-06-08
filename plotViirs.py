@@ -9,9 +9,7 @@ mpl.use('TkAgg')
 import cartopy.crs as ccrs
 from matplotlib import pyplot as plt
 import cartopy.io.shapereader as shpreader
-import datetime as dt
 from cartopy.io.img_tiles import GoogleTiles
-import pandas as pd
 
 
 class StreetmapESRI(GoogleTiles):
@@ -28,7 +26,7 @@ def show_plot4():
     # Read shape file
 
     bbox = get_boundingBox()
-    bbox2= [bbox[0], bbox[2], bbox[1], bbox[3]]
+    bbox2 = [bbox[0], bbox[2], bbox[1], bbox[3]]
     # print(bbox, bbox2)
     # exit(0)
     proj = ccrs.PlateCarree()
@@ -41,25 +39,29 @@ def show_plot4():
     reader = shpreader.Reader(viirs_file, bbox2)
     # points = list(reader.geometries())
     # 2021-08-30 , 2021-09-15
-    # confidence = list(map(lambda x: x.attributes.get('ACQ_DATE'), reader.records()))
-    # print(confidence[0])
+
     # (minx, miny,
     #         maxx, maxy)
     # (left, right, bottom, top)
     # xmin, xmax, ymin, ymax = extent
 
-    readeron = list(filter(lambda x: x.attributes.get('CONFIDENCE') != 'n'
-                                     and x.attributes.get('ACQ_DATE') == '2021-08-05'
-                                     and x.attributes.get('ACQ_TIME') == "2018"
+    readeron = list(filter(lambda x:
+                           # x.attributes.get('CONFIDENCE') != 'l'
+                           #           and
+                           x.attributes.get('ACQ_DATE') == '2021-08-05'
+                           and x.attributes.get('ACQ_TIME') == "2018"
                            , reader.records()))
-    # print(confidence[0])
-    # print(readeron)
+
+    col2 = {'h': "red", "n": "yellow", 'l': "green"}
+    colo = list(map(lambda x: col2[x.attributes.get('CONFIDENCE')], readeron))
+
     points = [i.geometry for i in readeron]
     ax.scatter(
         [point.x for point in points],
         [point.y for point in points],
         transform=proj,
-        alpha=0.8
+        c=colo,
+        alpha=0.17
     )
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=0, alpha=0.0)
     gl.top_labels = False
@@ -68,7 +70,6 @@ def show_plot4():
     gl.ylines = False
     ax.add_image(StreetmapESRI(), 10)
     plt.show()
-
 
 
 show_plot4()

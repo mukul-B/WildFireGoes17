@@ -7,9 +7,6 @@ from netCDF4 import Dataset
 
 
 def download_goes(date, hour, min, satname='goes17', product='ABI-L2-FDCC', mode='M6'):
-    # satname = 'goes17'  # goes16 or goes17
-    # product = 'ABI-L2-FDCC'  # Fire product
-    # mode = 'M6'  # usually M6 but M3 for older data?
 
     # creating date range
     nexth = str((int(hour) + 1) % 24)
@@ -46,7 +43,10 @@ def download_goes(date, hour, min, satname='goes17', product='ABI-L2-FDCC', mode
                  + '/' + str(date_list[i].day_of_year).zfill(3) \
                  + '/' + str(date_list[i].hour).zfill(2) \
                  + '/OR_' + product + '-' + mode
-        filelist = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)['Contents']
+        # print(bucket,prefix)
+        filelist = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+        # print(filelist)
+        filelist=filelist['Contents']
 
         for key in range(len(filelist)):
             s3.download_file(bucket, filelist[key]['Key'], filename)

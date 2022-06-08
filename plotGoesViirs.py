@@ -1,15 +1,12 @@
-import matplotlib as mpl
-
-from keyvalues import viirs_file
-
-# mpl.use('Agg')
-# mpl.use('TkAgg')
+import datetime as dt
 
 import cartopy.crs as ccrs
-from matplotlib import pyplot as plt
 import cartopy.io.shapereader as shpreader
-import datetime as dt
+import matplotlib as mpl
 from cartopy.io.img_tiles import GoogleTiles
+from matplotlib import pyplot as plt
+
+from keyvalues import viirs_file
 
 
 class StreetmapESRI(GoogleTiles):
@@ -24,8 +21,7 @@ class StreetmapESRI(GoogleTiles):
 
 def show_plot(lon, lat, data, data_units, data_time_grab, data_long_name, band_id, band_wavelength, band_units,
               var_name, bbox,
-              fildate, filtime=None,save = True):
-
+              fildate, filtime=None, save=True):
     if save:
         mpl.use('Agg')
     else:
@@ -46,6 +42,8 @@ def show_plot(lon, lat, data, data_units, data_time_grab, data_long_name, band_i
                            and ((x.attributes.get('ACQ_TIME') == filtime) if filtime else True)
                            , reader.records()))
     points = [i.geometry for i in readeron]
+    conf2col = {'h': "red", "n": "yellow", 'l': "green"}
+    colo = list(map(lambda x: conf2col[x.attributes.get('CONFIDENCE')], readeron))
 
     p = ax.pcolormesh(lon.data, lat.data, data,
                       transform=ccrs.PlateCarree(),
@@ -54,7 +52,7 @@ def show_plot(lon, lat, data, data_units, data_time_grab, data_long_name, band_i
         [point.x for point in points],
         [point.y for point in points],
         transform=proj,
-        c="red",
+        c=colo,
         alpha=0.17
     )
     cbar = plt.colorbar(p, shrink=0.5)
