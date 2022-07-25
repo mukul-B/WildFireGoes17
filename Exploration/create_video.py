@@ -1,7 +1,7 @@
 import imageio
 import glob
 image_list = []
-img_src = "plots"
+img_src = "../plots"
 videos="videos"
 print('\nCompiling image list...', end='', flush=True)
 for img in sorted(glob.glob(img_src + '/*.png')):

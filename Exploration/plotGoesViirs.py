@@ -6,7 +6,8 @@ import matplotlib as mpl
 from cartopy.io.img_tiles import GoogleTiles
 from matplotlib import pyplot as plt
 
-from keyvalues import viirs_file
+from common_functions import get_boundingBox
+from keyvalues import viirs_file, GOES_TEMP, VIIRS_TEMP
 
 
 class StreetmapESRI(GoogleTiles):
@@ -31,7 +32,7 @@ def show_plot(lon, lat, data, data_units, data_time_grab, data_long_name, band_i
     plt.figure(figsize=(6, 3))
     ax = plt.axes(projection=proj)
     bbox2 = [bbox[0], bbox[2], bbox[1], bbox[3]]
-    ax.add_image(StreetmapESRI(), 10)
+    # ax.add_image(StreetmapESRI(), 10)
     ax.set_extent(bbox)
 
     reader = shpreader.Reader(viirs_file, bbox2)
@@ -42,11 +43,17 @@ def show_plot(lon, lat, data, data_units, data_time_grab, data_long_name, band_i
                            and ((x.attributes.get('ACQ_TIME') == filtime) if filtime else True)
                            , reader.records()))
     points = [i.geometry for i in readeron]
-    conf2col = {'h': "red", "n": "yellow", 'l': "green"}
+    conf2col = {'h': "red", "n": "#FF9933", 'l': "green"}
     colo = list(map(lambda x: conf2col[x.attributes.get('CONFIDENCE')], readeron))
-
+    cmap = plt.colormaps['YlOrRd']
+    # cmap = 'YlOrRd'
+    # print(len(lon),len(lon[0]))
+    # exit(0)
     p = ax.pcolormesh(lon.data, lat.data, data,
                       transform=ccrs.PlateCarree(),
+                      # cmap=cmap,
+                      # vmin=32,
+                      # vmax=34,
                       alpha=0.9)
     ax.scatter(
         [point.x for point in points],
@@ -76,3 +83,5 @@ def show_plot(lon, lat, data, data_units, data_time_grab, data_long_name, band_i
     print('Done.')
 
     plt.close('all')
+
+# show_plot2(bbox=get_boundingBox("dixie2"))

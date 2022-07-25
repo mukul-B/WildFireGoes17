@@ -48,8 +48,8 @@ def show_plot4():
     readeron = list(filter(lambda x:
                            # x.attributes.get('CONFIDENCE') != 'l'
                            #           and
-                           x.attributes.get('ACQ_DATE') == '2021-08-05'
-                           and x.attributes.get('ACQ_TIME') == "2018"
+                           x.attributes.get('ACQ_DATE') == '2021-08-06'
+                           # and x.attributes.get('ACQ_TIME') == "2018"
                            , reader.records()))
 
     col2 = {'h': "red", "n": "yellow", 'l': "green"}

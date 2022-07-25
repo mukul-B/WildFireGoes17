@@ -6,7 +6,7 @@ from boto3.session import Session
 from netCDF4 import Dataset
 
 
-def download_goes(date, hour, min, satname='goes17', product='ABI-L2-FDCC', mode='M6'):
+def download_goes(date, hour, min, satname='goes17', product='ABI-L2-FDCC', mode='M6',band=None):
 
     # creating date range
     nexth = str((int(hour) + 1) % 24)
@@ -42,11 +42,15 @@ def download_goes(date, hour, min, satname='goes17', product='ABI-L2-FDCC', mode
         prefix = product + '/' + str(date_list[i].year) \
                  + '/' + str(date_list[i].day_of_year).zfill(3) \
                  + '/' + str(date_list[i].hour).zfill(2) \
-                 + '/OR_' + product + '-' + mode
+                 + '/OR_' + product + '-' + mode + ('C'+str(band).zfill(2) if band else "")
         # print(bucket,prefix)
         filelist = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
         # print(filelist)
         filelist=filelist['Contents']
+        # for i,j in enumerate(filelist):
+        #     print(i,j)
+        # exit(0)
+        extra_args = {'ACL': 'public-read'}
 
         for key in range(len(filelist)):
             s3.download_file(bucket, filelist[key]['Key'], filename)
