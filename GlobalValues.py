@@ -1,0 +1,10 @@
+FDC = "ABI-L2-FDCC"
+RAD = "ABI-L1b-RadC"
+CMI = "ABI-L2-CMIPC"
+goes_folder = "GOES"
+viirs_folder = "VIIRS"
+data_dir = "data"
+compare_dir = "data/dixie/compare/"
+viirs_dir = 'data/dixie/VIIRS/'
+goes_dir = 'data/dixie/GOES/ABI-L1b-RadC/tif/'
+toExecuteSiteList = "config/sites_to_run"
