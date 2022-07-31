@@ -1,0 +1,9 @@
+conda install -c conda-forge pandas
+conda install -c conda-forge boto3
+conda install -c conda-forge netCDF4
+conda install -c conda-forge geopandas
+conda install -c conda-forge cartopy
+conda install -c conda-forge s3fs
+conda install -c anaconda yaml
+conda install pyyaml
+conda install -c conda-forge satpy

@@ -21,3 +21,9 @@ def prepareDir(location, product):
         os.mkdir(data_dir + '/' + site_dir + '/' + goes_folder + '/' + product_dir)
     if not os.path.exists(data_dir + '/' + site_dir + '/' + viirs_folder):
         os.mkdir(data_dir + '/' + site_dir + '/' + viirs_folder)
+
+    if not os.path.exists(data_dir + '/' + site_dir + '/' + 'compare'):
+        os.mkdir(data_dir + '/' + site_dir + '/' + 'compare')
+
+    if not os.path.exists('logs'):
+        os.mkdir('logs')

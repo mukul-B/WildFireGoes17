@@ -18,13 +18,8 @@ if __name__ == '__main__':
 
     data = pd.read_csv(toExecuteSiteList)
     locations = data["Sites"]
+    # pipeline run for sites mentioned in toExecuteSiteList
     for location in locations[:1]:
         prepareDir(location, RAD)
         createDataset(location, product_name=RAD)
         evaluate()
-
-    # viirs_dir = 'data/dixie/VIIRS/'
-    # goes_dir = 'data/dixie/GOES/ABI-L1b-RadC/tif/'
-    # v_file = 'FIRMS-2021-08-05_854.tif'
-    # g_file = 'GOES-2021-08-05_854.tif'
-    # viewtiff(viirs_dir + v_file, goes_dir + g_file, '2021-08-05_854')

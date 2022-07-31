@@ -25,9 +25,12 @@ def viewtiff(v_file, g_file, date, save=False):
     da = xr.open_rasterio(v_file)
     ds = xr.open_rasterio(g_file)
 
-    fig, ax = plt.subplots(1, 2, constrained_layout=True)
+    fig, ax = plt.subplots(1, 3, constrained_layout=True)
+    print(type(da.variable.data[0]))
+
     ax[0].imshow(da.variable.data[0])
     ax[1].imshow(ds.variable.data[0])
+    ax[2].imshow((ds.variable.data[0]) - (da.variable.data[0]))
     if (save):
         fig.savefig(f'{compare_dir}{date}.png')
         plt.close()
@@ -50,6 +53,7 @@ def shape_check(v_file, g_file):
     gf = np.array(gf)[:, :, 0]
     # (343,)(27, 47)
     print(vf.shape, gf.shape)
+    # print(PSNR(gf,vf))
 
 
 def evaluate():
@@ -59,5 +63,7 @@ def evaluate():
     for v_file in viirs_list[:4]:
         # g_file = [i for i in goes_list if v_file[5:] in i][0]
         g_file = "GOES" + v_file[5:]
-        viewtiff(viirs_dir + v_file, goes_dir + g_file, v_file[6:-4])
+
         shape_check(viirs_dir + v_file, goes_dir + g_file)
+        viewtiff(viirs_dir + v_file, goes_dir + g_file, v_file[6:-4])
+
