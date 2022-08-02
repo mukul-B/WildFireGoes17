@@ -96,17 +96,15 @@ class GoesProcessing:
         print(bottom_left_utm,top_right_utm)
 
 
-        area_id = 'ease_sh'
+        area_id = 'dixie'
         description = 'Antarctic EASE grid'
         proj_id = 'ease_sh'
-        projection = 'EPSG:4326'
-        # projection = 'EPSG:32611'
+        # projection = 'EPSG:4326'
+        projection = 'EPSG:32611'
         width = 289
         height = 343
-        area_extent = (bottom_left[1], bottom_left[0], top_right[1], top_right[0])
-        # area_extent = (bottom_left_utm[1], bottom_left_utm[0], top_right_utm[1], top_right_utm[0])
-        # area_extent = (-4371272.0625, -4371272.0625, 4371272.0625, 4371272.0625)
-
+        # the lat lon is changed when using utm !?
+        area_extent = (bottom_left_utm[0], bottom_left_utm[1], top_right_utm[0], top_right_utm[1])
         area_def = AreaDefinition(area_id, description, proj_id, projection,
                                   width, height, area_extent)
 
@@ -118,7 +116,7 @@ class GoesProcessing:
         # print("Croping GOES image with coodinates")
         # goes_scene = goes_scene.crop(ll_bbox=(bottom_left[1], bottom_left[0], top_right[1], top_right[0]))
         goes_scene =goes_scene.resample(area_def)
-        # ds = goes_scene['C07']
-        # print(ds.crs)
+        ds = goes_scene['C07']
+        # print(str(ds.crs).split(','))
         out_file = "GOES-" + str(fire_date) + "_" + str(ac_time)
         goes_scene.save_dataset('C07', "/".join(path.split('/')[:-1]) + "/tif/" + out_file + '.tif')

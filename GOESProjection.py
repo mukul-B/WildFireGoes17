@@ -74,6 +74,15 @@ def lat_lon(H, lon_origin,  r_eq, r_pol ,lat_rad_1d, lon_rad_1d):
     lon = (lambda_0 - np.arctan(s_y / (H - s_x))) * (180.0 / np.pi)
     # print test coordinates
     print('{} N, {} W'.format(lat[318, 1849], abs(lon[318, 1849])))
+
+    print(len(lat),len(lat[0]))
+    for i in range(len(lat)):
+        for j in range(len(lat[0])):
+
+            if(lon[i,j] > -122.0 and lat[i,j] >  40):
+                print(i, j, lat[i, j], lon[i, j],lat_rad[i,j],lon_rad[i,j])
+                break
+
     return lat, lon
 
 
