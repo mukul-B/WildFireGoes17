@@ -11,9 +11,11 @@ import yaml
 
 class SiteInfo():
     def __init__(self,location="dixie"):
+
         self.location = location
         with open("config/configuration.yml", "r", encoding="utf8") as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
         self.start_time, self.end_time = config.get(location).get('start') , config.get(location).get('end')
         self.latitude , self.longitude = config.get(location).get('latitude') , config.get(location).get('longitude')
         self.rectangular_size = config.get('rectangular_size')
+        self.EPSG = config.get(location).get('EPSG')

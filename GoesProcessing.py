@@ -68,8 +68,7 @@ class GoesProcessing:
             if abs(int(dt.datetime.strftime(g_time, '%M')) - int(minute)) < 3:
                 closest = index
 
-
-        #downloading closed file
+        # downloading closed file
         first_file = files[closest]
         # out_file=  "GOES-"+str(fire_date)+"_"+str(ac_time)+".nc"
         out_file = first_file.split('/')[-1]
@@ -81,42 +80,46 @@ class GoesProcessing:
         return path
 
     #   resampling GOES file for given site and writing in a tiff file
-    def nc2tiff(self, fire_date, ac_time, path, site):
+    def nc2tiff(self, fire_date, ac_time, path, site, image_size):
 
         # creating bouding box from site information
         latitude, longitude = site.latitude, site.longitude
         rectangular_size = site.rectangular_size
-        bottom_left = [latitude - rectangular_size, longitude - rectangular_size]
-        top_right = [latitude + rectangular_size, longitude + rectangular_size]
-        transformer = Transformer.from_crs(4326, 32611)
-        bottom_left_utm = [int(transformer.transform(bottom_left[0], bottom_left[1])[0]),
-                           int(transformer.transform(bottom_left[0], bottom_left[1])[1])]
-        top_right_utm = [int(transformer.transform(top_right[0], top_right[1])[0]),
-                         int(transformer.transform(top_right[0], top_right[1])[1])]
-        print(bottom_left_utm,top_right_utm)
+        EPSG = site.EPSG
 
-
-        area_id = 'dixie'
-        description = 'Antarctic EASE grid'
-        proj_id = 'ease_sh'
-        # projection = 'EPSG:4326'
-        projection = 'EPSG:32611'
-        width = 289
-        height = 343
-        # the lat lon is changed when using utm !?
-        area_extent = (bottom_left_utm[0], bottom_left_utm[1], top_right_utm[0], top_right_utm[1])
-        area_def = AreaDefinition(area_id, description, proj_id, projection,
-                                  width, height, area_extent)
+        area_def = self.get_areaDefination(EPSG, image_size, latitude, longitude, rectangular_size)
 
         # using satpy to crop goes for the given site
         g_reader = 'abi_l1b'
         goes_scene = Scene(reader=g_reader,
                            filenames=[path])
         goes_scene.load(['C07'])
-        # print("Croping GOES image with coodinates")
-        # goes_scene = goes_scene.crop(ll_bbox=(bottom_left[1], bottom_left[0], top_right[1], top_right[0]))
-        goes_scene =goes_scene.resample(area_def)
-        ds = goes_scene['C07']
-        # print(str(ds.crs).split(','))
+        goes_scene = goes_scene.resample(area_def)
+
+        # saving output file
         out_file = "GOES-" + str(fire_date) + "_" + str(ac_time)
         goes_scene.save_dataset('C07', "/".join(path.split('/')[:-1]) + "/tif/" + out_file + '.tif')
+
+    # get area defination for satpy, with new projection and bounding pox
+    def get_areaDefination(self, EPSG, image_size, latitude, longitude, rectangular_size):
+        bottom_left = [latitude - rectangular_size, longitude - rectangular_size]
+        top_right = [latitude + rectangular_size, longitude + rectangular_size]
+        # transformining bounding box coordinates for new projection
+        transformer = Transformer.from_crs(4326, EPSG)
+        bottom_left_utm = [int(transformer.transform(bottom_left[0], bottom_left[1])[0]),
+                           int(transformer.transform(bottom_left[0], bottom_left[1])[1])]
+        top_right_utm = [int(transformer.transform(top_right[0], top_right[1])[0]),
+                         int(transformer.transform(top_right[0], top_right[1])[1])]
+
+        # defining area definition with image size , projection and extend
+        area_id = 'given'
+        description = 'given'
+        proj_id = 'given'
+        projection = 'EPSG:' + str(EPSG)
+        width = image_size[1]
+        height = image_size[0]
+        # the lat lon is changed when using utm !?
+        area_extent = (bottom_left_utm[0], bottom_left_utm[1], top_right_utm[0], top_right_utm[1])
+        area_def = AreaDefinition(area_id, description, proj_id, projection,
+                                  width, height, area_extent)
+        return area_def

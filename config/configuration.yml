@@ -7,6 +7,7 @@ dixie:
   latitude: 40
   start: 2021-08-05
   end: 2021-08-06
+  EPSG: 32611
 
 LNU_lighting_complex:
   longitude: -122.237303

@@ -21,23 +21,20 @@ from GlobalValues import viirs_dir, goes_dir, compare_dir
 
 # visualising GOES and VIIRS
 def viewtiff(v_file, g_file, date, save=False):
-    import rasterio
-
-    raster = rasterio.open(v_file)
-
-    print(raster.crs.linear_units)
-    exit(0)
+    # import rasterio
+    #
+    # raster = rasterio.open(v_file)
+    #
+    # print(raster.crs.linear_units)
+    # exit(0)
 
     VIIRS_data = xr.open_rasterio(v_file)
     GOES_data = xr.open_rasterio(g_file)
-    print(VIIRS_data.crs.linear_units)
-
     fig, ax = plt.subplots(1, 3, constrained_layout=True)
-    print(type(VIIRS_data.variable.data[0]))
-
 
     p = ax[0].imshow(VIIRS_data.variable.data[0])
     q = ax[1].imshow(GOES_data.variable.data[0])
+    # ploting Viirs on top of GOES
     ax[2].imshow((GOES_data.variable.data[0]) - (VIIRS_data.variable.data[0]))
     # plt.colorbar(p, shrink=0.5)
     # plt.colorbar(q, shrink=0.5)
@@ -47,7 +44,8 @@ def viewtiff(v_file, g_file, date, save=False):
         plt.close()
     plt.show()
 
-#create training dataset
+
+# create training dataset
 def sliding_window(image, stepSize, windowSize):
     # slide a window across the image
     for y in range(0, image.shape[0], stepSize):
@@ -55,7 +53,9 @@ def sliding_window(image, stepSize, windowSize):
             # yield the current window
             yield x, y, image[y:y + windowSize[1], x:x + windowSize[0], :]
 
-def create_training_dataset(v_file, g_file, date,out_dir = 'data/dixie/training'):
+#  creating dataset in npy format containing both input and reference files ,
+# whole image is croped in window of size 128
+def create_training_dataset(v_file, g_file, date, out_dir='data/dixie/training'):
     vf = Image.open(v_file)
     gf = Image.open(g_file)
     vf = np.array(vf)[:, :]
@@ -68,11 +68,13 @@ def create_training_dataset(v_file, g_file, date,out_dir = 'data/dixie/training'
         if window.shape != (128, 128, 2):
             continue
         g_win = window[:, :, 1]
-        if (np.count_nonzero(g_win) / g_win.size < 0.985):
+        #  only those windows are considered where it is not mostly empty
+        if np.count_nonzero(g_win) / g_win.size < 0.985:
             continue
         else:
             np.save(os.path.join(out_dir, 'comb.' + date
                                  + '.' + str(x) + '.' + str(y) + '.npy'), window)
+
 
 def PSNR(pred, gt, shave_border=0):
     imdff = pred - gt
@@ -93,19 +95,11 @@ def shape_check(v_file, g_file):
     print(vf.shape, gf.shape)
     print(PSNR(gf, vf))
 
-
+# the dataset created is evaluated visually and statistically
 def evaluate():
     viirs_list = os.listdir(viirs_dir)
-    goes_list = os.listdir(goes_dir)
-
     for v_file in viirs_list:
-        # g_file = [i for i in goes_list if v_file[5:] in i][0]
         g_file = "GOES" + v_file[5:]
-
         create_training_dataset(viirs_dir + v_file, goes_dir + g_file, v_file[6:-4])
-
-        # shape_check(viirs_dir + v_file, goes_dir + g_file)
-        # viewtiff(viirs_dir + v_file, goes_dir + g_file, v_file[6:-4])
-
-
-evaluate()
+        shape_check(viirs_dir + v_file, goes_dir + g_file)
+        viewtiff(viirs_dir + v_file, goes_dir + g_file, v_file[6:-4])

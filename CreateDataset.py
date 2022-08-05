@@ -41,5 +41,5 @@ def createDataset(location, product_name=RAD):
 
             if (path != -1):
                 v2r_viirs.make_tiff(ac_time, fire_date, fire_data_filter_on_date_and_bbox)
-                goes.nc2tiff(fire_date, ac_time, path, site)
+                goes.nc2tiff(fire_date, ac_time, path, site,v2r_viirs.image_size)
 

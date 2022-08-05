@@ -8,3 +8,6 @@ compare_dir = "data/dixie/compare/"
 viirs_dir = 'data/dixie/VIIRS/'
 goes_dir = 'data/dixie/GOES/ABI-L1b-RadC/tif/'
 toExecuteSiteList = "config/sites_to_run"
+compare = 'compare'
+logs = 'logs'
+training = 'training'

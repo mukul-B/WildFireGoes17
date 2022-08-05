@@ -25,10 +25,9 @@ class VIIRSProcessing:
 
         self.location = site.location
         self.fire_pixels = pd.read_csv(Sdirectory)
-        self.crs = crs
+        self.crs = site.EPSG
         self.res = res
-        # self.crs = 4326
-        # self.res = 1
+
         # defining extend of site in lat and lon
         latitude, longitude = site.latitude, site.longitude
         rectangular_size = site.rectangular_size
@@ -54,11 +53,8 @@ class VIIRSProcessing:
         top_right_utm = [int(self.transformer.transform(top_right[0], top_right[1])[0]),
                          int(self.transformer.transform(top_right[0], top_right[1])[1])]
 
-        print(bottom_left_utm, top_right_utm)
         top_right_utm = [top_right_utm[0] - (top_right_utm[0] - bottom_left_utm[0]) % self.res,
                          top_right_utm[1] - (top_right_utm[1] - bottom_left_utm[1]) % self.res]
-
-        print(top_right_utm)
 
         lon = [bottom_left_utm[0], top_right_utm[0]]
         lat = [bottom_left_utm[1], top_right_utm[1]]

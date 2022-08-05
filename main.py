@@ -20,6 +20,7 @@ if __name__ == '__main__':
     locations = data["Sites"]
     # pipeline run for sites mentioned in toExecuteSiteList
     for location in locations[:1]:
+        print(location)
         prepareDir(location, RAD)
         createDataset(location, product_name=RAD)
         evaluate()
