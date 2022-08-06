@@ -11,6 +11,7 @@ import datetime as dt
 import s3fs
 from pyresample import create_area_def
 from satpy import Scene
+from xarray import Dataset
 
 from GlobalValues import RAD
 from pyresample.geometry import AreaDefinition
@@ -52,7 +53,7 @@ class GoesProcessing:
         files = [i for i in files if file_prefix in i]
 
         # return if file not present for criteria and write in log
-        if (len(files) == 0):
+        if len(files) == 0:
             print("fine not found in GOES")
             self.failures.write("No Match found for {}\n".format(sDATE))
             return -1
@@ -83,6 +84,8 @@ class GoesProcessing:
     def nc2tiff(self, fire_date, ac_time, path, site, image_size):
 
         # creating bouding box from site information
+        band = 7
+        band = ('C' + str(band).zfill(2) if band else "")
         latitude, longitude = site.latitude, site.longitude
         rectangular_size = site.rectangular_size
         EPSG = site.EPSG
@@ -93,12 +96,22 @@ class GoesProcessing:
         g_reader = 'abi_l1b'
         goes_scene = Scene(reader=g_reader,
                            filenames=[path])
-        goes_scene.load(['C07'])
+        goes_scene.load([band])
         goes_scene = goes_scene.resample(area_def)
+
+        # trying to filter goes data
+        # print(goes_scene[band])
+        x = goes_scene.to_xarray_dataset()
+        rad = x[band].values
+        rad[rad < 300] = 0
+        rad[rad > 410] = 0
+        x[band].values = rad
+        goes_scene[band].values = x[band].values
+        # print(goes_scene[band])
 
         # saving output file
         out_file = "GOES-" + str(fire_date) + "_" + str(ac_time)
-        goes_scene.save_dataset('C07', "/".join(path.split('/')[:-1]) + "/tif/" + out_file + '.tif')
+        goes_scene.save_dataset(band, "/".join(path.split('/')[:-1]) + "/tif/" + out_file + '.tif')
 
     # get area defination for satpy, with new projection and bounding pox
     def get_areaDefination(self, EPSG, image_size, latitude, longitude, rectangular_size):
