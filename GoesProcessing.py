@@ -13,7 +13,7 @@ from pyresample import create_area_def
 from satpy import Scene
 from xarray import Dataset
 
-from GlobalValues import RAD
+from GlobalValues import RAD, FDC
 from pyresample.geometry import AreaDefinition
 from pyproj import Transformer
 
@@ -21,6 +21,9 @@ from pyproj import Transformer
 class GoesProcessing:
     def __init__(self, log_path):
         # failure log ex missing files logged in file
+        self.product_name = None
+        self.band = None
+        self.g_reader = None
         self.failures = open(log_path, 'w')
 
     def __del__(self):
@@ -29,6 +32,13 @@ class GoesProcessing:
     # download GOES data for date , product band and mode , finction have default values
     def download_goes(self, fire_date, ac_time, directory, product_name=RAD, band=7, mode='M6',
                       bucket_name='noaa-goes17'):
+
+        # product to g_reader for Satpy
+        g_reader = product_name.split('-')
+        self.g_reader = '_'.join(g_reader[:2]).lower()
+        self.g_reader = 'abi_l2_nc' if(self.g_reader == 'abi_l2') else self.g_reader
+        self.band = band
+        self.product_name = product_name
 
         # extract date parameter of AWS request from given date and time
         sDATE = dt.datetime.strptime(fire_date + "_" + ac_time.zfill(4), '%Y-%m-%d_%H%M')
@@ -41,8 +51,9 @@ class GoesProcessing:
         # Use anonymous credentials to access public data  from AWS
         fs = s3fs.S3FileSystem(anon=True)
         band = ('C' + str(band).zfill(2) if band else "")
-
-        # Write prefix for the files of interest, and list all files beginning with this prefix.
+        # fdc does have commutative bands
+        band = "" if(self.product_name== FDC) else band
+        # Write prefix for the files of inteest, and list all files beginning with this prefix.
         prefix = f'{bucket_name}/{product_name}/{year}/{day_of_year:03.0f}/{hour:02.0f}/'
         file_prefix = f'OR_{product_name}-{mode}{band}_G17_s{year}{day_of_year:03.0f}{hour:02.0f}'
 
@@ -84,8 +95,9 @@ class GoesProcessing:
     def nc2tiff(self, fire_date, ac_time, path, site, image_size):
 
         # creating bouding box from site information
-        band = 7
+        band = self.band
         band = ('C' + str(band).zfill(2) if band else "")
+        layer = "Mask" if(self.product_name == FDC) else band
         latitude, longitude = site.latitude, site.longitude
         rectangular_size = site.rectangular_size
         EPSG = site.EPSG
@@ -93,25 +105,30 @@ class GoesProcessing:
         area_def = self.get_areaDefination(EPSG, image_size, latitude, longitude, rectangular_size)
 
         # using satpy to crop goes for the given site
-        g_reader = 'abi_l1b'
-        goes_scene = Scene(reader=g_reader,
+        # g_reader = 'abi_l1b_nc'
+
+        # ABI - L1b - RadC
+        goes_scene = Scene(reader=self.g_reader,
                            filenames=[path])
-        goes_scene.load([band])
+        goes_scene.load([layer])
         goes_scene = goes_scene.resample(area_def)
 
         # trying to filter goes data
         # print(goes_scene[band])
         x = goes_scene.to_xarray_dataset()
-        rad = x[band].values
-        rad[rad < 300] = 0
-        rad[rad > 410] = 0
-        x[band].values = rad
-        goes_scene[band].values = x[band].values
-        # print(goes_scene[band])
+        rad = x[layer].values
+        # rad[rad < 30] = 0
+        # rad[rad > 35] = 0
+        print(rad)
+        x[layer].values = rad
+        goes_scene[layer].values = x[layer].values
+        print(goes_scene[layer])
+        print()
 
         # saving output file
         out_file = "GOES-" + str(fire_date) + "_" + str(ac_time)
-        goes_scene.save_dataset(band, "/".join(path.split('/')[:-1]) + "/tif/" + out_file + '.tif')
+        x.rio.to_raster(raster_path="/".join(path.split('/')[:-1]) + "/tif/" + out_file + '.tif',driver='GTiff',dtype='float32')
+        # goes_scene.save_dataset(layer, "/".join(path.split('/')[:-1]) + "/tif/" + out_file + '.tif')
 
     # get area defination for satpy, with new projection and bounding pox
     def get_areaDefination(self, EPSG, image_size, latitude, longitude, rectangular_size):

@@ -36,8 +36,8 @@ def viewtiff(v_file, g_file, date, save=False):
     q = ax[1].imshow(GOES_data.variable.data[0])
     # ploting Viirs on top of GOES
     ax[2].imshow((GOES_data.variable.data[0]) - (VIIRS_data.variable.data[0]))
-    # plt.colorbar(p, shrink=0.5)
-    # plt.colorbar(q, shrink=0.5)
+    plt.colorbar(p, shrink=0.5)
+    plt.colorbar(q, shrink=0.5)
 
     if (save):
         fig.savefig(f'{compare_dir}{date}.png')
@@ -59,7 +59,8 @@ def create_training_dataset(v_file, g_file, date, out_dir='data/dixie/training')
     vf = Image.open(v_file)
     gf = Image.open(g_file)
     vf = np.array(vf)[:, :]
-    gf = np.array(gf)[:, :, 0]
+    gf = np.array(gf)[:, :]
+    print(vf.dtype)
     if vf.shape != gf.shape:
         print("Failure {}".format(v_file))
         return
@@ -90,16 +91,17 @@ def shape_check(v_file, g_file):
     vf = Image.open(v_file)
     gf = Image.open(g_file)
     vf = np.array(vf)[:, :]
-    gf = np.array(gf)[:, :, 0]
+    gf = np.array(gf)[:, :]
     # (343,)(27, 47)
     print(vf.shape, gf.shape)
     print(PSNR(gf, vf))
 
 # the dataset created is evaluated visually and statistically
-def evaluate():
+def evaluate(product):
     viirs_list = os.listdir(viirs_dir)
+    goes_tif_dir = goes_dir +'/' + product + '/' + 'tif/'
     for v_file in viirs_list:
         g_file = "GOES" + v_file[5:]
-        create_training_dataset(viirs_dir + v_file, goes_dir + g_file, v_file[6:-4])
-        shape_check(viirs_dir + v_file, goes_dir + g_file)
-        viewtiff(viirs_dir + v_file, goes_dir + g_file, v_file[6:-4])
+        create_training_dataset(viirs_dir + v_file, goes_tif_dir + g_file, v_file[6:-4])
+        shape_check(viirs_dir + v_file, goes_tif_dir + g_file)
+        viewtiff(viirs_dir + v_file, goes_tif_dir + g_file, v_file[6:-4])
