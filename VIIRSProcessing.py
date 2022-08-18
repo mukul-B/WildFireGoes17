@@ -76,7 +76,7 @@ class VIIRSProcessing:
         fire_data_filter_on_timestamp = np.array(fire_data_filter_on_time)
 
         # creating pixel values used in tiff
-        b1_pixels = np.zeros((self.image_size), dtype=float)
+        b1_pixels = np.zeros(self.image_size, dtype=float)
         for k in range(1, fire_data_filter_on_timestamp.shape[0]):
             record = fire_data_filter_on_timestamp[k]
 

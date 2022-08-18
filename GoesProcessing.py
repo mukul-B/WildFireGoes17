@@ -8,14 +8,14 @@ Created on Sun Jul 23 11:17:09 2022
 @author: mukul
 """
 import datetime as dt
+
+import numpy as np
 import s3fs
-from pyresample import create_area_def
+from pyproj import Transformer
+from pyresample.geometry import AreaDefinition
 from satpy import Scene
-from xarray import Dataset
 
 from GlobalValues import RAD, FDC
-from pyresample.geometry import AreaDefinition
-from pyproj import Transformer
 
 
 class GoesProcessing:
@@ -36,7 +36,7 @@ class GoesProcessing:
         # product to g_reader for Satpy
         g_reader = product_name.split('-')
         self.g_reader = '_'.join(g_reader[:2]).lower()
-        self.g_reader = 'abi_l2_nc' if(self.g_reader == 'abi_l2') else self.g_reader
+        self.g_reader = 'abi_l2_nc' if (self.g_reader == 'abi_l2') else self.g_reader
         self.band = band
         self.product_name = product_name
 
@@ -52,7 +52,7 @@ class GoesProcessing:
         fs = s3fs.S3FileSystem(anon=True)
         band = ('C' + str(band).zfill(2) if band else "")
         # fdc does have commutative bands
-        band = "" if(self.product_name== FDC) else band
+        band = "" if (self.product_name == FDC) else band
         # Write prefix for the files of inteest, and list all files beginning with this prefix.
         prefix = f'{bucket_name}/{product_name}/{year}/{day_of_year:03.0f}/{hour:02.0f}/'
         file_prefix = f'OR_{product_name}-{mode}{band}_G17_s{year}{day_of_year:03.0f}{hour:02.0f}'
@@ -69,7 +69,7 @@ class GoesProcessing:
             self.failures.write("No Match found for {}\n".format(sDATE))
             return -1
 
-        # find closed goes fire from viirs( closest minutes)
+        # find closed goes fire from viirs( the closest minutes)
         last, closest = 0, 0
         for index, file in enumerate(files):
             fname = file.split("/")[-1]
@@ -97,7 +97,7 @@ class GoesProcessing:
         # creating bouding box from site information
         band = self.band
         band = ('C' + str(band).zfill(2) if band else "")
-        layer = "Mask" if(self.product_name == FDC) else band
+        layer = "Mask" if (self.product_name == FDC) else band
         latitude, longitude = site.latitude, site.longitude
         rectangular_size = site.rectangular_size
         EPSG = site.EPSG
@@ -111,24 +111,28 @@ class GoesProcessing:
         goes_scene = Scene(reader=self.g_reader,
                            filenames=[path])
         goes_scene.load([layer])
+        # print(area_def)
         goes_scene = goes_scene.resample(area_def)
+        # print('layer',layer)
 
-        # trying to filter goes data
-        # print(goes_scene[band])
+        # # trying to filter goes data
+        # # print(goes_scene[band])
         x = goes_scene.to_xarray_dataset()
-        rad = x[layer].values
-        # rad[rad < 30] = 0
-        # rad[rad > 35] = 0
-        print(rad)
-        x[layer].values = rad
-        goes_scene[layer].values = x[layer].values
-        print(goes_scene[layer])
-        print()
+        # rad = x[layer].values
+        # # rad[rad < 30] = 0
+        # # rad[rad > 35] = 0
+        # # print(rad)
+        # x[layer].values = rad
+        # goes_scene[layer].values = x[layer].values
 
         # saving output file
         out_file = "GOES-" + str(fire_date) + "_" + str(ac_time)
-        x.rio.to_raster(raster_path="/".join(path.split('/')[:-1]) + "/tif/" + out_file + '.tif',driver='GTiff',dtype='float32')
-        # goes_scene.save_dataset(layer, "/".join(path.split('/')[:-1]) + "/tif/" + out_file + '.tif')
+        out_path = "/".join(path.split('/')[:-1]) + "/tif/" + out_file + '.tif'
+        print(out_path)
+        # goes_scene[layer].rio.to_raster(raster_path=out_path, driver='GTiff', dtype='float32')
+
+        goes_scene.save_dataset(layer, filename=out_path)
+            # , writer='geotiff',dtype=np.float32
 
     # get area defination for satpy, with new projection and bounding pox
     def get_areaDefination(self, EPSG, image_size, latitude, longitude, rectangular_size):
