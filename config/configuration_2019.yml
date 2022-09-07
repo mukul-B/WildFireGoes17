@@ -1,0 +1,46 @@
+output_bucket: zhaoyutimtest
+
+rectangular_size: 0.6
+
+chuckegg_creek_fire:
+  longitude: -117.42
+  latitude: 58.38
+  start: 2019-05-15
+  end: 2019-05-22
+  EPSG: 32611
+
+black_angus_creek_wildfire:
+  longitude: -128.7
+  latitude: 59.55
+  start: 2019-05-27
+  end: 2019-05-31
+  EPSG: 32611
+
+eagle_bluff_fire:
+  longitude: -119.50
+  latitude: 49.42
+  start: 2019-08-05
+  end: 2019-08-10
+  EPSG: 32611
+
+tagish_lake_fire:
+  longitude: -134.35
+  latitude: 59.43
+  start: 2019-08-03
+  end: 2019-08-10
+  EPSG: 32611
+
+richter_creek_fire:
+  longitude: -119.66
+  latitude: 49.04
+  start: 2019-05-13
+  end: 2019-05-20
+  EPSG: 32611
+
+richter_mountain_fire:
+  longitude: -119.70
+  latitude: 49.06
+  start: 2019-07-26
+  end: 2019-07-30
+  EPSG: 32611
+

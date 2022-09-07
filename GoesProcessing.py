@@ -15,7 +15,9 @@ from pyproj import Transformer
 from pyresample.geometry import AreaDefinition
 from satpy import Scene
 
-from GlobalValues import RAD, FDC
+from GlobalValues import RAD, FDC, GOES_ndf
+import warnings
+warnings.filterwarnings('ignore')
 
 
 class GoesProcessing:
@@ -46,7 +48,7 @@ class GoesProcessing:
         year = sDATE.year
         hour = sDATE.hour
         minute = sDATE.minute
-        print(day_of_year, year, hour, minute)
+        # print(day_of_year, year, hour, minute)
 
         # Use anonymous credentials to access public data  from AWS
         fs = s3fs.S3FileSystem(anon=True)
@@ -65,7 +67,7 @@ class GoesProcessing:
 
         # return if file not present for criteria and write in log
         if len(files) == 0:
-            print("fine not found in GOES")
+            # print("fine not found in GOES")
             self.failures.write("No Match found for {}\n".format(sDATE))
             return -1
 
@@ -84,15 +86,20 @@ class GoesProcessing:
         first_file = files[closest]
         # out_file=  "GOES-"+str(fire_date)+"_"+str(ac_time)+".nc"
         out_file = first_file.split('/')[-1]
-        path = directory + '/' + product_name + "/" + out_file
-        print('\nDownloading files from AWS...', end='', flush=True)
-        fs.download(first_file, path)
-        print(files[closest], "completed")
+        # path = directory + '/' + product_name + "/" + out_file
+        # print(path)
+        path = GOES_ndf + "/" + out_file
+        from os.path import exists as file_exists
+
+        if not file_exists(path):
+            print('\nDownloading files from AWS...', end='', flush=True)
+            fs.download(first_file, path)
+            print(files[closest], "completed")
 
         return path
 
     #   resampling GOES file for given site and writing in a tiff file
-    def nc2tiff(self, fire_date, ac_time, path, site, image_size):
+    def nc2tiff(self, fire_date, ac_time, path, site, image_size,directory, product_name=RAD):
 
         # creating bouding box from site information
         band = self.band
@@ -117,7 +124,7 @@ class GoesProcessing:
 
         # # trying to filter goes data
         # # print(goes_scene[band])
-        x = goes_scene.to_xarray_dataset()
+        # x = goes_scene.to_xarray_dataset()
         # rad = x[layer].values
         # # rad[rad < 30] = 0
         # # rad[rad > 35] = 0
@@ -127,8 +134,15 @@ class GoesProcessing:
 
         # saving output file
         out_file = "GOES-" + str(fire_date) + "_" + str(ac_time)
-        out_path = "/".join(path.split('/')[:-1]) + "/tif/" + out_file + '.tif'
-        print(out_path)
+        out_path = directory + '/' + product_name+ "/tif/" + out_file + '.tif'
+        # out_path = "/".join(tifpath) + "/tif/" + out_file + '.tif'
+        # out_path = "/".join(path.split('/')[:-1]) + "/tif/" + out_file + '.tif'
+        # print(out_path)
+        # out_path2 = "/".join(path.split('/')[:-1]) + "/tif2/" + out_file + '.tif'
+        # print(out_path2)
+        # goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
+        # print(goes_scene[layer].values)
+        # goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
         # goes_scene[layer].rio.to_raster(raster_path=out_path, driver='GTiff', dtype='float32')
 
         goes_scene.save_dataset(layer, filename=out_path)
@@ -138,6 +152,7 @@ class GoesProcessing:
     def get_areaDefination(self, EPSG, image_size, latitude, longitude, rectangular_size):
         bottom_left = [latitude - rectangular_size, longitude - rectangular_size]
         top_right = [latitude + rectangular_size, longitude + rectangular_size]
+
         # transformining bounding box coordinates for new projection
         transformer = Transformer.from_crs(4326, EPSG)
         bottom_left_utm = [int(transformer.transform(bottom_left[0], bottom_left[1])[0]),
@@ -152,6 +167,7 @@ class GoesProcessing:
         projection = 'EPSG:' + str(EPSG)
         width = image_size[1]
         height = image_size[0]
+
         # the lat lon is changed when using utm !?
         area_extent = (bottom_left_utm[0], bottom_left_utm[1], top_right_utm[0], top_right_utm[1])
         area_def = AreaDefinition(area_id, description, proj_id, projection,

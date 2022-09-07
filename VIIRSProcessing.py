@@ -18,7 +18,7 @@ from SiteInfo import SiteInfo
 
 
 class VIIRSProcessing:
-    def __init__(self, year="2021", satellite="viirs-snpp", site=SiteInfo('dixie'), crs=32611, res=375):
+    def __init__(self, year="2021", satellite="viirs-snpp", site=None ,crs=32611, res=375):
 
         country = 'United_States'
         Sdirectory = "VIIRS_Source/" + satellite + "_" + year + "_" + country + ".csv"
@@ -90,7 +90,9 @@ class VIIRSProcessing:
                 continue
             # writing bright_ti4 ( record[2] )to tif
             b1_pixels[-cord_y, cord_x] = max(b1_pixels[-cord_y, cord_x], record[2])
-
+        # if np.max(b1_pixels) > 1:
+        #     b1_pixels = (b1_pixels / np.max(b1_pixels)) * 255
+        # print("--------------------", np.max(b1_pixels))
         out_file = 'data/' + self.location + '/VIIRS/' + 'FIRMS' + '-' + \
                    str(fire_date) + "_" + str(ac_time) + '.tif'
 
@@ -107,6 +109,5 @@ class VIIRSProcessing:
         srs.ImportFromEPSG(self.crs)  # WGS84 lat/long
         dst_ds.SetProjection(srs.ExportToWkt())  # export coords to file
         dst_ds.GetRasterBand(1).WriteArray(b1_pixels)  # write r-band to the raster
-        print(b1_pixels.shape)
         dst_ds.FlushCache()  # write to disk
         dst_ds = None

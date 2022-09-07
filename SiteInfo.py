@@ -9,11 +9,14 @@ Created on Sun Jul 23 11:17:09 2022
 
 import yaml
 
+from GlobalValues import site_conf
+
+
 class SiteInfo():
     def __init__(self,location="dixie"):
 
         self.location = location
-        with open("config/configuration.yml", "r", encoding="utf8") as f:
+        with open(site_conf, "r", encoding="utf8") as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
         self.start_time, self.end_time = config.get(location).get('start') , config.get(location).get('end')
         self.latitude , self.longitude = config.get(location).get('latitude') , config.get(location).get('longitude')
