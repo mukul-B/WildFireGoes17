@@ -3,70 +3,70 @@ output_bucket: zhaoyutimtest
 rectangular_size: 0.6
 
 Pinnacle Fire:
- longitude: 110.201
+ longitude: -110.201
  latitude: 32.865
  start: 2021-06-10
  end: 2021-07-16
  EPSG: 32611
 
 Backbone Fire:
- longitude: 111.677
+ longitude: -111.677
  latitude: 34.344
  start: 2021-06-16
  end: 2021-07-19
  EPSG: 32611
 
 Rafael Fire:
- longitude: 112.162
+ longitude: -112.162
  latitude: 34.942
  start: 2021-06-18
  end: 2021-07-15
  EPSG: 32611
 
 Telegraph fire :
- longitude: 111.092
+ longitude: -111.092
  latitude: 33.209
  start: 2021-06-04
  end: 2021-07-03
  EPSG: 32611
 
-dixie:
+Dixie:
  longitude: -121
  latitude: 40
- start: 2021-07-15
+ start: 2021-06-15
  end: 2021-08-15
  EPSG: 32611
 
 Monument:
- longitude: 123.33
+ longitude: -123.33
  latitude: 40.752
  start: 2021-07-30
  end: 2021-10-25
  EPSG: 32611
 
 Caldor:
- longitude: 120.53
+ longitude: -120.53
  latitude: 38.584
  start: 2021-08-15
  end: 2021-10-21
  EPSG: 32611
 
 River Complex:
- longitude: 123.018
+ longitude: -123.018
  latitude: 41.143
  start: 2021-07-30
  end: 2021-10-25
  EPSG: 32611
 
 Antelope:
- longitude: 121.919
+ longitude: -121.919
  latitude: 41.521
  start: 2021-08-01
  end: 2021-10-15
  EPSG: 32611
 
 McFarland:
- longitude: 123.034
+ longitude: -123.034
  latitude: 40.35
  start: 2021-07-29
  end: 2021-09-16
@@ -157,7 +157,7 @@ Cougar Peak:
  EPSG: 32611
 
 Devil's Knob Complex:
- longitude: 123.268
+ longitude: -123.268
  latitude: 41.915
  start: 2021-08-03
  end: 2021-10-19

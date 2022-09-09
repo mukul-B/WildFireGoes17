@@ -2,12 +2,6 @@ output_bucket: zhaoyutimtest
 
 rectangular_size: 0.6
 
-dixie:
-  longitude: -121.0
-  latitude: 40
-  start: 2021-06-15
-  end: 2021-08-15
-  EPSG: 32611
 
 LNU_lighting_complex:
   longitude: -122.237303
@@ -79,25 +73,11 @@ Cold_spring_fire:
   end: 2020-09-14
   EPSG: 32611
 
-Doctor_creek_fire:
-  longitude: -116.09788
-  latitude: 50.0911
-  start: 2020-08-18
-  end: 2020-08-24
-  EPSG: 32611
-
 creek_fire:
   longitude: -119.3
   latitude: 37.2
   start: 2020-09-05
   end: 2020-09-10
-  EPSG: 32611
-
-hanninge_fire:
-  longitude: 18.039856
-  latitude: 59.143003
-  start: 2020-05-31
-  end: 2020-06-03
   EPSG: 32611
 
 blue_ridge_fire:
@@ -121,19 +101,6 @@ chuckegg_creek_fire:
   end: 2019-05-22
   EPSG: 32611
 
-mexico_fire:
-  longitude: -102.73
-  latitude: 18.566
-  start: 2020-05-08
-  end: 2020-05-14
-  EPSG: 32611
-
-brazil_fire:
-  longitude: -52.097
-  latitude: -8.240
-  start: 2020-09-02
-  end: 2020-09-10
-  EPSG: 32611
 
 bond_fire:
   longitude: -117.67
@@ -142,26 +109,6 @@ bond_fire:
   end: 2020-12-07
   EPSG: 32611
 
-fraser_island_fire:
-  longitude: 153.13
-  latitude: -25.24
-  start: 2020-10-20
-  end: 2020-12-07
-  EPSG: 32611
-
-alberta_fire_1:
-  longitude: -118.069
-  latitude: 55.137
-  start: 2020-06-18
-  end: 2020-06-30
-  EPSG: 32611
-
-bc_fire_4:
-  longitude: -127.04
-  latitude: 53.91
-  start: 2020-10-10
-  end: 2020-10-11
-  EPSG: 32611
 
 washinton_fire:
   longitude: -119.556
@@ -233,13 +180,6 @@ slater_fire:
   end: 2020-09-30
   EPSG: 32611
 
-magee_fire:
-  longitude: -123.22
-  latitude: 49.88
-  start: 2020-04-15
-  end: 2020-04-16
-  EPSG: 32611
-
 black_angus_creek_wildfire:
   longitude: -128.7
   latitude: 59.55
@@ -261,17 +201,45 @@ tagish_lake_fire:
   end: 2019-08-10
   EPSG: 32611
 
-richter_creek_fire:
-  longitude: -119.66
-  latitude: 49.04
-  start: 2019-05-13
-  end: 2019-05-20
+
+
+bc_fire_4:
+  longitude: -127.04
+  latitude: 53.91
+  start: 2020-10-10
+  end: 2020-10-11
   EPSG: 32611
 
-richter_mountain_fire:
-  longitude: -119.70
-  latitude: 49.06
-  start: 2019-07-26
-  end: 2019-07-30
+fraser_island_fire:
+  longitude: 153.13
+  latitude: -25.24
+  start: 2020-10-20
+  end: 2020-12-07
   EPSG: 32611
 
+alberta_fire_1:
+  longitude: -118.069
+  latitude: 55.137
+  start: 2020-06-18
+  end: 2020-06-30
+  EPSG: 32611
+Doctor_creek_fire:
+  longitude: -116.09788
+  latitude: 50.0911
+  start: 2020-08-18
+  end: 2020-08-24
+  EPSG: 32611
+
+hanninge_fire:
+  longitude: 18.039856
+  latitude: 59.143003
+  start: 2020-05-31
+  end: 2020-06-03
+  EPSG: 32611
+
+magee_fire:
+  longitude: -123.22
+  latitude: 49.88
+  start: 2020-04-15
+  end: 2020-04-16
+  EPSG: 32611

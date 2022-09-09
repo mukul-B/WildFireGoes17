@@ -2,6 +2,63 @@ output_bucket: zhaoyutimtest
 
 rectangular_size: 0.6
 
+
+Kincade:
+ longitude: -122.780053
+ latitude: 38.792458
+ start: 2019-10-23
+ end: 2019-11-06
+ EPSG: 32611
+
+Walker:
+ longitude: -120.669
+ latitude: 40.053
+ start: 2019-09-04
+ end: 2019-09-25
+ EPSG: 32611
+
+Tucker:
+ longitude: -121.243
+ latitude: 41.726
+ start: 2019-07-28
+ end: 2019-08-15
+ EPSG: 32611
+
+Taboose:
+ longitude: -118.345
+ latitude: 37.034
+ start: 2019-09-04
+ end: 2019-11-21
+ EPSG: 32611
+
+Maria:
+ longitude: -118.997115
+ latitude: 34.302212
+ start: 2019-10-31
+ end: 2019-11-05
+ EPSG: 32611
+
+Red Bank:
+ longitude: -122.64
+ latitude: 40.12
+ start: 2019-09-05
+ end: 2019-09-13
+ EPSG: 32611
+
+Saddle Ridge:
+ longitude: -118.48161
+ latitude: 34.32988
+ start: 2019-10-10
+ end: 2019-10-31
+ EPSG: 32611
+
+Lone:
+ longitude: -121.576804
+ latitude: 39.434183
+ start: 2019-09-05
+ end: 2019-09-13
+ EPSG: 32611
+
 chuckegg_creek_fire:
   longitude: -117.42
   latitude: 58.38

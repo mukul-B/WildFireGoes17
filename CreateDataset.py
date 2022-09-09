@@ -37,9 +37,9 @@ def createDataset(location, product_name=RAD):
         # running for ever hhmm for perticular date
         for ac_time in unique_time:
             # print(fire_date, ac_time)
-            path = goes.download_goes(fire_date, str(ac_time), 'data/' + location + '/GOES', product_name=product_name)
+            path = goes.download_goes(fire_date, str(ac_time), 'reference_data/' + location + '/GOES', product_name=product_name)
 
             if (path != -1):
                 v2r_viirs.make_tiff(ac_time, fire_date, fire_data_filter_on_date_and_bbox)
-                goes.nc2tiff(fire_date, ac_time, path, site,v2r_viirs.image_size,'data/' + location + '/GOES', product_name=product_name)
+                # goes.nc2tiff(fire_date, ac_time, path, site,v2r_viirs.image_size,'reference_data/' + location + '/GOES', product_name=product_name)
 
