@@ -1,6 +1,6 @@
 import os
 
-from GlobalValues import data_dir, goes_folder, viirs_folder, compare, logs, training
+from GlobalValues import data_dir, goes_folder, viirs_folder, compare, logs, testing_dir, training_dir, GOES_ndf
 
 
 def prepareDir(location, product):
@@ -29,5 +29,12 @@ def prepareDir(location, product):
     # if not os.path.exists(data_dir + '/' + site_dir + '/' + training):
     #     os.mkdir(data_dir + '/' + site_dir + '/' + training)
 
-    if not os.path.exists(data_dir  + '/' + training):
-        os.mkdir(data_dir + '/' + training)
+    if not os.path.exists(training_dir):
+        os.mkdir(training_dir)
+
+    if not os.path.exists(testing_dir):
+        os.mkdir(testing_dir)
+
+    if not os.path.exists(GOES_ndf):
+        os.mkdir(GOES_ndf)
+

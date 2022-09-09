@@ -14,6 +14,7 @@ from osgeo import gdal
 from osgeo import osr
 from pyproj import Transformer
 
+from GlobalValues import viirs_dir
 from SiteInfo import SiteInfo
 
 
@@ -93,8 +94,10 @@ class VIIRSProcessing:
         # if np.max(b1_pixels) > 1:
         #     b1_pixels = (b1_pixels / np.max(b1_pixels)) * 255
         # print("--------------------", np.max(b1_pixels))
-        out_file = 'data/' + self.location + '/VIIRS/' + 'FIRMS' + '-' + \
-                   str(fire_date) + "_" + str(ac_time) + '.tif'
+
+        viirs_tif_dir = viirs_dir.replace('$LOC', self.location)
+
+        out_file = viirs_tif_dir + 'FIRMS' + '-' + str(fire_date) + "_" + str(ac_time) + '.tif'
 
         dst_ds = gdal.GetDriverByName('GTiff').Create(
             out_file, self.image_size[1],
