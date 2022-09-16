@@ -10,10 +10,13 @@ Created on  sep 15 11:17:09 2022
 import os
 from math import ceil
 
+import cartopy.crs as ccrs
 import numpy as np
+import rasterio
 from PIL import Image
 from cartopy.io.img_tiles import GoogleTiles
 from matplotlib import pyplot as plt
+from pyproj import Transformer
 
 from AutoEncoder.eval import supr_resolution
 from GlobalValues import runtime_dir
@@ -95,8 +98,51 @@ def plot_improvement(path='reference_data/Dixie/GOES/ABI-L1b-RadC/tif/GOES-2021-
     plt.savefig('result_for_video' + '/FRP_' + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
 
 
+def plot_improvement2(path):
+    print(path)
+    transformer = Transformer.from_crs(32611, 4326)
+    gfI = Image.open(path)
+    gf = np.array(gfI)[:, :, 0]
+    with rasterio.open(path, "r") as ds:
+        cfl = ds.read(1)
+        bl = transformer.transform(ds.bounds.left, ds.bounds.bottom)
+        tr = transformer.transform(ds.bounds.right, ds.bounds.top)
+
+    bbox = [bl[1], tr[1], bl[0], tr[0]]
+    print(bbox)
+    # [-121.10000645737921, -119.90000455967369, 38.39999129409932, 39.59999702266217]
+    # [-121,-120,38.5,39.5]
+
+    # data = [(ds.xy(x, y)[0], ds.xy(x, y)[1]) for x, y in np.ndindex(cfl.shape)]
+    data = [transformer.transform(ds.xy(x, y)[0], ds.xy(x, y)[1]) for x, y in np.ndindex(cfl.shape)]
+    lon = np.array([i[0] for i in data]).reshape(gf.shape)
+    lat = np.array([i[1] for i in data]).reshape(gf.shape)
+    with open('lat.npy', 'wb') as f:
+        np.save(f, lat)
+    with open('lon.npy', 'wb') as f:
+        np.save(f, lon)
+    with open('cfl.npy', 'wb') as f:
+        np.save(f, cfl)
+    exit(0)
+    # fig, axs = plt.subplots(1, 2, constrained_layout=True)
+    # axs[0].imshow(gf)
+    # axs[1].imshow(cfl)
+    # plt.show()
+    # 39.59825220841044 38.40175487695621
+    # -119.85506345950603 -121.1653760701311
+    proj = ccrs.PlateCarree()
+    # plt.figure(figsize=(6, 3))
+    ax = plt.axes(projection=proj)
+    # ax.add_image(StreetmapESRI(), 10)
+    # ax.set_extent([-121,-120,38.5,39.5])
+    # ax.set_extent(bbox)
+
+    p = ax.pcolormesh(lon, lat, cfl,
+                      transform=ccrs.PlateCarree())
+    plt.show()
+
 if __name__ == '__main__':
     dir = runtime_dir
     GOES_list = os.listdir(dir)
-    for i, gfile in enumerate(GOES_list):
-        plot_improvement(dir + gfile)
+    for i, gfile in enumerate(GOES_list[:1]):
+        plot_improvement2(dir + gfile)
