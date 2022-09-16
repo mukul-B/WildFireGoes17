@@ -1,8 +1,8 @@
 import imageio
 import glob
 image_list = []
-img_src = "../result_for_video"
-videos="../Videos"
+img_src = "RunTimeIncoming_results"
+videos="Videos"
 print('\nCompiling image list...', end='', flush=True)
 for img in sorted(glob.glob(img_src + '/*.png')):
     im = imageio.imread(img)

@@ -6,19 +6,18 @@ Created on Sun Jul 23 11:17:09 2022
 
 @author: mukul
 """
-import os
 
 import pandas as pd
 
 from CommonFunctions import prepareDir
-from DataSetCreation.CreateDataset import createDataset
-from DataSetCreation.Evaluation import evaluate
-from DataSetCreation.WriteDataset import writeDataset
-from GlobalValues import RAD, toExecuteSiteList, training_dir, testing_dir
+from CreateDataset import createDataset
+from Evaluation import evaluate
+from WriteDataset import writeDataset
+from GlobalValues import RAD, toExecuteSiteList, training_dir, runtimeSiteList
 
 if __name__ == '__main__':
 
-    data = pd.read_csv(toExecuteSiteList)
+    data = pd.read_csv(runtimeSiteList)
     locations = data["Sites"]
     product = RAD
     train_test = training_dir

@@ -13,7 +13,7 @@ from GlobalValues import site_conf
 
 
 class SiteInfo():
-    def __init__(self,location="dixie"):
+    def __init__(self,location=None):
 
         self.location = location
         with open(site_conf, "r", encoding="utf8") as f:
@@ -22,3 +22,5 @@ class SiteInfo():
         self.latitude , self.longitude = config.get(location).get('latitude') , config.get(location).get('longitude')
         self.rectangular_size = config.get('rectangular_size')
         self.EPSG = config.get(location).get('EPSG')
+
+# site = SiteInfo('Mosquito_fire')

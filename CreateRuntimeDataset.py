@@ -12,9 +12,9 @@ import os
 
 import pandas as pd
 
-from DataSetCreation.GoesProcessing import GoesProcessing
-from DataSetCreation.VIIRSProcessing import VIIRSProcessing
-from GlobalValues import RAD, runtime_dir, runtimeSiteList
+from GoesProcessing import GoesProcessing
+from VIIRSProcessing import VIIRSProcessing
+from GlobalValues import RAD, runtime_dir, runtimeSiteList, RunTimeIncoming_files, RunTimeIncoming_results, videos
 from SiteInfo import SiteInfo
 
 
@@ -43,8 +43,12 @@ def create_runtime_dataset(location, product_name=RAD):
 
 
 def prepareDir():
-    if not os.path.exists(runtime_dir):
-        os.mkdir(runtime_dir)
+    if not os.path.exists(RunTimeIncoming_files):
+        os.mkdir(RunTimeIncoming_files)
+    if not os.path.exists(RunTimeIncoming_results):
+        os.mkdir(RunTimeIncoming_results)
+    if not os.path.exists(videos):
+        os.mkdir(videos)
 
 
 if __name__ == '__main__':
