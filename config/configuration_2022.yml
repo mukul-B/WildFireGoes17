@@ -1,0 +1,10 @@
+output_bucket: zhaoyutimtest
+
+rectangular_size: 0.6
+#Mosquito_fire,-121,-120,38.5,39.5
+Mosquito_fire:
+ longitude: -120.5
+ latitude: 39
+ start: 2022-09-07
+ end: 2022-09-13
+ EPSG: 32611

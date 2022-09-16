@@ -5,7 +5,6 @@ from GlobalValues import data_dir, goes_folder, viirs_folder, compare, logs, tes
 
 def prepareDir(location, product):
     site_dir = location
-    print("hello")
     product_dir = product
 
     if not os.path.exists(data_dir):
@@ -16,8 +15,8 @@ def prepareDir(location, product):
         os.mkdir(data_dir + '/' + site_dir + '/' + goes_folder)
     if not os.path.exists(data_dir + '/' + site_dir + '/' + goes_folder + '/' + product_dir):
         os.mkdir(data_dir + '/' + site_dir + '/' + goes_folder + '/' + product_dir)
-    if not os.path.exists(data_dir + '/' + site_dir + '/' + goes_folder + '/' + product_dir + '/tif' ):
-        os.mkdir(data_dir + '/' + site_dir + '/' + goes_folder + '/' + product_dir+ '/tif')
+    if not os.path.exists(data_dir + '/' + site_dir + '/' + goes_folder + '/' + product_dir + '/tif'):
+        os.mkdir(data_dir + '/' + site_dir + '/' + goes_folder + '/' + product_dir + '/tif')
     if not os.path.exists(data_dir + '/' + site_dir + '/' + viirs_folder):
         os.mkdir(data_dir + '/' + site_dir + '/' + viirs_folder)
 
@@ -26,9 +25,6 @@ def prepareDir(location, product):
 
     if not os.path.exists(logs):
         os.mkdir(logs)
-    # if not os.path.exists(data_dir + '/' + site_dir + '/' + training):
-    #     os.mkdir(data_dir + '/' + site_dir + '/' + training)
-
     if not os.path.exists(training_dir):
         os.mkdir(training_dir)
 

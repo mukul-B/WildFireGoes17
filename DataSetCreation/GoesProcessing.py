@@ -1,6 +1,6 @@
 """
 This script contains GoesProcessing class contain functionality to
-to download GOES data for date , product band and mode
+to download GOES reference_data for date , product band and mode
 and resample it to tif file for particular site
 
 Created on Sun Jul 23 11:17:09 2022
@@ -8,15 +8,16 @@ Created on Sun Jul 23 11:17:09 2022
 @author: mukul
 """
 import datetime as dt
+import warnings
+from os.path import exists as file_exists
 
-import numpy as np
 import s3fs
 from pyproj import Transformer
 from pyresample.geometry import AreaDefinition
 from satpy import Scene
 
 from GlobalValues import RAD, FDC, GOES_ndf
-import warnings
+
 warnings.filterwarnings('ignore')
 
 
@@ -31,8 +32,8 @@ class GoesProcessing:
     def __del__(self):
         self.failures.close()
 
-    # download GOES data for date , product band and mode , finction have default values
-    def download_goes(self, fire_date, ac_time, directory, product_name=RAD, band=7, mode='M6',
+    # download GOES reference_data for date , product band and mode , finction have default values
+    def download_goes(self, fire_date, ac_time, product_name=RAD, band=7, mode='M6',
                       bucket_name='noaa-goes17'):
 
         # product to g_reader for Satpy
@@ -50,7 +51,7 @@ class GoesProcessing:
         minute = sDATE.minute
         # print(day_of_year, year, hour, minute)
 
-        # Use anonymous credentials to access public data  from AWS
+        # Use anonymous credentials to access public reference_data  from AWS
         fs = s3fs.S3FileSystem(anon=True)
         band = ('C' + str(band).zfill(2) if band else "")
         # fdc does have commutative bands
@@ -89,8 +90,6 @@ class GoesProcessing:
         # path = directory + '/' + product_name + "/" + out_file
         # print(path)
         path = GOES_ndf + "/" + out_file
-        from os.path import exists as file_exists
-
         if not file_exists(path):
             print('\nDownloading files from AWS...', end='', flush=True)
             fs.download(first_file, path)
@@ -99,7 +98,11 @@ class GoesProcessing:
         return path
 
     #   resampling GOES file for given site and writing in a tiff file
-    def nc2tiff(self, fire_date, ac_time, path, site, image_size,directory, product_name=RAD):
+    def nc2tiff(self, fire_date, ac_time, path, site, image_size, directory):
+
+        # ouput file location
+        out_file = "GOES-" + str(fire_date) + "_" + str(ac_time) + '.tif'
+        out_path = directory + out_file
 
         # creating bouding box from site information
         band = self.band
@@ -112,48 +115,19 @@ class GoesProcessing:
         area_def = self.get_areaDefination(EPSG, image_size, latitude, longitude, rectangular_size)
 
         # using satpy to crop goes for the given site
-        # g_reader = 'abi_l1b_nc'
-
-        # ABI - L1b - RadC
         goes_scene = Scene(reader=self.g_reader,
                            filenames=[path])
         goes_scene.load([layer])
-        # print(area_def)
         goes_scene = goes_scene.resample(area_def)
-        # print('layer',layer)
-
-        # # trying to filter goes data
-        # # print(goes_scene[band])
-        # x = goes_scene.to_xarray_dataset()
-        # rad = x[layer].values
-        # # rad[rad < 30] = 0
-        # # rad[rad > 35] = 0
-        # # print(rad)
-        # x[layer].values = rad
-        # goes_scene[layer].values = x[layer].values
-
-        # saving output file
-        out_file = "GOES-" + str(fire_date) + "_" + str(ac_time)
-        out_path = directory + '/' + product_name+ "/tif/" + out_file + '.tif'
-        # out_path = "/".join(tifpath) + "/tif/" + out_file + '.tif'
-        # out_path = "/".join(path.split('/')[:-1]) + "/tif/" + out_file + '.tif'
-        # print(out_path)
-        # out_path2 = "/".join(path.split('/')[:-1]) + "/tif2/" + out_file + '.tif'
-        # print(out_path2)
-        # goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
-        # print(goes_scene[layer].values)
-        # goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
-        # goes_scene[layer].rio.to_raster(raster_path=out_path, driver='GTiff', dtype='float32')
-
         goes_scene.save_dataset(layer, filename=out_path)
-            # , writer='geotiff',dtype=np.float32
+        # , writer='geotiff',dtype=np.float32
 
     # get area defination for satpy, with new projection and bounding pox
     def get_areaDefination(self, EPSG, image_size, latitude, longitude, rectangular_size):
         bottom_left = [latitude - rectangular_size, longitude - rectangular_size]
         top_right = [latitude + rectangular_size, longitude + rectangular_size]
 
-        # transformining bounding box coordinates for new projection
+        # transforming bounding box coordinates for new projection
         transformer = Transformer.from_crs(4326, EPSG)
         bottom_left_utm = [int(transformer.transform(bottom_left[0], bottom_left[1])[0]),
                            int(transformer.transform(bottom_left[0], bottom_left[1])[1])]

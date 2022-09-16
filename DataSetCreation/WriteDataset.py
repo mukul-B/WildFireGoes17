@@ -13,7 +13,7 @@ import os
 import numpy as np
 from PIL import Image
 
-from GlobalValues import viirs_dir, goes_dir, training_dir
+from GlobalValues import viirs_dir, goes_dir
 
 
 # create training dataset
@@ -27,12 +27,12 @@ def sliding_window(image, stepSize, windowSize):
 
 #  creating dataset in npy format containing both input and reference files ,
 # whole image is croped in window of size 128
-def create_training_dataset(v_file, g_file, date, out_dir,location):
+def create_training_dataset(v_file, g_file, date, out_dir, location):
     vf = Image.open(v_file)
     gf = Image.open(g_file)
     vf = np.array(vf)[:, :]
     # gf = np.array(gf)[:, :]
-    gf = np.array(gf)[:, :,0]
+    gf = np.array(gf)[:, :, 0]
 
     if vf.shape != gf.shape:
         print("Failure {}".format(v_file))
@@ -46,15 +46,15 @@ def create_training_dataset(v_file, g_file, date, out_dir,location):
         if np.count_nonzero(g_win) / g_win.size < 0.985:
             continue
         else:
-            np.save(os.path.join(out_dir, 'comb.' + location+'_'+date
+            np.save(os.path.join(out_dir, 'comb.' + location + '_' + date
                                  + '.' + str(x) + '.' + str(y) + '.npy'), window)
 
 
-def writeDataset(location, product):
+def writeDataset(location, product, train_test):
     viirs_tif_dir = viirs_dir.replace('$LOC', location)
     goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product)
-    train_dir = training_dir.replace('$LOC', location)
     viirs_list = os.listdir(viirs_tif_dir)
     for v_file in viirs_list:
         g_file = "GOES" + v_file[5:]
-        create_training_dataset(viirs_tif_dir + v_file, goes_tif_dir + g_file, v_file[6:-4], out_dir=train_dir,location=location)
+        create_training_dataset(viirs_tif_dir + v_file, goes_tif_dir + g_file, v_file[6:-4],
+                                out_dir=train_test, location=location)

@@ -10,7 +10,11 @@ Created on Sun Jul 26 11:17:09 2020
 @modified by: mukul badhan
 on Sun Jul 23 11:17:09 2022
 """
+import math
 import os
+import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -29,7 +33,6 @@ decoder_path = 'SuperRes_Decoder.pth'
 n_epochs = 1
 n_latents = 512
 batch_size = 1
-
 
 random_seed = 1
 torch.manual_seed(random_seed)
@@ -194,14 +197,8 @@ def PSNR(pred, gt, shave_border=0):
     return 20 * math.log10(255.0 / rmse)
 
 
-def main():
-    # Get List of downloaded files and set up reference_data loader
-    # file_list = os.listdir(im_dir)
-    # print(f'{len(file_list)} reference_data samples found')
-    # train_files, test_files = train_test_split(file_list, test_size=0.2, random_state=42)
-    test_files = os.listdir(im_dir)
-    print(f'{len(test_files)} reference_data samples found')
-    test_loader = DataLoader(npDataset(test_files, batch_size))
+def test_runner(npd):
+    test_loader = DataLoader(npd)
 
     # Set up the encoder, decoder. and optimizer
     encoder = Encoder(n_latents, 1)
@@ -213,6 +210,39 @@ def main():
 
     # test the model components
     test(test_loader, encoder, decoder)
+
+
+def supr_resolution(x):
+    encoder = Encoder(n_latents, 1)
+    decoder = Decoder(n_latents, 256)
+    encoder.load_state_dict(torch.load(encoder_path))
+    decoder.load_state_dict(torch.load(decoder_path))
+    encoder.cuda()
+    decoder.cuda()
+
+    x = np.array(x) / 255.
+    x = np.expand_dims(x, 1)
+    x = torch.Tensor(x)
+    with torch.no_grad():
+        x = x.cuda()
+        encoder_output = encoder(x)
+        output = decoder(encoder_output)
+        output = output.cpu()
+        x = x.cpu()
+        x = np.squeeze(x)
+        output = np.squeeze(output)
+        return output
+
+
+def main():
+    # Get List of downloaded files and set up reference_data loader
+    # file_list = os.listdir(im_dir)
+    # print(f'{len(file_list)} reference_data samples found')
+    # train_files, test_files = train_test_split(file_list, test_size=0.2, random_state=42)
+    test_files = os.listdir(im_dir)
+    print(f'{len(test_files)} reference_data samples found')
+    npd = npDataset(test_files, batch_size)
+    test_runner(npd)
 
 
 if __name__ == "__main__":

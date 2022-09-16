@@ -13,6 +13,9 @@ goes_dir = 'reference_data/$LOC/GOES/$PROD/tif/'
 training_dir= 'training_data/'
 testing_dir = 'testing_dir/'
 GOES_ndf = 'GOES_netcdfs'
-site_conf = 'config/configuration_2021.yml'
+site_conf = 'config/configuration_2022.yml'
 # toExecuteSiteList = "config/training_sites_2021"
 toExecuteSiteList = "config/testing_sites"
+runtimeSiteList = "config/runtime_sites"
+runtime_dir = 'RunTimeIncoming_files/'
+

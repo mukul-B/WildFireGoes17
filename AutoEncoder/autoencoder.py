@@ -7,32 +7,40 @@ autoencoder using MSE reconstruction loss for the superresolution.
 Created on Sun Jul 26 11:17:09 2020
 
 @author: mullenj
+
 @modified by: mukul badhan
 on Sun Jul 23 11:17:09 2022
+
 """
 import os
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
+import torch.optim as optim
+import wandb
 from sklearn.model_selection import train_test_split
-import time, math
-import matplotlib.pyplot as plt
+from torch.utils.data import Dataset, DataLoader
 
-from GlobalValues import training_dir, testing_dir
+from GlobalValues import training_dir
 
-im_dir = testing_dir
-
-encoder_path = 'SuperRes_Encoder.pth'
-decoder_path = 'SuperRes_Decoder.pth'
-n_epochs = 1
-n_latents = 512
-batch_size = 1
-
+im_dir = training_dir
+n_epochs = 100
+# n_latents = 512
+batch_size = 16
+learning_rate = 1e-5
+log_interval = 60
 
 random_seed = 1
 torch.manual_seed(random_seed)
+
+wandb.init(project="wildfire-project")
+wandb.config = {
+    "learning_rate": 1e-5,
+    "epochs": 100,
+    "batch_size": 16
+}
 
 
 class npDataset(Dataset):
@@ -72,7 +80,7 @@ class Encoder(nn.Module):
     This is the encoder portion
     """
 
-    def __init__(self, n_latents, in_features):
+    def __init__(self, in_features):
         super(Encoder, self).__init__()
         self.in_features = in_features
 
@@ -106,7 +114,7 @@ class Decoder(nn.Module):
     This is the decoder portion
     """
 
-    def __init__(self, n_latents, in_features):
+    def __init__(self, in_features):
         super(Decoder, self).__init__()
         self.in_features = in_features
 
@@ -135,84 +143,73 @@ class Decoder(nn.Module):
         return x
 
 
-def test(test_loader, encoder, decoder):
-    avg_psnr_predicted = 0.0
-    avg_psnr_control = 0.0
-    avg_elapsed_time = 0.0
-    count = 0.0
-    with torch.no_grad():
-        for batch_idx, (x, y) in enumerate(test_loader):
-            count += 1
-            print("Processing ", batch_idx)
-            psnr_bicubic = PSNR(x, y)
-            avg_psnr_control += psnr_bicubic
+def train(train_loader, test_loader, encoder, decoder, opt):
+    # Optional
+    batch_size = len(train_loader)
+    # print(batch_size)
+
+    for epoch in range(n_epochs + 1):
+        encoder.train()
+        decoder.train()
+        training_loss = 0
+        for batch_idx, (x, y) in enumerate(train_loader):
+            x, y = x.cuda(), y.cuda()
             x, y = torch.squeeze(x, dim=0), torch.squeeze(y, dim=0)
-            x = x.cuda()
-            start_time = time.time()
+            opt.zero_grad()
             encoder_output = encoder(x)
-            output = decoder(encoder_output)
-            elapsed_time = time.time() - start_time
-            avg_elapsed_time += elapsed_time
+            decoder_output = decoder(encoder_output)
+            loss = F.mse_loss(decoder_output, y)
+            loss.backward()
+            opt.step()
+            wandb.log({"batch_loss": loss, "epoch": epoch})
+            training_loss += loss.item()
+            if batch_idx % log_interval == 0:
+                print(f'Train Epoch: {epoch} [{batch_idx}/{len(train_loader.dataset)} ({loss.item()})]')
+        wandb.log({"training_loss": training_loss / batch_size, "epoch": epoch})
+        encoder.eval()
+        decoder.eval()
+        test_loss = 0
+        with torch.no_grad():
+            for x, y in test_loader:
+                x, y = x.cuda(), y.cuda()
+                x, y = torch.squeeze(x, dim=0), torch.squeeze(y, dim=0)
+                encoder_output = encoder(x)
 
-            output = output.cpu()
-            x = x.cpu()
+                decoder_output = decoder(encoder_output)
+                val_loss = F.mse_loss(decoder_output, y)
+                test_loss += val_loss
 
-            psnr_predicted = PSNR(output, y)
-            avg_psnr_predicted += psnr_predicted
-
-            x = np.squeeze(x)
-            output = np.squeeze(output)
-            y = np.squeeze(y)
-
-            nonzero =np.count_nonzero(y)
-            # print(nonzero,psnr_predicted)
-            # print(output.max())
-            if nonzero > 20 and psnr_predicted > 60:
-            # if count % 100 == 0:
-                fig, axs = plt.subplots(3, 1, constrained_layout=True)
-                axs[0].imshow(x)
-                axs[0].set_title('GOES Imagery')
-                axs[2].imshow(output)
-                # print(output)
-                axs[2].set_title('Network Prediction')
-                axs[1].imshow(y)
-                axs[1].set_title('VIIRS-I Imagery')
-                fig.savefig(f'results/{batch_idx}_{nonzero}_{psnr_predicted}.png')
-                plt.close()
-
-    print("PSNR_predicted=", avg_psnr_predicted / count)
-    print("PSNR_control=", avg_psnr_control / count)
-    print("It takes average {}s for processing".format(avg_elapsed_time / count))
-
-
-def PSNR(pred, gt, shave_border=0):
-    imdff = pred - gt
-    imdff = imdff.flatten()
-    rmse = math.sqrt(np.mean(np.array(imdff ** 2)))
-    if rmse == 0:
-        return 100
-    return 20 * math.log10(255.0 / rmse)
+        test_loss /= len(test_loader.dataset)
+        wandb.log({"val_loss": test_loss, "epoch": epoch})
+        print(f'Test Reconstruction Loss: ({test_loss})]')
+        # wandb.watch(encoder)
 
 
 def main():
     # Get List of downloaded files and set up reference_data loader
-    # file_list = os.listdir(im_dir)
-    # print(f'{len(file_list)} reference_data samples found')
-    # train_files, test_files = train_test_split(file_list, test_size=0.2, random_state=42)
-    test_files = os.listdir(im_dir)
-    print(f'{len(test_files)} reference_data samples found')
-    test_loader = DataLoader(npDataset(test_files, batch_size))
+    file_list = os.listdir(im_dir)
+    print(f'{len(file_list)} reference_data samples found')
+    train_files, test_files = train_test_split(file_list, test_size=0.2, random_state=42)
+    # print(len(train_files),len(test_files),len(train_files)/len(file_list),len(test_files)/len(file_list))
+    train_files, validation_files = train_test_split(train_files, test_size=0.2, random_state=42)
+    # print(len(train_files), len(validation_files), len(train_files) / len(file_list), len(validation_files) / len(file_list))
 
+    train_loader = DataLoader(npDataset(train_files, batch_size))
+    validation_loader = DataLoader(npDataset(test_files, batch_size))
+    print(
+        f'Training {len(train_files)} reference_data samples , validation {len(validation_files)} and testing {len(test_files)}')
     # Set up the encoder, decoder. and optimizer
-    encoder = Encoder(n_latents, 1)
-    decoder = Decoder(n_latents, 256)
-    encoder.load_state_dict(torch.load(encoder_path))
-    decoder.load_state_dict(torch.load(decoder_path))
+    encoder = Encoder(1)
+    decoder = Decoder(256)
     encoder.cuda()
     decoder.cuda()
+    opt = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=learning_rate)
 
-    # test the model components
-    test(test_loader, encoder, decoder)
+    # Train and save the model components
+    train(train_loader, validation_loader, encoder, decoder, opt)
+    torch.save(encoder.state_dict(), '../SuperRes_Encoder.pth')
+    torch.save(decoder.state_dict(), '../SuperRes_Decoder.pth')
+    torch.save(opt.state_dict(), '../SuperRes_Opt.pth')
 
 
 if __name__ == "__main__":
