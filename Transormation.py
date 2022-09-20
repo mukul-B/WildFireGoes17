@@ -7,6 +7,7 @@ Created on  sep 15 11:17:09 2022
 @author: mukul
 """
 
+import multiprocessing as mp
 import os
 from math import ceil
 
@@ -16,10 +17,11 @@ import rasterio
 from PIL import Image
 from cartopy.io.img_tiles import GoogleTiles
 from matplotlib import pyplot as plt
+from pandas.io.common import file_exists
 from pyproj import Transformer
 
-# from eval import supr_resolution
-from GlobalValues import viirs_dir, goes_dir, RAD
+from AutoEncoderEvaluation import supr_resolution
+from GlobalValues import RealTimeIncoming_files, RealTimeIncoming_results
 
 
 def pad_with(vector, pad_width, iaxis, kwargs):
@@ -50,8 +52,12 @@ def image2windows(gf):
 def padWindow(window):
     sx, sy = window.shape
     padx, pady = 128 - sx, 128 - sy
-    ro = np.pad(window, ((0, padx), (0, pady)), pad_with, padder=0)
-    # ro = supr_resolution([ro])
+    ro = window
+    # ro = np.pad(window, ((0, padx), (0, pady)), pad_with, padder=0)
+    if ro.shape != (128, 128):
+        ro = np.zeros(window.shape)
+    else:
+        ro = supr_resolution([ro])
     ro = ro[0:sx, 0:sy]
     return ro
 
@@ -83,19 +89,6 @@ class StreetmapESRI(GoogleTiles):
         return url
 
 
-def get_lon_lat(path):
-    transformer = Transformer.from_crs(32611, 4326)
-    with rasterio.open(path, "r") as ds:
-        cfl = ds.read(1)
-        bl = transformer.transform(ds.bounds.left, ds.bounds.bottom)
-        tr = transformer.transform(ds.bounds.right, ds.bounds.top)
-    bbox = [bl[1], tr[1], bl[0], tr[0]]
-    data = [transformer.transform(ds.xy(x, y)[0], ds.xy(x, y)[1]) for x, y in np.ndindex(cfl.shape)]
-    lon = np.array([i[0] for i in data]).reshape(cfl.shape)
-    lat = np.array([i[1] for i in data]).reshape(cfl.shape)
-    return bbox, lat, lon
-
-
 def plot_improvement(path='reference_data/Dixie/GOES/ABI-L1b-RadC/tif/GOES-2021-07-16_1012.tif'):
     d = path.split('/')[-1].split('.')[0][5:].split('_')
     gfI = Image.open(path)
@@ -111,45 +104,65 @@ def plot_improvement(path='reference_data/Dixie/GOES/ABI-L1b-RadC/tif/GOES-2021-
     plt.savefig('result_for_video' + '/FRP_' + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
 
 
-def plot_improvement2(gpath, vpath):
-    print(vpath)
+def plot_improvement2(gpath):
+    # print(gpath)
     d = gpath.split('/')[-1].split('.')[0][5:].split('_')
-    gfI = Image.open(vpath)
-    gf = np.array(gfI)[:, :]
-
+    gfI = Image.open(gpath)
+    gfin = np.array(gfI)[:, :, 0]
+    res = image2windows(gfin)
+    gf = windows2image(res)
     bbox, lat, lon = get_lon_lat(gpath)
 
     proj = ccrs.PlateCarree()
     # plt.figure(figsize=(6, 3))
     ax = plt.axes(projection=proj)
     ax.add_image(StreetmapESRI(), 10)
-    ax.set_extent(bbox)
-    gf[gf == 0] = None
+    # ax.set_extent(bbox)
+    gf[gf < 0.1] = None
     cmap = 'YlOrRd'
-    plt.suptitle('Mosquito Fire on {0} at {1}'.format(d[0], d[1]))
+    plt.suptitle('Mosquito Fire on {0} at {1} UTC'.format(d[0], d[1]))
     p = ax.pcolormesh(lat, lon, gf,
                       transform=ccrs.PlateCarree(),
                       cmap=cmap)
     # cbar = plt.colorbar(p, shrink=0.5)
-    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=0, alpha=0.5)
+    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=1, alpha=0.5)
+
     gl.top_labels = False
     gl.right_labels = False
-    gl.xlines = False
-    gl.ylines = False
-    plt.savefig('RunTimeIncoming_results' + '/FRP_' + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
+    # gl.xlines = False
+    # gl.ylines = False
+    gl.xlabel_style = {'size': 6, 'rotation': 30}
+    gl.ylabel_style = {'size': 6}
+    plt.tight_layout()
+    # plt.show()
+    print('/FRP_' + str(d[0] + '_' + d[1]) + '.png')
+    plt.savefig(RealTimeIncoming_results + '/FRP_' + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
+    plt.close()
+
+
+def get_lon_lat(path):
+    transformer = Transformer.from_crs(32611, 4326)
+    with rasterio.open(path, "r") as ds:
+        cfl = ds.read(1)
+        bl = transformer.transform(ds.bounds.left, ds.bounds.bottom)
+        tr = transformer.transform(ds.bounds.right, ds.bounds.top)
+    bbox = [bl[1], tr[1], bl[0], tr[0]]
+    data = [transformer.transform(ds.xy(x, y)[0], ds.xy(x, y)[1]) for x, y in np.ndindex(cfl.shape)]
+    lon = np.array([i[0] for i in data]).reshape(cfl.shape)
+    lat = np.array([i[1] for i in data]).reshape(cfl.shape)
+    return bbox, lat, lon
 
 
 if __name__ == '__main__':
-    # dir = runtime_dir
-    # GOES_list = os.listdir(dir)
-    # for gfile in GOES_list[:1]:
-    #     plot_improvement2(dir + gfile)
-
-    location = 'Mosquito_fire'
-    product = RAD
-    viirs_tif_dir = viirs_dir.replace('$LOC', location)
-    goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product)
-    goes_list = os.listdir(goes_tif_dir)
-    for g_file in goes_list[:2]:
-        v_file = "FIRMS-" + g_file[5:]
-        plot_improvement2(goes_tif_dir + g_file, viirs_tif_dir + v_file)
+    dir = RealTimeIncoming_files
+    GOES_list = os.listdir(dir)
+    print(GOES_list)
+    pool = mp.Pool(7)
+    pathC = RealTimeIncoming_results + '/FRP_'
+    for gfile in GOES_list:
+        if not file_exists(pathC + gfile[5:-3] + "png"):
+            pool.apply_async(plot_improvement2, args=(dir + gfile,))
+        # print(res.get())
+        #     plot_improvement2(dir + gfile)
+    pool.close()
+    pool.join()

@@ -115,8 +115,12 @@ class GoesProcessing:
         area_def = self.get_areaDefination(EPSG, image_size, latitude, longitude, rectangular_size)
 
         # using satpy to crop goes for the given site
-        goes_scene = Scene(reader=self.g_reader,
-                           filenames=[path])
+        try:
+            goes_scene = Scene(reader=self.g_reader,
+                               filenames=[path])
+        except:
+            self.failures.write("issue in satpy netcdf read {}\n".format(path))
+            return -1
         goes_scene.load([layer])
         goes_scene = goes_scene.resample(area_def)
         goes_scene.save_dataset(layer, filename=out_path)

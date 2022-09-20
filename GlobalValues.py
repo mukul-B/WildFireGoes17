@@ -17,8 +17,6 @@ site_conf = 'config/configuration_2022.yml'
 # toExecuteSiteList = "config/training_sites_2021"
 toExecuteSiteList = "config/testing_sites"
 runtimeSiteList = "config/runtime_sites"
-
-
-videos= 'Videos'
-RunTimeIncoming_files = 'RunTimeIncoming_files'
-RunTimeIncoming_results = 'RunTimeIncoming_results'
+videos= 'Videos/'
+RealTimeIncoming_files = 'RealTimeIncoming_files/'
+RealTimeIncoming_results = 'RealTimeIncoming_results/'
