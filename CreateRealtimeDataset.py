@@ -14,8 +14,7 @@ import pandas as pd
 
 from GoesProcessing import GoesProcessing
 from VIIRSProcessing import VIIRSProcessing
-from GlobalValues import RAD, runtimeSiteList, RealTimeIncoming_files, RealTimeIncoming_results, videos
-from GlobalValues import RAD, runtimeSiteList, RunTimeIncoming_files, RunTimeIncoming_results, videos
+from GlobalValues import RAD, realtimeSiteList, RealTimeIncoming_files, RealTimeIncoming_results, videos
 from SiteInfo import SiteInfo
 import multiprocessing as mp
 
@@ -24,8 +23,6 @@ def create_realtime_dataset(location, product_name=RAD):
     # print(site,"------------------",location)
     start_time, end_time = site.start_time, site.end_time
     time_dif = end_time - start_time
-
-
 
     log_path = 'logs/failures_' + location + '_' + str(site.start_time) + '_' + str(site.end_time) + '.txt'
 
@@ -59,10 +56,10 @@ def prepareDir():
     if not os.path.exists(RealTimeIncoming_results):
         os.mkdir(RealTimeIncoming_results)
 
-    if not os.path.exists(RunTimeIncoming_files):
-        os.mkdir(RunTimeIncoming_files)
-    if not os.path.exists(RunTimeIncoming_results):
-        os.mkdir(RunTimeIncoming_results)
+    if not os.path.exists(RealTimeIncoming_files):
+        os.mkdir(RealTimeIncoming_files)
+    if not os.path.exists(RealTimeIncoming_results):
+        os.mkdir(RealTimeIncoming_results)
 
     if not os.path.exists(videos):
         os.mkdir(videos)
@@ -70,8 +67,8 @@ def prepareDir():
 
 if __name__ == '__main__':
 
-    print(runtimeSiteList)
-    data = pd.read_csv(runtimeSiteList)
+    print(realtimeSiteList)
+    data = pd.read_csv(realtimeSiteList)
     locations = data["Sites"]
     product = RAD
     # pool = mp.Pool(8)
