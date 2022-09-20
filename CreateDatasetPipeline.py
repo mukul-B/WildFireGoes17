@@ -20,8 +20,8 @@ if __name__ == '__main__':
     data = pd.read_csv(toExecuteSiteList)
     locations = data["Sites"]
     product = RAD
-    # train_test = training_dir
-    train_test = testing_dir
+    train_test = training_dir
+    # train_test = testing_dir
     # pipeline run for sites mentioned in toExecuteSiteList
     for location in locations:
         print(location)
