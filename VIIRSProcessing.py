@@ -110,44 +110,53 @@ class VIIRSProcessing:
             b1_pixels[-cord_y, cord_x] = record[2]
             value.append(record[2])
 
-        # b1_pixels = self.interpolation(b1_pixels, value, x, y)
+        b1_pixels = self.interpolation(b1_pixels, value, x, y)
 
         self.gdal_writter(b1_pixels, out_file)
 
     def interpolation(self, b1_pixels, value, x, y):
-        #     --------------------
-        #     ------.-------------
-        #     --------------------
-        # for i in range(len(b1_pixels)):
-        #     for j in range(len(b1_pixels[0])):
-        #         x.append(i)
-        #         y.append(j)
-        #         value.append(b1_pixels[i, j])
-        points = np.array([x, y]).T
-        values = np.array(value)
-        print(points)
-        print(values)
-        print(self.xmin, self.xmax, self.nx, int((self.xmax - self.xmin) // self.res))
-        print("------------")
-        print(self.ymin, self.ymax, self.ny)
+        # points = np.array([x, y]).T
+        # values = np.array(value)
         grid_x = np.linspace(self.xmin, self.xmax, self.nx)
         grid_y = np.linspace(self.ymin, self.ymax, self.ny)
         grid_x, grid_y = np.meshgrid(grid_x, grid_y)
-        grid_xx = grid_x.flatten().reshape(-1, 1)
-        grid_yy = grid_y.flatten().reshape(-1, 1)
+
+        testt = b1_pixels * 1.0
+        for ii in range(1, testt.shape[0] - 1):
+            for jj in range(1, testt.shape[1] - 1):
+                if b1_pixels[ii, jj] == 0:
+                    if b1_pixels[ii, jj + 1] != 0 or b1_pixels[ii + 1, jj] != 0 or b1_pixels[ii + 1, jj + 1] != 0 or \
+                            b1_pixels[ii - 1, jj - 1] != 0 or b1_pixels[ii - 1, jj] != 0 or b1_pixels[ii, jj - 1] != 0:
+                        testt[ii, jj] = -9999
+
+        filtered_b1 = []
+        bia_x = []
+        bia_y = []
+        for ss in range(testt.flatten().shape[0]):
+            if testt.flatten()[ss] != -9999:
+                filtered_b1.append(testt.flatten()[ss])
+                bia_x.append(grid_x.flatten()[ss])
+                bia_y.append(grid_y.flatten()[ss])
+
+        filtered_b1 = np.array(filtered_b1)
+        grid_xx = np.array(bia_x).reshape(-1, 1)
+        grid_yy = np.array(bia_y).reshape(-1, 1)
         grid = np.hstack((grid_xx, grid_yy))
+
         # grid_z = griddata(points, values, (grid_x,grid_y), method='linear',fill_value=0)
-        grid_z = griddata(grid, b1_pixels.flatten(), (grid_x, grid_y), method='cubic', fill_value=0)
+        grid_z = griddata(grid, filtered_b1, (grid_x, grid_y), method='nearest', fill_value=0)
+
+
         fig, axs = plt.subplots(3, 1, constrained_layout=True)
         axs[0].imshow(grid_z)
         # cubic
         axs[1].imshow(b1_pixels)
         axs[2].imshow(grid_z - b1_pixels)
         plt.show()
-        exit(0)
-        if np.max(b1_pixels) > 1:
-            b1_pixels = (b1_pixels / np.max(b1_pixels)) * 255
-        print("--------------------", np.max(b1_pixels))
+        # exit(0)
+        # if np.max(b1_pixels) > 1:
+        #     b1_pixels = (b1_pixels / np.max(b1_pixels)) * 255
+        # print("--------------------", np.max(b1_pixels))
         return b1_pixels
 
     def gdal_writter(self, b1_pixels, out_file):
