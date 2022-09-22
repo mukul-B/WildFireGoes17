@@ -13,10 +13,8 @@ import pandas as pd
 from osgeo import gdal
 from osgeo import osr
 from pyproj import Transformer
-
-from GlobalValues import viirs_dir
 from scipy.interpolate import griddata
-import matplotlib.pyplot as plt
+from GlobalValues import viirs_dir
 
 
 class VIIRSProcessing:
@@ -90,11 +88,9 @@ class VIIRSProcessing:
         value = []
         for k in range(1, fire_data_filter_on_timestamp.shape[0]):
             record = fire_data_filter_on_timestamp[k]
-
             # transforming lon lat to utm
             lon_point = self.transformer.transform(record[0], record[1])[0]
             lat_point = self.transformer.transform(record[0], record[1])[1]
-
             cord_x = int((lon_point - self.xmin) // self.res)
             cord_y = int((lat_point - self.ymin) // self.res)
             if cord_x >= self.nx or cord_y >= self.ny:
@@ -103,61 +99,41 @@ class VIIRSProcessing:
             # 122 -140 58 2021-07-16 1012 21926.29492325522 52647.5308539886
             # 137 -140 58 2021-07-16 1012 21806.47712273756 52779.97441741172
             # writing bright_ti4 ( record[2] )to tif
-            x.append(lon_point)
-            y.append(lat_point)
-
-            # b1_pixels[-cord_y, cord_x] = max(b1_pixels[-cord_y, cord_x], record[2])
-            b1_pixels[-cord_y, cord_x] = record[2]
-            value.append(record[2])
-
-        b1_pixels = self.interpolation(b1_pixels, value, x, y)
-
+            b1_pixels[-cord_y, cord_x] = max(b1_pixels[-cord_y, cord_x], record[2])
+        b1_pixels = self.interpolation(b1_pixels)
         self.gdal_writter(b1_pixels, out_file)
 
-    def interpolation(self, b1_pixels, value, x, y):
-        # points = np.array([x, y]).T
-        # values = np.array(value)
+    # check if the zero is farbackground or surronding the fire, used for interpolation
+    def nonback_zero(self, b1_pixels, ii, jj):
+        checks = [(ii + 1, jj - 1), (ii + 1, jj), (ii + 1, jj + 1), (ii - 1, jj - 1), (ii - 1, jj),
+                  (ii - 1, jj + 1), (ii, jj - 1), (ii, jj + 1)]
+        for m, n in checks:
+            if b1_pixels[m, n] != 0.0:
+                return True
+        return False
+
+    def interpolation(self, b1_pixels):
         grid_x = np.linspace(self.xmin, self.xmax, self.nx)
         grid_y = np.linspace(self.ymin, self.ymax, self.ny)
         grid_x, grid_y = np.meshgrid(grid_x, grid_y)
-
-        testt = b1_pixels * 1.0
-        for ii in range(1, testt.shape[0] - 1):
-            for jj in range(1, testt.shape[1] - 1):
-                if b1_pixels[ii, jj] == 0:
-                    if b1_pixels[ii, jj + 1] != 0 or b1_pixels[ii + 1, jj] != 0 or b1_pixels[ii + 1, jj + 1] != 0 or \
-                            b1_pixels[ii - 1, jj - 1] != 0 or b1_pixels[ii - 1, jj] != 0 or b1_pixels[ii, jj - 1] != 0:
-                        testt[ii, jj] = -9999
-
-        filtered_b1 = []
-        bia_x = []
-        bia_y = []
-        for ss in range(testt.flatten().shape[0]):
-            if testt.flatten()[ss] != -9999:
-                filtered_b1.append(testt.flatten()[ss])
-                bia_x.append(grid_x.flatten()[ss])
-                bia_y.append(grid_y.flatten()[ss])
-
-        filtered_b1 = np.array(filtered_b1)
-        grid_xx = np.array(bia_x).reshape(-1, 1)
-        grid_yy = np.array(bia_y).reshape(-1, 1)
+        filtered_b12 = []
+        bia_x2 = []
+        bia_y2 = []
+        for ii in range(0, b1_pixels.shape[0]):
+            for jj in range(0, b1_pixels.shape[1]):
+                if ii != 0 and ii != (b1_pixels.shape[0] - 1) and jj != 0 and jj != (b1_pixels.shape[1] - 1):
+                    if b1_pixels[ii, jj] == 0:
+                        if self.nonback_zero(b1_pixels, ii, jj):
+                            continue
+                filtered_b12.append(b1_pixels[ii, jj])
+                bia_x2.append(grid_x[ii, jj])
+                bia_y2.append(grid_y[ii, jj])
+        filtered_b1 = np.array(filtered_b12)
+        grid_xx = np.array(bia_x2).reshape(-1, 1)
+        grid_yy = np.array(bia_y2).reshape(-1, 1)
         grid = np.hstack((grid_xx, grid_yy))
-
-        # grid_z = griddata(points, values, (grid_x,grid_y), method='linear',fill_value=0)
         grid_z = griddata(grid, filtered_b1, (grid_x, grid_y), method='nearest', fill_value=0)
-
-
-        fig, axs = plt.subplots(3, 1, constrained_layout=True)
-        axs[0].imshow(grid_z)
-        # cubic
-        axs[1].imshow(b1_pixels)
-        axs[2].imshow(grid_z - b1_pixels)
-        plt.show()
-        # exit(0)
-        # if np.max(b1_pixels) > 1:
-        #     b1_pixels = (b1_pixels / np.max(b1_pixels)) * 255
-        # print("--------------------", np.max(b1_pixels))
-        return b1_pixels
+        return grid_z
 
     def gdal_writter(self, b1_pixels, out_file):
         dst_ds = gdal.GetDriverByName('GTiff').Create(
