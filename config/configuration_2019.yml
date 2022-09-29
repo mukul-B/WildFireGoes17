@@ -8,7 +8,7 @@ Kincade:
  latitude: 38.792458
  start: 2019-10-23
  end: 2019-11-06
- EPSG: 32611
+ EPSG: 32610
 
 Walker:
  longitude: -120.669
@@ -22,7 +22,7 @@ Tucker:
  latitude: 41.726
  start: 2019-07-28
  end: 2019-08-15
- EPSG: 32611
+ EPSG: 32610
 
 Taboose:
  longitude: -118.345
@@ -43,7 +43,7 @@ Red Bank:
  latitude: 40.12
  start: 2019-09-05
  end: 2019-09-13
- EPSG: 32611
+ EPSG: 32610
 
 Saddle Ridge:
  longitude: -118.48161
@@ -57,7 +57,7 @@ Lone:
  latitude: 39.434183
  start: 2019-09-05
  end: 2019-09-13
- EPSG: 32611
+ EPSG: 32610
 
 chuckegg_creek_fire:
   longitude: -117.42
@@ -66,24 +66,10 @@ chuckegg_creek_fire:
   end: 2019-05-22
   EPSG: 32611
 
-black_angus_creek_wildfire:
-  longitude: -128.7
-  latitude: 59.55
-  start: 2019-05-27
-  end: 2019-05-31
-  EPSG: 32611
-
 eagle_bluff_fire:
   longitude: -119.50
   latitude: 49.42
   start: 2019-08-05
-  end: 2019-08-10
-  EPSG: 32611
-
-tagish_lake_fire:
-  longitude: -134.35
-  latitude: 59.43
-  start: 2019-08-03
   end: 2019-08-10
   EPSG: 32611
 

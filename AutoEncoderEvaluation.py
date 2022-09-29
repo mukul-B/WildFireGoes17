@@ -22,16 +22,15 @@ from torch.utils.data import DataLoader
 
 from Autoencoder import Encoder, Decoder
 from AutoencoderDataset import npDataset
-from GlobalValues import testing_dir, training_dir
+from GlobalValues import testing_dir, training_dir, Results, model_path
 
 im_dir2 = testing_dir
 im_dir = training_dir
 
-encoder_path = 'SuperRes_Encoder.pth'
-decoder_path = 'SuperRes_Decoder.pth'
+encoder_path = model_path+'SuperRes_Encoder.pth'
+decoder_path = model_path+'SuperRes_Decoder.pth'
 n_epochs = 1
 batch_size = 1
-
 random_seed = 1
 torch.manual_seed(random_seed)
 
@@ -68,8 +67,8 @@ def test(test_loader, encoder, decoder):
             nonzero = np.count_nonzero(y)
             # print(nonzero,psnr_predicted)
             # print(output.max())
-            if True:
-            # if nonzero > 20 and psnr_predicted > 60:
+            # if True:
+            if nonzero > 20 and psnr_predicted > 60:
                 # if count % 100 == 0:
                 fig, axs = plt.subplots(3, 1, constrained_layout=True)
                 axs[0].imshow(x)
@@ -79,7 +78,7 @@ def test(test_loader, encoder, decoder):
                 axs[2].set_title('Network Prediction')
                 axs[1].imshow(y)
                 axs[1].set_title('VIIRS-I Imagery')
-                fig.savefig(f'results/{batch_idx}_{nonzero}_{psnr_predicted}.png')
+                fig.savefig(f'{Results}/{batch_idx}_{nonzero}_{psnr_predicted}.png')
                 plt.close()
 
     print("PSNR_predicted=", avg_psnr_predicted / count)
@@ -133,8 +132,14 @@ def supr_resolution(x):
         return output
 
 
+def prepare_dir():
+    if not os.path.exists(Results):
+        os.mkdir(Results)
+
+
 def main():
     # Get List of downloaded files and set up reference_data loader
+    prepare_dir()
     file_list = os.listdir(im_dir)
     print(f'{len(file_list)} reference_data samples found')
     train_files, test_files = train_test_split(file_list, test_size=0.2, random_state=42)

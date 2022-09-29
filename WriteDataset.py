@@ -31,8 +31,8 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
     vf = Image.open(v_file)
     gf = Image.open(g_file)
     vf = np.array(vf)[:, :]
-    # gf = np.array(gf)[:, :]
-    gf = np.array(gf)[:, :, 0]
+    gf = np.array(gf)[:, :]
+    # gf = np.array(gf)[:, :, 0]
 
     if vf.shape != gf.shape:
         print("Failure {}".format(v_file))

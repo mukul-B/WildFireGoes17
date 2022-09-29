@@ -14,6 +14,8 @@ from osgeo import gdal
 from osgeo import osr
 from pyproj import Transformer
 from scipy.interpolate import griddata
+from trollimage.xrimage import XRImage
+
 from GlobalValues import viirs_dir
 
 
@@ -46,6 +48,7 @@ class VIIRSProcessing:
         # https://www.youtube.com/watch?v=LcVlx4Gur7I
 
         # https://epsg.io/32611
+        # 32610 (126 to 120) ;32611 (120 to 114) ;32612 (114 to 108)
 
         self.transformer = Transformer.from_crs(4326, self.crs)
         bottom_left_utm = [int(self.transformer.transform(bottom_left[0], bottom_left[1])[0]),
@@ -84,8 +87,6 @@ class VIIRSProcessing:
 
         # creating pixel values used in tiff
         b1_pixels = np.zeros(self.image_size, dtype=float)
-        x, y = [], []
-        value = []
         for k in range(1, fire_data_filter_on_timestamp.shape[0]):
             record = fire_data_filter_on_timestamp[k]
             # transforming lon lat to utm
@@ -101,6 +102,11 @@ class VIIRSProcessing:
             # writing bright_ti4 ( record[2] )to tif
             b1_pixels[-cord_y, cord_x] = max(b1_pixels[-cord_y, cord_x], record[2])
         b1_pixels = self.interpolation(b1_pixels)
+        max_val = np.max(b1_pixels)
+        if max_val > 1:
+            b1_pixels = (b1_pixels / max_val) * 255
+        b1_pixels = b1_pixels.astype(int)
+        # print("--------------------", np.max(b1_pixels))
         self.gdal_writter(b1_pixels, out_file)
 
     # check if the zero is farbackground or surronding the fire, used for interpolation
@@ -133,6 +139,7 @@ class VIIRSProcessing:
         grid_yy = np.array(bia_y2).reshape(-1, 1)
         grid = np.hstack((grid_xx, grid_yy))
         grid_z = griddata(grid, filtered_b1, (grid_x, grid_y), method='nearest', fill_value=0)
+        # plot_sample([b1_pixels, grid_z], ["Rasterized VIIRS", "Interpolated VIIRS"])
         return grid_z
 
     def gdal_writter(self, b1_pixels, out_file):

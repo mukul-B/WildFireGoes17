@@ -1,5 +1,7 @@
 import os
 
+from matplotlib import pyplot as plt
+
 from GlobalValues import data_dir, goes_folder, viirs_folder, compare, logs, testing_dir, training_dir, GOES_ndf
 
 
@@ -34,3 +36,10 @@ def prepareDir(location, product):
     if not os.path.exists(GOES_ndf):
         os.mkdir(GOES_ndf)
 
+def plot_sample(col,titles):
+    num = len(col)
+    fig, axs = plt.subplots(1, num, constrained_layout=True)
+    for i, j in enumerate(col):
+        axs[i].imshow(j)
+        axs[i].set_title(titles[i])
+    plt.show()
