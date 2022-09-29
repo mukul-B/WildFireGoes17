@@ -7,42 +7,42 @@ Pinnacle Fire:
  latitude: 32.865
  start: 2021-06-10
  end: 2021-07-16
- EPSG: 32611
+ EPSG: 32612
 
 Backbone Fire:
  longitude: -111.677
  latitude: 34.344
  start: 2021-06-16
  end: 2021-07-19
- EPSG: 32611
+ EPSG: 32612
 
 Rafael Fire:
  longitude: -112.162
  latitude: 34.942
  start: 2021-06-18
  end: 2021-07-15
- EPSG: 32611
+ EPSG: 32612
 
 Telegraph fire :
  longitude: -111.092
  latitude: 33.209
  start: 2021-06-04
  end: 2021-07-03
- EPSG: 32611
+ EPSG: 32612
 
 Dixie:
  longitude: -121
  latitude: 40
  start: 2021-06-15
- end: 2021-08-15
- EPSG: 32611
+ end: 2021-08-16
+ EPSG: 32610
 
 Monument:
  longitude: -123.33
  latitude: 40.752
  start: 2021-07-30
  end: 2021-10-25
- EPSG: 32611
+ EPSG: 32610
 
 Caldor:
  longitude: -120.53
@@ -56,21 +56,21 @@ River Complex:
  latitude: 41.143
  start: 2021-07-30
  end: 2021-10-25
- EPSG: 32611
+ EPSG: 32610
 
 Antelope:
  longitude: -121.919
  latitude: 41.521
  start: 2021-08-01
  end: 2021-10-15
- EPSG: 32611
+ EPSG: 32610
 
 McFarland:
  longitude: -123.034
  latitude: 40.35
  start: 2021-07-29
  end: 2021-09-16
- EPSG: 32611
+ EPSG: 32610
 
 Beckwourth Complex:
  longitude: -118.811
@@ -91,7 +91,7 @@ McCash:
  latitude: 41.564
  start: 2021-07-31
  end: 2021-10-27
- EPSG: 32611
+ EPSG: 32610
 
 KNP Complex:
  longitude: -118.811
@@ -119,77 +119,77 @@ Lava:
  latitude: 41.459
  start: 2021-06-25
  end: 2021-09-03
- EPSG: 32611
+ EPSG: 32610
 
 Alisal:
  longitude: -120.131
  latitude: 34.517
  start: 2021-10-11
  end: 2021-11-16
- EPSG: 32611
+ EPSG: 32610
 
 Salt:
  longitude: -122.336
  latitude: 40.849
  start: 2021-06-30
  end: 2021-07-19
- EPSG: 32611
+ EPSG: 32610
 
 Tennant:
  longitude: -122.039
  latitude: 41.665
  start: 2021-06-28
  end: 2021-07-12
- EPSG: 32611
+ EPSG: 32610
 
 Bootleg:
  longitude: -121.421
  latitude: 42.616
  start: 2021-07-06
  end: 2021-08-14
- EPSG: 32611
+ EPSG: 32610
 
 Cougar Peak:
  longitude: -120.613
  latitude: 42.277
  start: 2021-09-07
  end: 2021-10-21
- EPSG: 32611
+ EPSG: 32610
 
 Devil's Knob Complex:
  longitude: -123.268
  latitude: 41.915
  start: 2021-08-03
  end: 2021-10-19
- EPSG: 32611
+ EPSG: 32610
 
 Rough Patch Complex:
  longitude: -122.676
  latitude: 43.511
  start: 2021-07-29
  end: 2021-11-29
- EPSG: 32611
+ EPSG: 32610
 
 Middle Fork Complex:
  longitude: -122.409
  latitude: 43.869
  start: 2021-07-29
  end: 2021-12-13
- EPSG: 32611
+ EPSG: 32610
 
 Bull Complex:
  longitude: -122.009
  latitude: 44.879
  start: 2021-08-02
  end: 2021-11-19
- EPSG: 32611
+ EPSG: 32610
 
 Jack:
  longitude: -122.686
  latitude: 43.322
  start: 2021-07-05
  end: 2021-11-29
- EPSG: 32611
+ EPSG: 32610
 
 Elbow Creek:
  longitude: -117.619
@@ -224,21 +224,21 @@ Wrentham Market:
  latitude: 45.49
  start: 2021-06-29
  end: 2021-07-03
- EPSG: 32611
+ EPSG: 32610
 
 S-503:
  longitude: -121.476
  latitude: 45.087
  start: 2021-06-18
  end: 2021-08-18
- EPSG: 32611
+ EPSG: 32610
 
 Grandview:
  longitude: -121.4
  latitude: 44.466
  start: 2021-07-11
  end: 2021-07-25
- EPSG: 32611
+ EPSG: 32610
 
 Lick Creek Fire:
  longitude: -117.416
