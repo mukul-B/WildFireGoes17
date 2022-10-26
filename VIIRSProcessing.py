@@ -7,16 +7,18 @@ Created on Sun Jul 23 11:17:09 2022
 
 @author: mukul
 """
-
+import numpy
 import numpy as np
 import pandas as pd
 from osgeo import gdal
 from osgeo import osr
 from pyproj import Transformer
 from scipy.interpolate import griddata
-from trollimage.xrimage import XRImage
+from sklearn.neighbors import NearestNeighbors
+from scipy import interpolate
 
 from GlobalValues import viirs_dir
+from scipy.interpolate import LinearNDInterpolator
 
 
 class VIIRSProcessing:
@@ -87,13 +89,111 @@ class VIIRSProcessing:
 
         # creating pixel values used in tiff
         b1_pixels = np.zeros(self.image_size, dtype=float)
+        b2_pixels = np.zeros(self.image_size, dtype=float)
+
+        neigh = NearestNeighbors(n_neighbors=4, radius=375)
+        coords = []
+        radiance = []
         for k in range(1, fire_data_filter_on_timestamp.shape[0]):
             record = fire_data_filter_on_timestamp[k]
             # transforming lon lat to utm
             lon_point = self.transformer.transform(record[0], record[1])[0]
             lat_point = self.transformer.transform(record[0], record[1])[1]
-            cord_x = int((lon_point - self.xmin) // self.res)
-            cord_y = int((lat_point - self.ymin) // self.res)
+            cord_x = round((lon_point - self.xmin) / self.res)
+            cord_y = round((lat_point - self.ymin) / self.res)
+            # if cord_x >= self.nx or cord_y >= self.ny:
+            #     continue
+            coords.append([lat_point, lon_point])
+            radiance.append(record[2])
+            # b1_pixels[-cord_y, cord_x] = max(b1_pixels[-cord_y, cord_x], record[2])
+
+        if not coords:
+            return b2_pixels
+        neigh.fit(coords)
+
+        # for ii in range(b2_pixels.shape[1]):
+        #     for jj in range(b2_pixels.shape[0]):
+        #         lon = ii * self.res + self.xmin
+        #         lat = jj * self.res + self.ymin
+        #         d = neigh.radius_neighbors([[lat, lon]], 266, return_distance=True)
+        #         index_list = d[1][0]
+        #         rad2 = 0
+        #         n2 = 0
+        #         for k, ind in enumerate(index_list):
+        #             rad2 += radiance[ind]
+        #             n2 += 1
+        #         if n2 > 0:
+        #             b2_pixels[-jj, ii] = rad2 / n2
+        # return b2_pixels
+        # fig, axs = plt.subplots(2, 3, constrained_layout=True)
+        # axs[0][0].imshow(b1_pixels)
+        # axs[0][0].set_title("old approach")
+        lp = 0
+        for dt in [1700]:
+            lp += 1
+            for ii in range(b2_pixels.shape[1]):
+                for jj in range(b2_pixels.shape[0]):
+                    lon = ii * self.res + self.xmin
+                    lat = jj * self.res + self.ymin
+                    # if (jj, ii) in hm:
+                    #     fg = hm[jj, ii]
+                    #     lat2, lon2, rad2 = fg[-1]
+                    #     b1_pixels[-jj, ii] = max(b1_pixels[-jj, ii], rad2)
+                    if True:
+                        d = neigh.kneighbors([[lat, lon]], min(len(coords),16), return_distance=True)
+                        # d = neigh.radius_neighbors([[lat, lon]], 266, return_distance=True)
+                        index_list = d[1][0]
+                        distance_list = d[0][0]
+                        rad2 = 0
+                        n2 = 0
+                        n3 = 0
+                        x = numpy.array([])
+                        y = numpy.array([])
+                        z = numpy.array([])
+                        for k, ind in enumerate(index_list):
+                            # 187.5
+                            # 265.165
+                            if  distance_list[k] <= 266:
+                                rad2 += radiance[ind]
+                                n2 += 1
+                            if distance_list[k] < dt:
+                                x = np.append(x,[coords[ind][0]])
+                                y = np.append(y,[coords[ind][1]])
+                                z = np.append(z,[radiance[ind]])
+                                n3 += 1
+
+                        if n2 > 0:
+                            b1_pixels[-jj, ii] = rad2 / n2
+
+                        if  n3 >= 16:
+                            # pass
+                            # print(n3)
+                            f = interpolate.interp2d(x, y, z, kind='cubic')
+                            try:
+                                v = f(lat, lon)
+                                if( v < 400 and v > 200):
+                                    b2_pixels[-jj, ii] = v
+                            except:
+                                print("error")
+                                continue
+        kol = np.zeros(self.image_size, dtype=float)
+        for ii in range(b2_pixels.shape[1]):
+            for jj in range(b2_pixels.shape[0]):
+                if b1_pixels[-jj][ii]  > 0 and b2_pixels[-jj][ii]  > 0:
+                    # print(b2_pixels[-jj][ii] - b1_pixels[-jj][ii])
+                    kol[-jj][ii]  = b2_pixels[-jj][ii] - b1_pixels[-jj][ii]
+
+        return b2_pixels
+
+    def create_raster_array(self, fire_data_filter_on_timestamp):
+        b1_pixels = np.zeros(self.image_size, dtype=float)
+        for k in range(1, fire_data_filter_on_timestamp.shape[0]):
+            record = fire_data_filter_on_timestamp[k]
+            # transforming lon lat to utm
+            lon_point = self.transformer.transform(record[0], record[1])[0]
+            lat_point = self.transformer.transform(record[0], record[1])[1]
+            cord_x = round((lon_point - self.xmin) / self.res)
+            cord_y = round((lat_point - self.ymin) / self.res)
             if cord_x >= self.nx or cord_y >= self.ny:
                 continue
             # print(k, -cord_y, cord_x, fire_date, ac_time, (lon_point - self.xmin) , (lat_point - self.ymin) )
@@ -101,18 +201,15 @@ class VIIRSProcessing:
             # 137 -140 58 2021-07-16 1012 21806.47712273756 52779.97441741172
             # writing bright_ti4 ( record[2] )to tif
             b1_pixels[-cord_y, cord_x] = max(b1_pixels[-cord_y, cord_x], record[2])
-        b1_pixels = self.interpolation(b1_pixels)
-        max_val = np.max(b1_pixels)
-        if max_val > 1:
-            b1_pixels = (b1_pixels / max_val) * 255
-        b1_pixels = b1_pixels.astype(int)
-        # print("--------------------", np.max(b1_pixels))
-        self.gdal_writter(b1_pixels, out_file)
+        return b1_pixels
 
     # check if the zero is farbackground or surronding the fire, used for interpolation
     def nonback_zero(self, b1_pixels, ii, jj):
-        checks = [(ii + 1, jj - 1), (ii + 1, jj), (ii + 1, jj + 1), (ii - 1, jj - 1), (ii - 1, jj),
-                  (ii - 1, jj + 1), (ii, jj - 1), (ii, jj + 1)]
+        checks = [
+            (ii - 1, jj - 1), (ii, jj - 1), (ii + 1, jj - 1),
+            (ii - 1, jj), (ii + 1, jj),
+            (ii - 1, jj + 1), (ii, jj + 1), (ii + 1, jj + 1)
+        ]
         for m, n in checks:
             if b1_pixels[m, n] != 0.0:
                 return True
@@ -129,6 +226,7 @@ class VIIRSProcessing:
             for jj in range(0, b1_pixels.shape[1]):
                 if ii != 0 and ii != (b1_pixels.shape[0] - 1) and jj != 0 and jj != (b1_pixels.shape[1] - 1):
                     if b1_pixels[ii, jj] == 0:
+                        # interpolation zeros which have at least one surrounding fire pixel
                         if self.nonback_zero(b1_pixels, ii, jj):
                             continue
                 filtered_b12.append(b1_pixels[ii, jj])
