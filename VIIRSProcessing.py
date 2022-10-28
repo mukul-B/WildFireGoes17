@@ -247,7 +247,7 @@ class VIIRSProcessing:
             gdal.GDT_Float32)
         # transforms between pixel raster space to projection coordinate space.
         # new_raster.SetGeoTransform((x_min, pixel_size, 0, y_min, 0, pixel_size))
-        geotransform = (self.xmin, self.res, 0, self.ymin, 0, self.res)
+        geotransform = (self.xmin, self.res, 0, self.ymax, 0, -self.res)
         dst_ds.SetGeoTransform(geotransform)  # specify coords
         srs = osr.SpatialReference()  # establish encoding
         srs.ImportFromEPSG(self.crs)  # WGS84 lat/long
