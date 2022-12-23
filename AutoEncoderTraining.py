@@ -4,6 +4,7 @@ from datetime import datetime
 import torch
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
+from torch import nn
 from torch.utils.data import DataLoader
 
 import wandb
@@ -12,7 +13,7 @@ from AutoencoderDataset import npDataset
 from GlobalValues import training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
     LEARNING_RATE, random_state, BETA, LOSS_FUNCTION
 from HyperparameterConfigs import use_config
-from LossFunctions import GetLossFunction
+# from LossFunctions import GetLossFunction
 
 im_dir = training_dir
 log_interval = 10
@@ -92,7 +93,7 @@ def main(config=None):
     print(f'Train with n_epochs : {n_epochs} , batch_size : {batch_size} , learning_rate : {learning_rate}')
     print(f'beta : {beta}, loss function :{loss_function}')
     # loss Function
-    criteria = GetLossFunction(loss_function)
+    criteria = loss_function(beta)
     # Set up the encoder, decoder. and optimizer
     encoder = Encoder(1)
     decoder = Decoder(256)

@@ -6,7 +6,8 @@ Created on Sun nov 23 11:17:09 2022
 @author: mukul
 """
 from GlobalValues import BATCH_SIZE, EPOCHS, LEARNING_RATE, BETA, LOSS_FUNCTION
-from LossFunctions import MSEiou2, IOU_number, IOU_nonBinary, MSEunion, MSEintersection, IMSE2
+from LossFunctions import MSEiou2, IOU_number, IOU_nonBinary, MSEunion, MSEintersection, IMSE2, LMSE, GMSE, MSENew, \
+    jacard_loss
 
 config1 = {
         LEARNING_RATE: 5e-5,
@@ -16,12 +17,25 @@ config1 = {
     }
 
 config_IMSE2 = {
-        LEARNING_RATE: 3e-5,
+        LEARNING_RATE: 5e-6,
         EPOCHS: 100,
         BATCH_SIZE: 16,
         LOSS_FUNCTION : IMSE2
     }
 
+config_GMSE= {
+        LEARNING_RATE: 3e-5,
+        EPOCHS: 100,
+        BATCH_SIZE: 16,
+        LOSS_FUNCTION : GMSE
+    }
+
+config_LMSE= {
+        LEARNING_RATE: 3e-5,
+        EPOCHS: 100,
+        BATCH_SIZE: 16,
+        LOSS_FUNCTION : LMSE
+    }
 # linear inter
 config_goodResult = {
         LEARNING_RATE: 3e-5,
@@ -37,6 +51,12 @@ config_goodResult2 = {
         LOSS_FUNCTION : MSEiou2
     }
 
+config_MSENew = {
+        LEARNING_RATE: 1e-5,
+        EPOCHS: 100,
+        BATCH_SIZE: 16,
+        LOSS_FUNCTION : MSENew
+    }
 config_MSEintersection = {
         LEARNING_RATE: 1e-7,
         EPOCHS: 100,
@@ -57,7 +77,7 @@ config_MSEunion2 = {
     }
 
 config_IOU_number = {
-        LEARNING_RATE: 3e-6,
+        LEARNING_RATE: 9e-6,
         EPOCHS: 100,
         BATCH_SIZE: 16,
         LOSS_FUNCTION : IOU_number
@@ -85,6 +105,15 @@ config_IOUMNS_goodResult2 = {
         BETA: 0.5
 
     }
+
+config_jacard_loss = {
+        LEARNING_RATE: 3e-5,
+        EPOCHS: 200,
+        BATCH_SIZE: 16,
+        LOSS_FUNCTION : jacard_loss
+
+    }
+
 sweep_configuration1 = {
         'method': 'random',
         'name': 'sweep',
@@ -152,4 +181,4 @@ sweep_configuration_IOU_LRMSE = {
         BETA: {'max': 1.0, 'min': 0.4}
      }
 }
-use_config = config_IMSE2
+use_config = config_jacard_loss
