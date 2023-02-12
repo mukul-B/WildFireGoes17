@@ -1,8 +1,10 @@
 import os
+from random import random
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+from torchvision import transforms
 
 
 class npDataset(Dataset):
@@ -11,10 +13,12 @@ class npDataset(Dataset):
     out of it.
     """
 
-    def __init__(self, data_list, batch_size,im_dir):
+    def __init__(self, data_list, batch_size, im_dir,augment):
         self.array = data_list
         self.batch_size = batch_size
         self.im_dir = im_dir
+        self.transform = transform
+        self.augment = augment
 
     def __len__(self): return int((len(self.array) / self.batch_size))
 
@@ -32,6 +36,44 @@ class npDataset(Dataset):
             sample = np.load(file_path)
             x.append(sample[:, :, 1])
             y.append(sample[:, :, 0])
+
         x, y = np.array(x) / 255., np.array(y) / 255.
         x, y = np.expand_dims(x, 1), np.expand_dims(y, 1)
-        return torch.Tensor(x), torch.Tensor(y)
+        x,y = torch.Tensor(x), torch.Tensor(y)
+        if(self.augment):
+            x, y = self.transform(x,y)
+        return x,y
+
+
+
+# transform = transforms.Compose([
+#     # transforms.ToPILImage(),
+#     # transforms.ToTensor(),
+#     transforms.RandomHorizontalFlip()
+#
+# ])
+
+
+def transform( image, mask):
+    # # Resize
+    # resize = transforms.Resize(size=(520, 520))
+    # image = resize(image)
+    # mask = resize(mask)
+    #
+    # # Random crop
+    # i, j, h, w = transforms.RandomCrop.get_params(
+    #     image, output_size=(512, 512))
+    # image = torch.crop(image, i, j, h, w)
+    # mask = TF.crop(mask, i, j, h, w)
+
+    # Random horizontal flipping
+    if random() > 0.5:
+        image = image.flip((2,))
+        mask = mask.flip((2,))
+
+    # Random vertical flipping
+    if random() > 0.5:
+        image = image.flip( (3,))
+        mask = mask.flip( (3,))
+
+    return image, mask

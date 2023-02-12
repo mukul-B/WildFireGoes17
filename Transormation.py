@@ -58,6 +58,7 @@ def padWindow(window):
         ro = np.zeros(window.shape)
     else:
         ro = supr_resolution([ro])
+        # ro = ro
     ro = ro[0:sx, 0:sy]
     return ro
 
@@ -93,24 +94,28 @@ def plot_improvement(path='reference_data/Dixie/GOES/ABI-L1b-RadC/tif/GOES-2021-
     d = path.split('/')[-1].split('.')[0][5:].split('_')
     gfI = Image.open(path)
     gf = np.array(gfI)[:, :, 0]
-    res = image2windows(gf)
-    gf2 = windows2image(res)
+    # res = image2windows(gf)
+    # gf2 = windows2image(res)
+    gf2 = gf
     fig, axs = plt.subplots(1, 2, constrained_layout=True)
     fig.suptitle('Mosquito Fire on ' + d[0] + ' at ' + d[1])
     axs[0].imshow(gf)
     axs[0].set_title('Original GOES')
     axs[1].imshow(gf2)
     axs[1].set_title('Super_Resolution GOES')
+
     plt.savefig('result_for_video' + '/FRP_' + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
 
 
 def plot_improvement2(gpath):
-    # print(gpath)
+    print(gpath)
     d = gpath.split('/')[-1].split('.')[0][5:].split('_')
     gfI = Image.open(gpath)
-    gfin = np.array(gfI)[:, :, 0]
-    res = image2windows(gfin)
-    gf = windows2image(res)
+    gfin = np.array(gfI)[:, :]
+    # gfin = np.array(gfI)[:, :, 0]
+    # res = image2windows(gfin)
+    # gf = windows2image(res)
+    gf = gfin
     bbox, lat, lon = get_lon_lat(gpath)
 
     proj = ccrs.PlateCarree()
@@ -118,11 +123,21 @@ def plot_improvement2(gpath):
     ax = plt.axes(projection=proj)
     ax.add_image(StreetmapESRI(), 10)
     # ax.set_extent(bbox)
-    gf[gf < 0.1] = None
+    # gf[gf < 0.1] = None
+    # print(np.unique(gf.flatten()))
+    # gf[gf == 0] = None
+    # # gf[gf <= -60] = None
+    # gf[gf <= 0] = None
+    # # gf[(gf <= 0) & (gf != -57)] = None
+    # gf[(gf >= 80) ]  = None
+    # print('-',np.unique(gf.flatten()))
     cmap = 'YlOrRd'
-    plt.suptitle('Mosquito Fire on {0} at {1} UTC'.format(d[0], d[1]))
+    # plt.suptitle('Mosquito Fire on {0} at {1} UTC'.format(d[0], d[1]))
+    plt.suptitle('{0} at {1} UTC'.format(d[0], d[1]))
     p = ax.pcolormesh(lat, lon, gf,
                       transform=ccrs.PlateCarree(),
+                      # vmin=32,
+                      # vmax=34,
                       cmap=cmap)
     # cbar = plt.colorbar(p, shrink=0.5)
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=1, alpha=0.5)
@@ -131,8 +146,8 @@ def plot_improvement2(gpath):
     gl.right_labels = False
     # gl.xlines = False
     # gl.ylines = False
-    gl.xlabel_style = {'size': 6, 'rotation': 30}
-    gl.ylabel_style = {'size': 6}
+    gl.xlabel_style = {'size': 9, 'rotation': 30}
+    gl.ylabel_style = {'size': 9}
     plt.tight_layout()
     # plt.show()
     print('/FRP_' + str(d[0] + '_' + d[1]) + '.png')
@@ -157,7 +172,7 @@ if __name__ == '__main__':
     dir = RealTimeIncoming_files
     GOES_list = os.listdir(dir)
     print(GOES_list)
-    pool = mp.Pool(7)
+    pool = mp.Pool(6)
     pathC = RealTimeIncoming_results + '/FRP_'
     for gfile in GOES_list:
         if not file_exists(pathC + gfile[5:-3] + "png"):
@@ -165,4 +180,5 @@ if __name__ == '__main__':
         # print(res.get())
         #     plot_improvement2(dir + gfile)
     pool.close()
+
     pool.join()

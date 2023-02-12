@@ -34,8 +34,8 @@ Dixie:
  longitude: -121
  latitude: 40
  start: 2021-06-15
- end: 2021-08-16
- EPSG: 32610
+ end: 2021-08-15
+ EPSG: 32611
 
 Monument:
  longitude: -123.33

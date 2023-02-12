@@ -13,11 +13,14 @@ from os.path import exists as file_exists
 
 import numpy as np
 import s3fs
+from cartopy.io.img_tiles import GoogleTiles
+from matplotlib import pyplot as plt
 from pyproj import Transformer
 from pyresample.geometry import AreaDefinition
 from satpy import Scene
 
 from GlobalValues import RAD, FDC, GOES_ndf
+import cartopy.crs as ccrs
 
 warnings.filterwarnings('ignore')
 
@@ -61,6 +64,7 @@ class GoesProcessing:
         prefix = f'{bucket_name}/{product_name}/{year}/{day_of_year:03.0f}/{hour:02.0f}/'
         file_prefix = f'OR_{product_name}-{mode}{band}_G17_s{year}{day_of_year:03.0f}{hour:02.0f}'
 
+        # print(prefix,file_prefix)
         # listing all files for product date for perticular hour
         files = fs.ls(prefix)
 
@@ -98,6 +102,51 @@ class GoesProcessing:
 
         return path
 
+
+
+    def showgoes(self, lon, lat, data, bbox):
+        proj = ccrs.PlateCarree()
+
+        class StreetmapESRI(GoogleTiles):
+            # shaded relief
+            def _image_url(self, tile):
+                x, y, z = tile
+                url = ('https://server.arcgisonline.com/ArcGIS/rest/services/' \
+                       'World_Street_Map/MapServer/tile/{z}/{y}/{x}.jpg').format(
+                    z=z, y=y, x=x)
+                return url
+        plt.figure(figsize=(6, 3))
+        ax = plt.axes(projection=proj)
+        bbox2 = [bbox[0], bbox[2], bbox[1], bbox[3]]
+        # ax.add_image(StreetmapESRI(), 10)
+        # ax.set_extent(bbox)
+        # print(bbox)
+        cmap = plt.colormaps['YlOrRd']
+        transformer = Transformer.from_crs(32611, 4326)
+        proj = []
+        for ln in lon.values:
+            for lt in lat.values:
+                proj.append(transformer.transform(ln, lt))
+
+        # proj = [transformer.transform(x, y) for x, y in zip(lon.values,lat.values)]
+        lon = np.array([p[0]  for p in proj]).reshape(data.shape)
+        lat = np.array([p[1]  for p in proj]).reshape(data.shape)
+
+        p = ax.pcolormesh(lon, lat, data,
+                          transform=ccrs.PlateCarree(),
+                          alpha=0.9)
+
+        # cbar = plt.colorbar(p, shrink=0.5)
+        gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=0, alpha=0.5)
+        gl.top_labels = False
+        gl.right_labels = False
+        gl.xlines = False
+        gl.ylines = False
+        plt.show()
+        print('Done.')
+
+        plt.close('all')
+
     #   resampling GOES file for given site and writing in a tiff file
     def nc2tiff(self, fire_date, ac_time, path, site, image_size, directory):
 
@@ -126,9 +175,12 @@ class GoesProcessing:
         goes_scene = goes_scene.resample(area_def)
         # goes_scene.save_dataset(layer, filename=out_path)
         goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
-        goes_scene[layer].values =  255 * (goes_scene[layer].values - goes_scene[layer].values.min()) / (
-                    goes_scene[layer].values.max() - goes_scene[layer].values.min())
-
+        goes_scene[layer].values = 255 * (goes_scene[layer].values - goes_scene[layer].values.min()) / (
+                goes_scene[layer].values.max() - goes_scene[layer].values.min())
+        goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
+        bbox = [latitude - rectangular_size, longitude - rectangular_size, latitude + rectangular_size,
+                longitude + rectangular_size]
+        # self.showgoes(goes_scene[layer].x, goes_scene[layer].y, goes_scene[layer].values, bbox)
         goes_scene[layer].rio.to_raster(raster_path=out_path, driver='GTiff', dtype='int32')
         # , writer='geotiff',dtype=np.float32
 

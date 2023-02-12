@@ -17,7 +17,7 @@ import xarray as xr
 from PIL import Image
 
 from GlobalValues import viirs_dir, goes_dir, compare_dir
-
+import datetime
 
 # demonstrate reference_data standardization with sklearn
 

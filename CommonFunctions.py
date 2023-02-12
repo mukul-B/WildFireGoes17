@@ -1,5 +1,7 @@
+import math
 import os
 
+import numpy as np
 from matplotlib import pyplot as plt
 
 from GlobalValues import data_dir, goes_folder, viirs_folder, compare, logs, testing_dir, training_dir, GOES_ndf
@@ -36,10 +38,16 @@ def prepareDir(location, product):
     if not os.path.exists(GOES_ndf):
         os.mkdir(GOES_ndf)
 
-def plot_sample(col,titles):
+def plot_sample(col,titles,path=None):
     num = len(col)
     fig, axs = plt.subplots(1, num, constrained_layout=True)
     for i, j in enumerate(col):
-        axs[i].imshow(j)
-        axs[i].set_title(titles[i])
-    plt.show()
+        rmse = math.sqrt(np.mean(np.array(((j - col[0]).flatten()) ** 2)))
+        p = axs[i].imshow(j)
+        # plt.colorbar(p)
+        axs[i].set_title(titles[i]+" "+str(rmse))
+    if(path):
+        plt.savefig(path)
+    else:
+        plt.show()
+    plt.close()

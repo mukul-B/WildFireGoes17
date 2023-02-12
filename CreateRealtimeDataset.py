@@ -13,10 +13,14 @@ import os
 import pandas as pd
 
 from GoesProcessing import GoesProcessing
+from PlotGoesInput import show_plot
 from VIIRSProcessing import VIIRSProcessing
-from GlobalValues import RAD, realtimeSiteList, RealTimeIncoming_files, RealTimeIncoming_results, videos
+from GlobalValues import RAD, realtimeSiteList, RealTimeIncoming_files, RealTimeIncoming_results, videos, FDC
 from SiteInfo import SiteInfo
 import multiprocessing as mp
+
+from longLatProj import lat_lon_reproj
+
 
 def create_realtime_dataset(location, product_name=RAD):
     site = SiteInfo(location)
@@ -34,8 +38,8 @@ def create_realtime_dataset(location, product_name=RAD):
     # running for each date
     for i in range(time_dif.days):
         fire_date = str(start_time + datetime.timedelta(days=i))
-        unique_time2 = ['0400', '0500', '0600', '0700', '0800', '0900', '1000', '1100', '1200', '1300', '1400', '1500',
-                       '1600', '1700', '1800', '1900', '2000', '2100', '2200', '2300']
+        # unique_time2 = ['0400', '0500', '0600', '0700', '0800', '0900', '1000', '1100', '1200', '1300', '1400', '1500',
+        #                '1600', '1700', '1800', '1900', '2000', '2100', '2200', '2300']
         unique_time = []
         for h in range(0,24,1):
             for m in range(0,60,5):
@@ -47,6 +51,10 @@ def create_realtime_dataset(location, product_name=RAD):
             path = goes.download_goes(fire_date, str(ac_time), product_name=product_name)
             if (path != -1):
                 goes.nc2tiff(fire_date, ac_time, path, site, v2r_viirs.image_size, RealTimeIncoming_files)
+                # lon, lat, data, data_units, data_time_grab, data_long_name, band_id, band_wavelength, band_units, var_name = lat_lon_reproj(
+                #     path, "Temp")
+                # show_plot(lon, lat, data, data_units, data_time_grab, data_long_name, band_id,
+                #           band_wavelength, band_units, var_name, site, fire_date, ac_time, save=False)
 
 
 def prepareDir():
@@ -55,12 +63,10 @@ def prepareDir():
         os.mkdir(RealTimeIncoming_files)
     if not os.path.exists(RealTimeIncoming_results):
         os.mkdir(RealTimeIncoming_results)
-
     if not os.path.exists(RealTimeIncoming_files):
         os.mkdir(RealTimeIncoming_files)
     if not os.path.exists(RealTimeIncoming_results):
         os.mkdir(RealTimeIncoming_results)
-
     if not os.path.exists(videos):
         os.mkdir(videos)
 

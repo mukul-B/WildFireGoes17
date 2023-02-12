@@ -11,21 +11,146 @@ from torch import nn
 
 SMOOTH = 1e-6
 
+# Global MSE
+class BCE(nn.Module):
+    def __init__(self, beta):
+        self.last_activation = "sigmoid"
+        super(BCE, self).__init__()
 
-n# def GetLossFunction(lossfunction, beta):
-#     if lossfunction == MSEiou2: return MSEiou2()
-#     if lossfunction == MSEunion: return MSEunion()
-#     if lossfunction == MSEintersection: return MSEintersection()
-#     if lossfunction == IOU_number: return IOU_number()
-#     if lossfunction == MSEiou: return MSEiou()
-#     if lossfunction == LMSE: return LMSE()
-#     if lossfunction == IMSE2: return IMSE2()
-#
-#     return MSE()
+    def forward(self, pred, targets):
+        targets[targets > 0] = 1
+        # critr = nn.BCELoss()
+        # loss = critr(pred, targets)
+        pred = pred.view(-1)
+        targets = targets.view(-1)
+        loss = torch.sqrt(torch.mean((targets - pred) ** 2))
+        return loss
 
+
+class jaccard_loss(nn.Module):
+    def __init__(self, beta):
+        super(jaccard_loss, self).__init__()
+        self.last_activation = "sigmoid"
+        print('jacard_loss intialized')
+
+
+    def forward(self, pred, targets):
+        # pred = pred.view(-1)
+        # targets = targets.view(-1)
+        targets[targets>0]=1
+        # pred[pred >= 0.5] = 1
+        # pred[pred < 0.5] = 0
+        intersection = torch.sum(pred * targets,(1,2,3))
+        sum_pred= torch.sum(pred ,(1,2,3))
+        sum_targets = torch.sum(targets, (1, 2, 3))
+        loss =  - torch.mean((intersection + SMOOTH) / (torch.sum(sum_targets) + torch.sum(sum_pred) + intersection + SMOOTH))
+        return loss
+
+
+class two_branch_loss_rmses(nn.Module):
+    def __init__(self, beta):
+        super(two_branch_loss_rmses, self).__init__()
+        self.last_activation = "both"
+        self.beta = beta
+        print('two_branch_loss intialized')
+
+    # def forward(self,  pred_sup,pred_seg,target,binary_target):
+    def forward(self, pred, target):
+        pred_sup, pred_seg= pred[0],pred[1]
+
+        # rmse
+        pred_sup = pred_sup.view(-1)
+        target_sup = target.view(-1)
+        rmse_loss = torch.sqrt(torch.mean((target_sup - pred_sup) ** 2))
+        # rmse_loss = nn.functional.mse_loss(pred_sup, target)
+        # rmse_loss = torch.sqrt(rmse_loss)
+
+        # jaccard
+        binary_target = target.cuda()
+        binary_target[binary_target > 0] = 1
+        pred_seg = pred_seg.view(-1)
+        binary_target = binary_target.view(-1)
+        binary_loss = torch.sqrt(torch.mean((binary_target - pred_seg) ** 2))
+
+        total_loss = self.beta * rmse_loss + (1 - self.beta) * binary_loss
+        return rmse_loss,binary_loss,total_loss
+class two_branch_loss(nn.Module):
+    def __init__(self, beta):
+        super(two_branch_loss, self).__init__()
+        self.last_activation = "both"
+        self.beta = beta
+        print('two_branch_loss intialized')
+
+    # def forward(self,  pred_sup,pred_seg,target,binary_target):
+    def forward(self, pred, target):
+        pred_sup, pred_seg= pred[0],pred[1]
+
+        # rmse
+        pred_sup = pred_sup.view(-1)
+        target_sup = target.view(-1)
+        rmse_loss = torch.sqrt(torch.mean((target_sup - pred_sup) ** 2))
+        # rmse_loss = nn.functional.mse_loss(pred_sup, target)
+        # rmse_loss = torch.sqrt(rmse_loss)
+
+        # jaccard
+        binary_target = target.cuda()
+        binary_target[binary_target > 0] = 1
+        intersection = torch.sum(pred_seg * binary_target, (1, 2, 3))
+        sum_pred = torch.sum(pred_seg, (1, 2, 3))
+        sum_targets = torch.sum(binary_target, (1, 2, 3))
+        jaccard_loss = - torch.mean(
+            (intersection + SMOOTH) / (torch.sum(sum_targets) + torch.sum(sum_pred) + intersection + SMOOTH))
+
+        total_loss = self.beta * rmse_loss + (1 - self.beta) * jaccard_loss
+        return rmse_loss,jaccard_loss,total_loss
+
+# Global MSE
+class GMSE(nn.Module):
+    def __init__(self, beta):
+        self.last_activation = "relu"
+        super(GMSE, self).__init__()
+
+    def forward(self, pred, targets):
+        pred = pred.view(-1)
+        targets = targets.view(-1)
+        rmse = torch.sqrt(torch.mean((targets - pred) ** 2))
+        return rmse
+
+# Global MSE
+class GLMSE(nn.Module):
+    def __init__(self, beta):
+        self.last_activation = "relu"
+        self.beta = beta
+        super(GLMSE, self).__init__()
+
+    def forward(self, pred, targets):
+        pred = pred.view(-1)
+        targets = targets.view(-1)
+        global_rmse = torch.sqrt(torch.mean((targets - pred) ** 2))
+
+        a = (targets - pred) ** 2
+        a = a * targets
+        local_rmse = torch.sqrt(torch.sum(a) / torch.sum(targets))
+        total_loss =  self.beta * local_rmse +  (1 - self.beta) * global_rmse
+        return local_rmse,global_rmse,total_loss
+
+class IMSE2(nn.Module):
+    def __init__(self, beta):
+        super(IMSE2, self).__init__()
+        self.last_activation = "sigmoid"
+
+
+
+    def forward(self, pred, targets):
+        intersection = (pred * targets).sum((1, 2, 3))
+        total = (pred + targets).sum((1, 2, 3))
+        union = total - intersection
+        unionS = union.sum()
+        rmse = torch.sqrt(torch.sum((targets - pred) ** 2) / unionS)
+        return rmse
 
 class MSE(nn.Module):
-    def __init__(self,beta):
+    def __init__(self, beta):
         super(MSE, self).__init__()
 
     def forward(self, pred, targets):
@@ -37,7 +162,7 @@ class MSE(nn.Module):
 
 # local MSE
 class LMSE(nn.Module):
-    def __init__(self,beta):
+    def __init__(self, beta):
         super(LMSE, self).__init__()
 
     def forward(self, pred, targets):
@@ -51,26 +176,12 @@ class LMSE(nn.Module):
         return rmse
 
 
-# Global MSE
-class GMSE(nn.Module):
-    def __init__(self,beta):
-        super(GMSE, self).__init__()
 
-    def forward(self, pred, targets):
-        pred = pred.view(-1)
-        targets = targets.view(-1)
-        # a = (targets - pred) ** 2
-        # a = a * targets
-        # a[targets == 0] = 0
-        # rmse = torch.sqrt(torch.mean((targets - pred) ** 2))
-        # rmse = torch.sqrt(torch.mean((targets - pred) ** 2)) + (3 * (torch.sqrt(torch.sum(a) / torch.sum(targets))))
-        rmse = torch.sqrt(torch.mean((targets - pred) ** 2))
-        return rmse
 
 
 # MSE based on A union B
 class MSEunion(nn.Module):
-    def __init__(self,beta):
+    def __init__(self, beta):
         super(MSEunion, self).__init__()
 
     def forward(self, pred, targets):
@@ -86,7 +197,7 @@ class MSEunion(nn.Module):
 
 # MSE based on A intersection B
 class MSEintersection(nn.Module):
-    def __init__(self,beta):
+    def __init__(self, beta):
         super(MSEintersection, self).__init__()
 
     def forward(self, pred, targets):
@@ -102,7 +213,7 @@ class MSEintersection(nn.Module):
 
 # MSE based on IOU
 class MSEiou(nn.Module):
-    def __init__(self,beta):
+    def __init__(self, beta):
         super(MSEiou, self).__init__()
 
     def forward(self, pred, targets):
@@ -122,7 +233,7 @@ class MSEiou(nn.Module):
 
 # MSE based on IOU
 class MSEiou2(nn.Module):
-    def __init__(self,beta):
+    def __init__(self, beta):
         super(MSEiou2, self).__init__()
 
     def forward(self, pred, targets):
@@ -135,22 +246,10 @@ class MSEiou2(nn.Module):
         rmse = torch.sqrt(torch.sum(diff) / torch.sum(intersection))
         return rmse
 
-class jacard_loss(nn.Module):
-    def __init__(self,beta):
-        super(jacard_loss, self).__init__()
-        print('jacard_loss intialized')
-
-    def forward(self, pred, targets):
-        pred = pred.view(-1)
-        targets = targets.view(-1)
-        intersection = torch.sum(pred * targets)
-        # max_intersection = (intersection+ SMOOTH) / (torch.sum(targets) +torch.sum(pred) + intersection +SMOOTH)
-        loss = (intersection+ SMOOTH) / (torch.sum(targets) +torch.sum(pred) + intersection +SMOOTH)
-        return -loss
 
 # IOU number
 class IOU_number(nn.Module):
-    def __init__(self,beta):
+    def __init__(self, beta):
         super(IOU_number, self).__init__()
 
     def forward(self, pred, targets):
@@ -173,7 +272,7 @@ class IOU_number(nn.Module):
 
 # IOU number
 class IOU_nonBinary(nn.Module):
-    def __init__(self,beta):
+    def __init__(self, beta):
         super(IOU_nonBinary, self).__init__()
 
     def forward(self, pred, targets):
@@ -191,7 +290,7 @@ class IOU_nonBinary(nn.Module):
 
 
 class IMSE(nn.Module):
-    def __init__(self,beta):
+    def __init__(self, beta):
         super(IMSE, self).__init__()
 
     def forward(self, pred, targets):
@@ -204,17 +303,7 @@ class IMSE(nn.Module):
         return rmse
 
 
-class IMSE2(nn.Module):
-    def __init__(self,beta):
-        super(IMSE2, self).__init__()
 
-    def forward(self, pred, targets):
-        intersection = (pred * targets).sum((1, 2, 3))
-        total = (pred + targets).sum((1, 2, 3))
-        union = total - intersection
-        unionS = union.sum()
-        rmse = torch.sqrt(torch.sum((targets - pred) ** 2) / unionS)
-        return rmse
 
 
 class IoULoss(nn.Module):
@@ -266,7 +355,7 @@ class IoULoss2(nn.Module):
 
 # MSE based on A intersection B
 class MSENew(nn.Module):
-    def __init__(self,beta):
+    def __init__(self, beta):
         super(MSENew, self).__init__()
 
     def forward(self, pred, targets):

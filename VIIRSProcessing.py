@@ -60,6 +60,7 @@ class VIIRSProcessing:
 
         top_right_utm = [top_right_utm[0] - (top_right_utm[0] - bottom_left_utm[0]) % self.res,
                          top_right_utm[1] - (top_right_utm[1] - bottom_left_utm[1]) % self.res]
+        # adjustment (adding residue) because we want to make equal sized grids on whole area
         # ------
         # ------
         # ------
@@ -72,11 +73,11 @@ class VIIRSProcessing:
 
         # setting image parameters
         self.xmin, self.ymin, self.xmax, self.ymax = [min(lon), min(lat), max(lon), max(lat)]
-        self.nx = int((self.xmax - self.xmin) // self.res)
-        self.ny = int((self.ymax - self.ymin) // self.res)
+        self.nx = round((self.xmax - self.xmin) / self.res)
+        self.ny = round((self.ymax - self.ymin) / self.res)
         self.image_size = (self.ny, self.nx)
 
-    def make_tiff(self, ac_time, fire_date, fire_data_filter_on_date_and_bbox):
+    def make_tiff(self,  fire_date,ac_time, fire_data_filter_on_date_and_bbox):
 
         # output file name
         viirs_tif_dir = viirs_dir.replace('$LOC', self.location)
@@ -87,7 +88,53 @@ class VIIRSProcessing:
             fire_data_filter_on_date_and_bbox.acq_time.eq(ac_time)]
         fire_data_filter_on_timestamp = np.array(fire_data_filter_on_time)
 
+        # b1_pixels = self.inverse_mapping(fire_data_filter_on_timestamp)
+
+        # exit(0)
         # creating pixel values used in tiff
+        b1_pixels = self.create_raster_array(fire_data_filter_on_timestamp)
+        b1_pixels = self.interpolation(b1_pixels)
+        max_val = np.max(b1_pixels)
+        if max_val > 1:
+            b1_pixels = (b1_pixels / max_val) * 255
+        b1_pixels = b1_pixels.astype(int)
+        # print("--------------------", np.max(b1_pixels))
+        self.gdal_writter(b1_pixels, out_file)
+
+    def inverse_mapping(self, fire_data_filter_on_timestamp):
+        b2_pixels = np.zeros(self.image_size, dtype=float)
+        neigh = NearestNeighbors(n_neighbors=4, radius=375)
+        coords = []
+        radiance = []
+        for k in range(fire_data_filter_on_timestamp.shape[0]):
+            record = fire_data_filter_on_timestamp[k]
+            # transforming lon lat to utm
+            lon_point = self.transformer.transform(record[0], record[1])[0]
+            lat_point = self.transformer.transform(record[0], record[1])[1]
+            coords.append([lat_point, lon_point])
+            radiance.append(record[2])
+        if not coords:
+            return b2_pixels
+        neigh.fit(coords)
+
+        for ii in range(b2_pixels.shape[1]):
+            for jj in range(b2_pixels.shape[0]):
+                lon = ii * self.res + self.xmin
+                lat = jj * self.res + self.ymin
+                d = neigh.radius_neighbors([[lat, lon]], 266, return_distance=True)
+                index_list = d[1][0]
+                rad2 = 0
+                n2 = 0
+                for k, ind in enumerate(index_list):
+                    rad2 += radiance[ind]
+                    n2 += 1
+                if n2 > 0:
+                    b2_pixels[-jj, ii] = rad2 / n2
+        return b2_pixels
+
+
+    def inverse_mapping2(self, fire_data_filter_on_timestamp):
+        hm = {}
         b1_pixels = np.zeros(self.image_size, dtype=float)
         b2_pixels = np.zeros(self.image_size, dtype=float)
 
@@ -129,7 +176,7 @@ class VIIRSProcessing:
         # axs[0][0].imshow(b1_pixels)
         # axs[0][0].set_title("old approach")
         lp = 0
-        for dt in [1700]:
+        for dt in [0]:
             lp += 1
             for ii in range(b2_pixels.shape[1]):
                 for jj in range(b2_pixels.shape[0]):
@@ -171,7 +218,7 @@ class VIIRSProcessing:
                             f = interpolate.interp2d(x, y, z, kind='cubic')
                             try:
                                 v = f(lat, lon)
-                                if( v < 400 and v > 200):
+                                if v < 400 and v > 200:
                                     b2_pixels[-jj, ii] = v
                             except:
                                 print("error")
@@ -222,12 +269,15 @@ class VIIRSProcessing:
         filtered_b12 = []
         bia_x2 = []
         bia_y2 = []
-        for ii in range(0, b1_pixels.shape[0]):
-            for jj in range(0, b1_pixels.shape[1]):
+        chec = []
+        for ii in range(b1_pixels.shape[0]):
+            for jj in range(b1_pixels.shape[1]):
                 if ii != 0 and ii != (b1_pixels.shape[0] - 1) and jj != 0 and jj != (b1_pixels.shape[1] - 1):
+                    # skiping the border values
                     if b1_pixels[ii, jj] == 0:
                         # interpolation zeros which have at least one surrounding fire pixel
                         if self.nonback_zero(b1_pixels, ii, jj):
+                            chec.append((ii, jj))
                             continue
                 filtered_b12.append(b1_pixels[ii, jj])
                 bia_x2.append(grid_x[ii, jj])
@@ -237,7 +287,10 @@ class VIIRSProcessing:
         grid_yy = np.array(bia_y2).reshape(-1, 1)
         grid = np.hstack((grid_xx, grid_yy))
         grid_z = griddata(grid, filtered_b1, (grid_x, grid_y), method='nearest', fill_value=0)
-        # plot_sample([b1_pixels, grid_z], ["Rasterized VIIRS", "Interpolated VIIRS"])
+        # grid_z = griddata(grid, filtered_b1, (grid_x, grid_y), method='linear', fill_value=0)
+        # grid_z = griddata(grid, filtered_b1, (grid_x, grid_y), method='cubic', fill_value=0)
+        # plot_sample([b1_pixels, grid_z,grid_z_l,grid_z_c], ["Rasterized VIIRS", "nearest","linear","cubic"])
+
         return grid_z
 
     def gdal_writter(self, b1_pixels, out_file):

@@ -16,6 +16,7 @@ on Sun Jul 23 11:17:09 2022
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+# import torch.
 
 random_seed = 1
 torch.manual_seed(random_seed)
@@ -61,9 +62,13 @@ class Decoder(nn.Module):
     This is the decoder portion
     """
 
-    def __init__(self, in_features):
+    def __init__(self, in_features, outtype=None):
         super(Decoder, self).__init__()
         self.in_features = in_features
+        if not outtype:
+            self.outtype = "relu"
+        else:
+            self.outtype = outtype
 
         self.tconv1 = nn.ConvTranspose2d(in_features, 128, kernel_size=(3, 3), stride=2, padding=1)
         self.conv1 = nn.Conv2d(128, 128, kernel_size=(3, 3), padding=1)
@@ -74,17 +79,47 @@ class Decoder(nn.Module):
         self.conv4 = nn.Conv2d(64, 64, kernel_size=(3, 3), padding=1)
 
         self.conv5 = nn.Conv2d(64, 1, kernel_size=(3, 3), padding=1)
+        # self.conv5b = nn.Conv2d(64, 128, kernel_size=(3, 3), padding=1)
+
+        if self.outtype == 'both':
+            # self.tconv1b = nn.ConvTranspose2d(in_features, 128, kernel_size=(3, 3), stride=2, padding=1)
+            # self.conv1b = nn.Conv2d(128, 128, kernel_size=(3, 3), padding=1)
+            # self.conv2b = nn.Conv2d(128, 128, kernel_size=(3, 3), padding=1)
+            # #
+            # self.tconv2b = nn.ConvTranspose2d(128, 64, kernel_size=(3, 3), stride=2, padding=1)
+            # self.conv3b = nn.Conv2d(64, 64, kernel_size=(3, 3), padding=1)
+            # self.conv4b = nn.Conv2d(64, 64, kernel_size=(3, 3), padding=1)
+            self.conv5b = nn.Conv2d(64, 1, kernel_size=(3, 3), padding=1)
 
         # self.fc1 = nn.Linear(n_latents, 1024)
         # self.fc2 = nn.Linear(1024, 4096)
         # self.fc3 = nn.Linear(4096, self.in_features)
 
     def forward(self, x):
-        x = F.relu(self.conv1(self.tconv1(x, output_size=(10, 128, 64, 64))))
-        x = F.relu(self.conv2(x))
+        x1 = F.relu(self.conv1(self.tconv1(x, output_size=(10, 128, 64, 64))))
+        x1 = F.relu(self.conv2(x1))
 
-        x = F.relu(self.conv3(self.tconv2(x, output_size=(10, 64, 128, 128))))
-        x = F.relu(self.conv4(x))
+        x1 = F.relu(self.conv3(self.tconv2(x1, output_size=(10, 64, 128, 128))))
+        x1 = F.relu(self.conv4(x1))
 
-        x = F.relu(self.conv5(x))
-        return x
+        if self.outtype == 'relu':
+            x1 = F.relu(self.conv5(x1))
+            return x1
+        if self.outtype == 'sigmoid':
+            x1 = torch.sigmoid(self.conv5(255*x1))
+            # x1 = torch.sigmoid_(self.conv5(x1)).clone()
+            return x1
+
+        if self.outtype == 'both':
+            # x2 = F.relu(self.conv1b(self.tconv1b(x, output_size=(10, 128, 64, 64))))
+            # x2 = F.relu(self.conv2b(x1))
+            # x2 = F.relu(self.conv3b(self.tconv2b(x2, output_size=(10, 64, 128, 128))))
+            # x2 = F.relu(self.conv4b(x2))
+            x_seg = torch.sigmoid(self.conv5(255*x1))
+            x_sup = F.relu(self.conv5b(x1))
+
+            # x1 = F.relu(self.conv2(x1))
+            # x1 = F.relu(self.conv3(self.tconv2(x1, output_size=(10, 64, 128, 128))))
+            # x1 = F.relu(self.conv4(x1))
+
+            return x_sup, x_seg
