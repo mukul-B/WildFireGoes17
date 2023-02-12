@@ -30,7 +30,7 @@ VIIRS_GROUND_TRUTH = 'VIIRS Ground Truth'
 OTSU_thresholding_on_GOES = 'OTSU thresholding on GOES'
 
 GOES_input = 'GOES input'
-plt.style.use('wrf')
+plt.style.use('plot_style/wrf')
 import wandb
 from Autoencoder import Encoder, Decoder
 from AutoencoderDataset import npDataset

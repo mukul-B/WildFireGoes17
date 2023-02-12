@@ -11,12 +11,12 @@ import pandas as pd
 
 from CommonFunctions import prepareDir
 from CreateDataset import createDataset
-from Evaluation import evaluate
+from EvaluationDataset import evaluate
 from WriteDataset import writeDataset
 from GlobalValues import RAD, toExecuteSiteList, training_dir,testing_dir, realtimeSiteList
 import time
 
-from viirsrasterValidation import evaluate_raster
+from ViirsrasterValidation import evaluate_raster
 
 if __name__ == '__main__':
 
