@@ -11,21 +11,8 @@ from torch import nn
 
 SMOOTH = 1e-6
 
+
 # Global MSE
-class BCE(nn.Module):
-    def __init__(self, beta):
-        self.last_activation = "sigmoid"
-        super(BCE, self).__init__()
-
-    def forward(self, pred, targets):
-        targets[targets > 0] = 1
-        # critr = nn.BCELoss()
-        # loss = critr(pred, targets)
-        pred = pred.view(-1)
-        targets = targets.view(-1)
-        loss = torch.sqrt(torch.mean((targets - pred) ** 2))
-        return loss
-
 
 class jaccard_loss(nn.Module):
     def __init__(self, beta):
@@ -33,47 +20,20 @@ class jaccard_loss(nn.Module):
         self.last_activation = "sigmoid"
         print('jacard_loss intialized')
 
-
     def forward(self, pred, targets):
         # pred = pred.view(-1)
         # targets = targets.view(-1)
-        targets[targets>0]=1
+        targets[targets > 0] = 1
         # pred[pred >= 0.5] = 1
         # pred[pred < 0.5] = 0
-        intersection = torch.sum(pred * targets,(1,2,3))
-        sum_pred= torch.sum(pred ,(1,2,3))
+        intersection = torch.sum(pred * targets, (1, 2, 3))
+        sum_pred = torch.sum(pred, (1, 2, 3))
         sum_targets = torch.sum(targets, (1, 2, 3))
-        loss =  - torch.mean((intersection + SMOOTH) / (torch.sum(sum_targets) + torch.sum(sum_pred) + intersection + SMOOTH))
+        loss = - torch.mean(
+            (intersection + SMOOTH) / (torch.sum(sum_targets) + torch.sum(sum_pred) - intersection + SMOOTH))
         return loss
 
 
-class two_branch_loss_rmses(nn.Module):
-    def __init__(self, beta):
-        super(two_branch_loss_rmses, self).__init__()
-        self.last_activation = "both"
-        self.beta = beta
-        print('two_branch_loss intialized')
-
-    # def forward(self,  pred_sup,pred_seg,target,binary_target):
-    def forward(self, pred, target):
-        pred_sup, pred_seg= pred[0],pred[1]
-
-        # rmse
-        pred_sup = pred_sup.view(-1)
-        target_sup = target.view(-1)
-        rmse_loss = torch.sqrt(torch.mean((target_sup - pred_sup) ** 2))
-        # rmse_loss = nn.functional.mse_loss(pred_sup, target)
-        # rmse_loss = torch.sqrt(rmse_loss)
-
-        # jaccard
-        binary_target = target.cuda()
-        binary_target[binary_target > 0] = 1
-        pred_seg = pred_seg.view(-1)
-        binary_target = binary_target.view(-1)
-        binary_loss = torch.sqrt(torch.mean((binary_target - pred_seg) ** 2))
-
-        total_loss = self.beta * rmse_loss + (1 - self.beta) * binary_loss
-        return rmse_loss,binary_loss,total_loss
 class two_branch_loss(nn.Module):
     def __init__(self, beta):
         super(two_branch_loss, self).__init__()
@@ -83,7 +43,7 @@ class two_branch_loss(nn.Module):
 
     # def forward(self,  pred_sup,pred_seg,target,binary_target):
     def forward(self, pred, target):
-        pred_sup, pred_seg= pred[0],pred[1]
+        pred_sup, pred_seg = pred[0], pred[1]
 
         # rmse
         pred_sup = pred_sup.view(-1)
@@ -102,7 +62,8 @@ class two_branch_loss(nn.Module):
             (intersection + SMOOTH) / (torch.sum(sum_targets) + torch.sum(sum_pred) + intersection + SMOOTH))
 
         total_loss = self.beta * rmse_loss + (1 - self.beta) * jaccard_loss
-        return rmse_loss,jaccard_loss,total_loss
+        return rmse_loss, jaccard_loss, total_loss
+
 
 # Global MSE
 class GMSE(nn.Module):
@@ -115,6 +76,7 @@ class GMSE(nn.Module):
         targets = targets.view(-1)
         rmse = torch.sqrt(torch.mean((targets - pred) ** 2))
         return rmse
+
 
 # Global MSE
 class GLMSE(nn.Module):
@@ -131,15 +93,14 @@ class GLMSE(nn.Module):
         a = (targets - pred) ** 2
         a = a * targets
         local_rmse = torch.sqrt(torch.sum(a) / torch.sum(targets))
-        total_loss =  self.beta * local_rmse +  (1 - self.beta) * global_rmse
-        return local_rmse,global_rmse,total_loss
+        total_loss = self.beta * local_rmse + (1 - self.beta) * global_rmse
+        return local_rmse, global_rmse, total_loss
+
 
 class IMSE2(nn.Module):
     def __init__(self, beta):
         super(IMSE2, self).__init__()
         self.last_activation = "sigmoid"
-
-
 
     def forward(self, pred, targets):
         intersection = (pred * targets).sum((1, 2, 3))
@@ -148,6 +109,7 @@ class IMSE2(nn.Module):
         unionS = union.sum()
         rmse = torch.sqrt(torch.sum((targets - pred) ** 2) / unionS)
         return rmse
+
 
 class MSE(nn.Module):
     def __init__(self, beta):
@@ -174,9 +136,6 @@ class LMSE(nn.Module):
         rmse = torch.sqrt(torch.sum(a) / torch.sum(targets))
         # rmse = torch.sqrt(torch.sum(a) / torch.count_nonzero(targets))
         return rmse
-
-
-
 
 
 # MSE based on A union B
@@ -301,9 +260,6 @@ class IMSE(nn.Module):
         union = total - intersection
         rmse = torch.sqrt(torch.sum((targets - pred) ** 2) / intersection)
         return rmse
-
-
-
 
 
 class IoULoss(nn.Module):
