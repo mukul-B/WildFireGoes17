@@ -173,7 +173,7 @@ class GoesProcessing:
             return -1
         goes_scene.load([layer])
         goes_scene = goes_scene.resample(area_def)
-        # goes_scene.save_dataset(layer, filename=out_path)
+
         goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
         goes_scene[layer].values = 255 * (goes_scene[layer].values - goes_scene[layer].values.min()) / (
                 goes_scene[layer].values.max() - goes_scene[layer].values.min())
@@ -181,8 +181,10 @@ class GoesProcessing:
         bbox = [latitude - rectangular_size, longitude - rectangular_size, latitude + rectangular_size,
                 longitude + rectangular_size]
         # self.showgoes(goes_scene[layer].x, goes_scene[layer].y, goes_scene[layer].values, bbox)
-        goes_scene[layer].rio.to_raster(raster_path=out_path, driver='GTiff', dtype='int32')
+        # goes_scene[layer].rio.to_raster(raster_path=out_path, driver='GTiff', dtype='int32')
+        goes_scene[layer].rio.to_raster(raster_path=out_path, driver='GTiff', dtype='float32')
         # , writer='geotiff',dtype=np.float32
+        # was using int
 
     # get area defination for satpy, with new projection and bounding pox
     def get_areaDefination(self, EPSG, image_size, latitude, longitude, rectangular_size):

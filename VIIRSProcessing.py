@@ -18,7 +18,6 @@ from sklearn.neighbors import NearestNeighbors
 from scipy import interpolate
 
 from GlobalValues import viirs_dir
-from scipy.interpolate import LinearNDInterpolator
 
 
 class VIIRSProcessing:
@@ -92,14 +91,20 @@ class VIIRSProcessing:
 
         # exit(0)
         # creating pixel values used in tiff
-        b1_pixels = self.create_raster_array(fire_data_filter_on_timestamp)
+        b1_pixels,b2_pixels = self.create_raster_array(fire_data_filter_on_timestamp)
         b1_pixels = self.interpolation(b1_pixels)
+        # comment normalize_VIIRS for visualizing real values
+        # b1_pixels = self.normalize_VIIRS(b1_pixels)
+        # print("--------------------", np.max(b1_pixels))
+        self.gdal_writter(out_file,b1_pixels,b2_pixels)
+
+    def normalize_VIIRS(self, b1_pixels):
         max_val = np.max(b1_pixels)
+        # max_val = 367
         if max_val > 1:
             b1_pixels = (b1_pixels / max_val) * 255
         b1_pixels = b1_pixels.astype(int)
-        # print("--------------------", np.max(b1_pixels))
-        self.gdal_writter(b1_pixels, out_file)
+        return b1_pixels
 
     def inverse_mapping(self, fire_data_filter_on_timestamp):
         b2_pixels = np.zeros(self.image_size, dtype=float)
@@ -234,6 +239,7 @@ class VIIRSProcessing:
 
     def create_raster_array(self, fire_data_filter_on_timestamp):
         b1_pixels = np.zeros(self.image_size, dtype=float)
+        b2_pixels = np.zeros(self.image_size, dtype=float)
         for k in range(1, fire_data_filter_on_timestamp.shape[0]):
             record = fire_data_filter_on_timestamp[k]
             # transforming lon lat to utm
@@ -248,7 +254,8 @@ class VIIRSProcessing:
             # 137 -140 58 2021-07-16 1012 21806.47712273756 52779.97441741172
             # writing bright_ti4 ( record[2] )to tif
             b1_pixels[-cord_y, cord_x] = max(b1_pixels[-cord_y, cord_x], record[2])
-        return b1_pixels
+            b2_pixels[-cord_y, cord_x] = max(b2_pixels[-cord_y, cord_x], record[12])
+        return b1_pixels,b2_pixels
 
     # check if the zero is farbackground or surronding the fire, used for interpolation
     def nonback_zero(self, b1_pixels, ii, jj):
@@ -293,10 +300,10 @@ class VIIRSProcessing:
 
         return grid_z
 
-    def gdal_writter(self, b1_pixels, out_file):
+    def gdal_writter(self, out_file, b1_pixels,b2_pixels):
         dst_ds = gdal.GetDriverByName('GTiff').Create(
             out_file, self.image_size[1],
-            self.image_size[0], 1,
+            self.image_size[0], 2,
             gdal.GDT_Float32)
         # transforms between pixel raster space to projection coordinate space.
         # new_raster.SetGeoTransform((x_min, pixel_size, 0, y_min, 0, pixel_size))
@@ -306,5 +313,6 @@ class VIIRSProcessing:
         srs.ImportFromEPSG(self.crs)  # WGS84 lat/long
         dst_ds.SetProjection(srs.ExportToWkt())  # export coords to file
         dst_ds.GetRasterBand(1).WriteArray(b1_pixels)  # write r-band to the raster
+        dst_ds.GetRasterBand(2).WriteArray(b2_pixels)
         dst_ds.FlushCache()  # write to disk
         dst_ds = None

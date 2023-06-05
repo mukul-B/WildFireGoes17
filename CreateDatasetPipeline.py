@@ -16,7 +16,6 @@ from WriteDataset import writeDataset
 from GlobalValues import RAD, toExecuteSiteList, training_dir,testing_dir, realtimeSiteList
 import time
 
-from ViirsrasterValidation import evaluate_raster
 
 if __name__ == '__main__':
 

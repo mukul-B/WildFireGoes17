@@ -27,22 +27,49 @@ def viewtiff(v_file, g_file, date, save=True, compare_dir=None):
     VIIRS_data = xr.open_rasterio(v_file)
     GOES_data = xr.open_rasterio(g_file)
 
-    fig, ax = plt.subplots(1, 3, constrained_layout=True)
+    fig, ax = plt.subplots(1, 3, constrained_layout=True, figsize=(12, 4))
 
     vd = VIIRS_data.variable.data[0]
     gd = GOES_data.variable.data[0]
 
-    p = ax[0].imshow(vd)
-    q = ax[1].imshow(gd)
-
-    ax[2].imshow((GOES_data.variable.data[0]) - (VIIRS_data.variable.data[0]))
-    plt.colorbar(p, shrink=0.9)
-    plt.colorbar(q, shrink=0.5)
-
+    X, Y = np.mgrid[0:1:complex(str(vd.shape[0]) + "j"), 0:1:complex(str(vd.shape[1]) + "j")]
+    # plot_individual_images(X, Y, compare_dir, g_file, gd, vd)
+    # if in GOES and VIIRS , the values are normalized, using this flag to visualize result
+    normalized = True
+    vmin,vmax = (0, 250) if normalized else (200,420)
+    p = ax[1].pcolormesh(Y, -X, vd, cmap="jet", vmin=vmin, vmax=vmax)
+    q = ax[0].pcolormesh(Y, -X, gd, cmap="jet", vmin=vmin, vmax=vmax)
+    r = ax[2].pcolormesh(Y, -X, (gd - vd), cmap="jet", vmin=vmin, vmax=vmax)
+    cb = fig.colorbar(p, pad=0.01)
+    cb.ax.tick_params(labelsize=11)
+    cb.set_label('Radiance (K)', fontsize=12)
+    for k in range(3):
+        ax[k].tick_params(left=False, right=False, labelleft=False,
+                          labelbottom=False, bottom=False)
+    plt.rcParams['savefig.dpi'] = 600
     if (save):
         fig.savefig(f'{compare_dir}{date}.png')
         plt.close()
     plt.show()
+
+
+def plot_individual_images(X, Y, compare_dir, g_file, gd, vd):
+    ar = [vd, gd, gd - vd]
+    if (g_file == 'reference_data/Kincade/GOES/ABI-L1b-RadC/tif/GOES-2019-10-27_949.tif'):
+        print(g_file, compare_dir)
+        for k in range(3):
+            fig2 = plt.figure()
+            ax = fig2.add_subplot()
+            a = ax.pcolormesh(Y, -X, ar[k], cmap="jet", vmin=200, vmax=420)
+            cb = fig2.colorbar(a, pad=0.01)
+            cb.ax.tick_params(labelsize=11)
+            cb.set_label('Radiance (K)', fontsize=12)
+            plt.tick_params(left=False, right=False, labelleft=False,
+                            labelbottom=False, bottom=False)
+            # plt.show()
+            plt.savefig(f'{compare_dir}/data_preprocessing{k}.png', bbox_inches='tight', dpi=600)
+            plt.close()
+
 
 
 def PSNR(pred, gt, shave_border=0):
