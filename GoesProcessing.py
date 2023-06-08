@@ -175,9 +175,9 @@ class GoesProcessing:
         goes_scene = goes_scene.resample(area_def)
 
         goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
-        goes_scene[layer].values = 255 * (goes_scene[layer].values - goes_scene[layer].values.min()) / (
-                goes_scene[layer].values.max() - goes_scene[layer].values.min())
-        goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
+        # goes_scene[layer].values = 255 * (goes_scene[layer].values - goes_scene[layer].values.min()) / (
+        #         goes_scene[layer].values.max() - goes_scene[layer].values.min())
+        # goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
         bbox = [latitude - rectangular_size, longitude - rectangular_size, latitude + rectangular_size,
                 longitude + rectangular_size]
         # self.showgoes(goes_scene[layer].x, goes_scene[layer].y, goes_scene[layer].values, bbox)

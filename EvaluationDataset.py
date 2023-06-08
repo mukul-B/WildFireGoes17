@@ -35,7 +35,7 @@ def viewtiff(v_file, g_file, date, save=True, compare_dir=None):
     X, Y = np.mgrid[0:1:complex(str(vd.shape[0]) + "j"), 0:1:complex(str(vd.shape[1]) + "j")]
     # plot_individual_images(X, Y, compare_dir, g_file, gd, vd)
     # if in GOES and VIIRS , the values are normalized, using this flag to visualize result
-    normalized = True
+    normalized = False
     vmin,vmax = (0, 250) if normalized else (200,420)
     p = ax[1].pcolormesh(Y, -X, vd, cmap="jet", vmin=vmin, vmax=vmax)
     q = ax[0].pcolormesh(Y, -X, gd, cmap="jet", vmin=vmin, vmax=vmax)
