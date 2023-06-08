@@ -13,12 +13,13 @@ class npDataset(Dataset):
     out of it.
     """
 
-    def __init__(self, data_list, batch_size, im_dir,augment):
+    def __init__(self, data_list, batch_size, im_dir,augment,evaluate):
         self.array = data_list
         self.batch_size = batch_size
         self.im_dir = im_dir
         self.transform = transform
         self.augment = augment
+        self.evaluate = evaluate
 
     def __len__(self): return int((len(self.array) / self.batch_size))
 
@@ -31,17 +32,31 @@ class npDataset(Dataset):
         files = self.array[i * self.batch_size:i * self.batch_size + self.batch_size]
         x = []
         y = []
+        if self.evaluate:
+            z = []
+            a = []
+            b = []
+            c = []
         for file in files:
             file_path = os.path.join(self.im_dir, file)
             sample = np.load(file_path)
             x.append(sample[:, :, 1])
             y.append(sample[:, :, 0])
-
+            if (self.evaluate):
+                z.append(sample[:, :, 2])
+                a.append(sample[:, :, 3])
+                b.append(sample[:, :, 4])
+                c.append(sample[:, :, 5])
         x, y = np.array(x) / 255., np.array(y) / 255.
         x, y = np.expand_dims(x, 1), np.expand_dims(y, 1)
         x,y = torch.Tensor(x), torch.Tensor(y)
         if(self.augment):
             x, y = self.transform(x,y)
+        if self.evaluate:
+            z = np.array(z)
+            z = np.expand_dims(z, 1)
+            z = torch.Tensor(z)
+            return x,y,z,a,b,c
         return x,y
 
 

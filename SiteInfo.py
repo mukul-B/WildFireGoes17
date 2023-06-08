@@ -21,6 +21,13 @@ class SiteInfo():
         self.start_time, self.end_time = config.get(location).get('start') , config.get(location).get('end')
         self.latitude , self.longitude = config.get(location).get('latitude') , config.get(location).get('longitude')
         self.rectangular_size = config.get('rectangular_size')
-        self.EPSG = config.get(location).get('EPSG')
+        # self.EPSG = config.get(location).get('EPSG')
+        self.EPSG = self.coordinate2EPSG(self.latitude, self.longitude)
 
-# site = SiteInfo('Mosquito_fire')
+    def coordinate2EPSG(self,lat,lon):
+        if -126.0 < lon <= -120.0:
+            return 32610
+        if -120.0 < lon <= -114.0:
+            return 32611
+        if -114.0 < lon <= -108.0:
+            return 32612

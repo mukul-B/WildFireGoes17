@@ -1,3 +1,18 @@
+"""
+This script will run through the directory of training images, load
+the image pairs
+
+Created on Sun Jul 23 11:17:09 2022
+
+@author: mukul
+"""
+import datetime as dt
+
+import cartopy.crs as ccrs
+import cartopy.io.shapereader as shpreader
+import matplotlib as mpl
+from cartopy.io.img_tiles import GoogleTiles
+from matplotlib import pyplot as plt
 #!/usr/bin/python
 import os
 
@@ -75,4 +90,74 @@ def lat_lon(H, lon_origin,  r_eq, r_pol ,lat_rad_1d, lon_rad_1d):
     # print test coordinates
     print('{} N, {} W'.format(lat[318, 1849], abs(lon[318, 1849])))
     return lat, lon
+
+
+
+class StreetmapESRI(GoogleTiles):
+    # shaded relief
+    def _image_url(self, tile):
+        x, y, z = tile
+        url = ('https://server.arcgisonline.com/ArcGIS/rest/services/' \
+               'World_Street_Map/MapServer/tile/{z}/{y}/{x}.jpg').format(
+            z=z, y=y, x=x)
+        return url
+
+def GOES_visual_verification(ac_time, fire_date, path, site,save=False):
+    lon, lat, data, data_units, data_time_grab, data_long_name, band_id, band_wavelength, band_units, var_name = lat_lon_reproj(
+        path, "Rad")
+    show_plot(lon, lat, data, data_units, data_time_grab, data_long_name, band_id,
+              band_wavelength, band_units, var_name, site, fire_date, ac_time, save)
+
+def show_plot(lon, lat, data, data_units, data_time_grab, data_long_name, band_id, band_wavelength, band_units,
+              var_name, site,
+              fildate, filtime=None, save=True):
+
+    latitude, longitude = site.latitude, site.longitude
+    rectangular_size = site.rectangular_size
+    bottom_left = [latitude - rectangular_size, longitude - rectangular_size]
+    top_right = [latitude + rectangular_size, longitude + rectangular_size]
+    bbox  = [bottom_left[1],top_right[1],bottom_left[0],top_right[0]]
+    print(bbox)
+    if save:
+        mpl.use('Agg')
+    else:
+        mpl.use('TkAgg')
+
+    proj = ccrs.PlateCarree()
+    plt.figure(figsize=(6, 3))
+    ax = plt.axes(projection=proj)
+    # ax.add_image(StreetmapESRI(), 10)
+    ax.set_extent(bbox)
+
+    cmap = plt.colormaps['YlOrRd']
+
+    p = ax.pcolormesh(lon.data, lat.data, data,
+                      transform=ccrs.PlateCarree(),
+                      cmap=cmap,
+                      # vmin=32,
+                      # vmax=34,
+                      # alpha=0.9
+                      )
+
+    cbar = plt.colorbar(p, shrink=0.5)
+    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=0, alpha=0.5)
+    gl.top_labels = False
+    gl.right_labels = False
+    gl.xlines = False
+    gl.ylines = False
+
+    plt.title('{0}\n{2}{3}{4} on {1} with viirs {5}'.format(data_long_name, data_time_grab, band_id, band_wavelength,
+                                                            band_units, filtime))
+    # plt.tight_layout()
+
+    pdate = dt.datetime.strptime(data_time_grab, '%Y-%m-%d %H:%M:%S.%f')
+    prd = dt.datetime.strftime(pdate, '%Y%m%d_%H%M')
+
+    if (save):
+        plt.savefig('plots' + '/FRP_' + prd + '.png', bbox_inches='tight', dpi=240)
+    else:
+        plt.show()
+    print('Done.')
+
+    plt.close('all')
 

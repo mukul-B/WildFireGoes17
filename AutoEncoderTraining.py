@@ -12,7 +12,7 @@ from Autoencoder import Encoder, Decoder
 from AutoencoderDataset import npDataset
 from GlobalValues import training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
     LEARNING_RATE, random_state, BETA, LOSS_FUNCTION
-from LossFunctionConfig import use_config, sweep_configuration_two_branch
+from LossFunctionConfig import use_config
 from LossFunctions import two_branch_loss
 
 # from LossFunctions import conbine_loss
@@ -180,8 +180,8 @@ def main(config=None):
     train_files, test_files = train_test_split(file_list, test_size=0.2, random_state=random_state)
     train_files, validation_files = train_test_split(train_files, test_size=0.2, random_state=random_state)
 
-    train_loader = DataLoader(npDataset(train_files, batch_size, im_dir,True), shuffle=True)
-    validation_loader = DataLoader(npDataset(validation_files, batch_size, im_dir,True), shuffle=False)
+    train_loader = DataLoader(npDataset(train_files, batch_size, im_dir,True,False), shuffle=True)
+    validation_loader = DataLoader(npDataset(validation_files, batch_size, im_dir,True,False), shuffle=False)
     # test_loader = DataLoader(npDataset(test_files, batch_size, im_dir))
     print(
         f'Training sample : {len(train_files)} , validation samples : {len(validation_files)} , testing samples : {len(test_files)}')
