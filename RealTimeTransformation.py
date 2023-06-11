@@ -21,7 +21,14 @@ from pandas.io.common import file_exists
 from pyproj import Transformer
 
 from AutoEncoderEvaluation import supr_resolution
-from GlobalValues import RealTimeIncoming_files, RealTimeIncoming_results
+from GlobalValues import RealTimeIncoming_files, RealTimeIncoming_results, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL
+from LossFunctionConfig import use_config
+from ModelPrediction4sample import ModelPrediction4singleEvent
+from RadarProcessing import RadarProcessing
+from WriteDataset import goes_radiance_normaization
+import pandas as pd
+import json
+from AutoEncoderEvaluation import getth
 
 
 def pad_with(vector, pad_width, iaxis, kwargs):
@@ -57,7 +64,7 @@ def padWindow(window):
     if ro.shape != (128, 128):
         ro = np.zeros(window.shape)
     else:
-        ro = supr_resolution([ro])
+        ro = supr_resolution(use_config, [ro])
         # ro = ro
     ro = ro[0:sx, 0:sy]
     return ro
@@ -107,41 +114,51 @@ def plot_improvement(path='reference_data/Dixie/GOES/ABI-L1b-RadC/tif/GOES-2021-
     plt.savefig('result_for_video' + '/FRP_' + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
 
 
-def plot_improvement2(gpath):
+def plot_prediction(gpath, prediction=True):
     print(gpath)
     d = gpath.split('/')[-1].split('.')[0][5:].split('_')
+    date_radar = ''.join(d).replace('-', '')
     gfI = Image.open(gpath)
     gfin = np.array(gfI)[:, :]
     # gfin = np.array(gfI)[:, :, 0]
-    # res = image2windows(gfin)
-    # gf = windows2image(res)
-    gf = gfin
-    bbox, lat, lon = get_lon_lat(gpath)
 
+    if prediction:
+        # gfin_min , gfin_max = np.min(gfin) , np.max(gfin)
+        gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
+        gfin = goes_radiance_normaization(gfin, gf_max, gf_min)
+        gfin = np.nan_to_num(gfin)
+        gfin = gfin.astype(int)
+        res = image2windows(gfin)
+        pred = windows2image(res)
+        # modelPrediction = ModelPrediction4singleEvent(use_config)
+        # pred = modelPrediction.prediction(gfin)
+        ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, 1, on=0)
+        pred = th1 * pred
+        pred[pred == 0] = None
+        pred = VIIRS_MAX_VAL * pred
+    else:
+        pred = gfin
+
+    bbox, lat, lon = get_lon_lat(gpath)
     proj = ccrs.PlateCarree()
     # plt.figure(figsize=(6, 3))
     ax = plt.axes(projection=proj)
     ax.add_image(StreetmapESRI(), 10)
     # ax.set_extent(bbox)
-    # gf[gf < 0.1] = None
-    # print(np.unique(gf.flatten()))
-    # gf[gf == 0] = None
-    # # gf[gf <= -60] = None
-    # gf[gf <= 0] = None
-    # # gf[(gf <= 0) & (gf != -57)] = None
-    # gf[(gf >= 80) ]  = None
-    # print('-',np.unique(gf.flatten()))
     cmap = 'YlOrRd'
     # plt.suptitle('Mosquito Fire on {0} at {1} UTC'.format(d[0], d[1]))
-    plt.suptitle('{0} at {1} UTC'.format(d[0], d[1]))
-    p = ax.pcolormesh(lat, lon, gf,
+    plt.suptitle('{0} at {1}:{2} UTC'.format(d[0], d[1][:2], d[1][2:]))
+    p = ax.pcolormesh(lat, lon, pred,
                       transform=ccrs.PlateCarree(),
                       # vmin=32,
                       # vmax=34,
+                      vmax=420,
                       cmap=cmap)
-    # cbar = plt.colorbar(p, shrink=0.5)
-    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=1, alpha=0.5)
 
+    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=1, alpha=0.5)
+    cb = plt.colorbar(p, pad=0.01)
+    cb.ax.tick_params(labelsize=11)
+    cb.set_label("Radiance (k)", fontsize=12)
     gl.top_labels = False
     gl.right_labels = False
     # gl.xlines = False
@@ -149,14 +166,21 @@ def plot_improvement2(gpath):
     gl.xlabel_style = {'size': 9, 'rotation': 30}
     gl.ylabel_style = {'size': 9}
     plt.tight_layout()
+    radarprocessing = RadarProcessing()
+    returnval = radarprocessing.plot_radar_json(f'radar_data/Bear/bear_{date_radar}_smooth_perim.geojson', ax)
+    # returnval = plot_radar_json(f'radar_data/Caldor/Caldor_{date_radar}_smooth_perim_new.geojson', ax)
     # plt.show()
-    print('/FRP_' + str(d[0] + '_' + d[1]) + '.png')
-    plt.savefig(RealTimeIncoming_results + '/FRP_' + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
+    if returnval:
+        print('/FRP_' + str(d[0] + '_' + d[1]) + '.png')
+        plt.savefig(RealTimeIncoming_results + '/FRP_' + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
+    # plt.show()
     plt.close()
 
 
 def get_lon_lat(path):
-    transformer = Transformer.from_crs(32611, 4326)
+    # caldor 32611
+    # bear 32610
+    transformer = Transformer.from_crs(32610, 4326)
     with rasterio.open(path, "r") as ds:
         cfl = ds.read(1)
         bl = transformer.transform(ds.bounds.left, ds.bounds.bottom)
@@ -167,8 +191,14 @@ def get_lon_lat(path):
     lat = np.array([i[1] for i in data]).reshape(cfl.shape)
     return bbox, lat, lon
 
+def prepareDir():
+    if not os.path.exists(RealTimeIncoming_files):
+        os.mkdir(RealTimeIncoming_files)
+    if not os.path.exists(RealTimeIncoming_results):
+        os.mkdir(RealTimeIncoming_results)
 
 if __name__ == '__main__':
+    prepareDir()
     dir = RealTimeIncoming_files
     GOES_list = os.listdir(dir)
     print(GOES_list)
@@ -176,9 +206,8 @@ if __name__ == '__main__':
     pathC = RealTimeIncoming_results + '/FRP_'
     for gfile in GOES_list:
         if not file_exists(pathC + gfile[5:-3] + "png"):
-            pool.apply_async(plot_improvement2, args=(dir + gfile,))
-        # print(res.get())
-        #     plot_improvement2(dir + gfile)
+            pool.apply_async(plot_prediction, args=(dir + gfile,))
+            # print(res.get())
+            # plot_prediction(dir + gfile,False)
     pool.close()
-
     pool.join()

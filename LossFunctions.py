@@ -10,12 +10,14 @@ import torch
 from torch import nn
 
 SMOOTH = 1e-6
-
+ACTIVATION_RELU = "relu"
+ACTIVATION_SIGMOID = "sigmoid"
+ACTIVATION_BOTH = "both"
 
 # Global MSE
 class GMSE(nn.Module):
     def __init__(self, beta):
-        self.last_activation = "relu"
+        self.last_activation = ACTIVATION_RELU
         super(GMSE, self).__init__()
 
     def forward(self, pred, targets):
@@ -28,7 +30,7 @@ class GMSE(nn.Module):
 # Global plus local MSE
 class GLMSE(nn.Module):
     def __init__(self, beta):
-        self.last_activation = "relu"
+        self.last_activation = ACTIVATION_RELU
         self.beta = beta
         super(GLMSE, self).__init__()
 
@@ -48,8 +50,7 @@ class GLMSE(nn.Module):
 class jaccard_loss(nn.Module):
     def __init__(self, beta):
         super(jaccard_loss, self).__init__()
-        self.last_activation = "sigmoid"
-        print('jacard_loss intialized')
+        self.last_activation = ACTIVATION_SIGMOID
 
     def forward(self, pred, targets):
         # pred = pred.view(-1)
@@ -69,9 +70,8 @@ class jaccard_loss(nn.Module):
 class two_branch_loss(nn.Module):
     def __init__(self, beta):
         super(two_branch_loss, self).__init__()
-        self.last_activation = "both"
+        self.last_activation = ACTIVATION_BOTH
         self.beta = beta
-        print('two_branch_loss intialized')
 
     def forward(self, pred, target):
         pred_sup, pred_seg = pred[0], pred[1]

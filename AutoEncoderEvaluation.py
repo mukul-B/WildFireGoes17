@@ -6,8 +6,7 @@ autoencoder using MSE reconstruction loss for the superresolution.
 
 Created on Sun Jul 26 11:17:09 2020
 
-@author: mullenj
-@modified by: mukul badhan
+@author:  mukul badhan
 on Sun Jul 23 11:17:09 2022
 """
 import logging
@@ -35,7 +34,7 @@ import wandb
 from Autoencoder import Encoder, Decoder
 from AutoencoderDataset import npDataset
 from GlobalValues import RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, model_path, \
-    HC, HI, LI, LC
+    HC, HI, LI, LC, testing_dir, VIIRS_UNITS
 from GlobalValues import training_dir, Results, random_state
 from LossFunctionConfig import use_config
 
@@ -164,7 +163,15 @@ def best_threshold_iteration(groundTruth, input):
     return level, ret2, th2
 
 
-def safe_results(prediction_rmse, prediction_IOU, input, groundTruth, path,site):
+def noralize_goes_to_radiance(ngf, gf_max, gf_min):
+    color_normal_value = 255
+    return (gf_min + (ngf * ((gf_max - gf_min) / color_normal_value))).round(5)
+
+def noralize_viirs_to_radiance(nvf, vf_max):
+    color_normal_value = 255
+    return (nvf * (vf_max / color_normal_value)).round(2)
+
+def safe_results(prediction_rmse, prediction_IOU, input, groundTruth, path, site, gf_min, gf_max, vf_max):
     groundTruth = groundTruth.numpy() * 255
     # iou_i= psnr_intersection_i= psnr_union_i= \
     iou_rmse = psnr_intersection_rmse = psnr_union_rmse = 0
@@ -222,18 +229,26 @@ def safe_results(prediction_rmse, prediction_IOU, input, groundTruth, path,site)
         # if filename[0] in ['78','240','249','0','6','19','2','10','14','15','27','807']:
         # if 1:
         # fig, axs = plt.subplots(2, 3, constrained_layout=True, figsize=(12, 8))
-        image_blocks = ((input, th_img_i, groundTruth),
-                        (prediction_rmse if prediction_rmse is not None else prediction_IOU,
-                         th_img_rmse if prediction_rmse is not None else None,
-                         th3_img if prediction_IOU is not None else None))
+        # image_blocks = ((input, th_img_i, groundTruth),
+        #                 (prediction_rmse if prediction_rmse is not None else prediction_IOU,
+        #                  th_img_rmse if prediction_rmse is not None else None,
+        #                  th3_img if prediction_IOU is not None else None))
+        image_blocks = ((noralize_goes_to_radiance(input, gf_max, gf_min),
+                         noralize_goes_to_radiance(th_img_i, gf_max, gf_min),
+                         noralize_viirs_to_radiance(groundTruth, vf_max)),
+                        (noralize_viirs_to_radiance(prediction_rmse,
+                                                    vf_max) if prediction_rmse is not None else noralize_viirs_to_radiance(prediction_IOU, vf_max),
+                         noralize_viirs_to_radiance(th_img_rmse, vf_max) if prediction_rmse is not None else None,
+                         noralize_viirs_to_radiance(th3_img, vf_max) if prediction_IOU is not None else None))
         lable_blocks = ((GOES_input, OTSU_thresholding_on_GOES + input_dis, VIIRS_GROUND_TRUTH),
                         (Prediction_RMSE if prediction_rmse is not None else Prediction_JACCARD,
                          'OTSU thresholding on Prediction(RMSE)' + ret1_dis,
                          'OTSU thresholding on Prediction(IOU)' + ret3_dis)
                         )
         site_date_time = '_'.join(site.split('.')[1].split('_'))
-        logging.info(f'{LOSS_NAME},{cloud},{filename[0]},{str(iou_rmse) if prediction_rmse is not None else ""},{str(iou_p_iou) if prediction_IOU is not None else ""},{site_date_time}')
-
+        logging.info(f'{LOSS_NAME},{cloud},{filename[0]},{str(iou_rmse) if prediction_rmse is not None else ""},{str(iou_p_iou) if prediction_IOU is not None else ""},{psnr_intersection_rmse if prediction_rmse is not None else ""},{site_date_time}')
+        # display = False
+        # if display:
         for col in range(2):
             for row in range(3):
                 if image_blocks[col][row] is not None:
@@ -243,10 +258,17 @@ def safe_results(prediction_rmse, prediction_IOU, input, groundTruth, path,site)
 
 
                     X, Y = np.mgrid[0:1:128j, 0:1:128j]
-                    sc = ax.pcolormesh(Y, -X, image_blocks[col][row], cmap="jet", vmin=0, vmax=255)
-                    cb= fig2.colorbar(sc, pad=0.01)
-                    cb.ax.tick_params(labelsize=11)
-                    cb.set_label('Normalized Radiance',fontsize=12)
+                    vmin = 200 if lable_blocks[col][row] in [VIIRS_GROUND_TRUTH] else None
+                    cb_unit = "Background | Fire Area     " if lable_blocks[col][row] in [Prediction_JACCARD] else VIIRS_UNITS
+                    if lable_blocks[col][row] in [Prediction_JACCARD]:
+                        cmap = plt.get_cmap("gray_r",2)
+                        sc = ax.pcolormesh(Y, -X, image_blocks[col][row], cmap=cmap, vmin=vmin, vmax=420)
+                    else:
+                        cmap = plt.get_cmap("jet")
+                        sc = ax.pcolormesh(Y, -X, image_blocks[col][row], cmap=cmap, vmin=vmin, vmax=420)
+                        cb = fig2.colorbar(sc, pad=0.01)
+                        cb.ax.tick_params(labelsize=11)
+                        cb.set_label(cb_unit, fontsize=12)
 
                     plt.tick_params(left=False, right=False, labelleft=False,
                                     labelbottom=False, bottom=False)
@@ -291,19 +313,25 @@ def test(test_loader, encoder, decoder,npd):
     typecount = {}
     count = 0.0
     dir = {}
-    maxdif = 0
+    # maxdif = 0
     iou_plot_control = []
     iou_plot_prediction = []
+    # sum_fpr = []
     mc = []
     for i in range(0, 11):
         dir[i / 10] = (0, 0)
     logging.info(dir)
     with torch.no_grad():
-        for batch_idx, (x, y) in enumerate(test_loader):
+        # for batch_idx, (x, y) in enumerate(test_loader):
+        for batch_idx, (x, y, z, gf_min, gf_max, vf_max) in enumerate(test_loader):
             count += 1
             # psnr_control = PSNR(x, y)
             # avg_psnr_control += psnr_control
             x, y = torch.squeeze(x, dim=0), torch.squeeze(y, dim=0)
+            # total_frp = torch.sum(z)
+            # if (total_frp < 0):
+            #     print("sgd")
+            # sum_fpr.append(total_frp)
             x = x.cuda()
             start_time = time.time()
             encoder_output = encoder(x)
@@ -333,9 +361,9 @@ def test(test_loader, encoder, decoder,npd):
             nonzero = np.count_nonzero(output_rmse)
             if True:
                 path = f'{res}/{batch_idx}.png'
-
+                gf_min, gf_max, vf_max = gf_min[0][0][0][0].item(), gf_max[0][0][0][0].item(), vf_max[0][0][0][0].item()
                 maxdif, IOU_control, psnr_control_inter, psnr_control_union, IOU_predicted, psnr_predicted_inter, psnr_predicted_union, type = \
-                    safe_results(output_rmse, output_jaccard, x, y, path,npd.array[batch_idx])
+                    safe_results(output_rmse, output_jaccard, x, y, path, npd.array[batch_idx], gf_min, gf_max, vf_max)
 
                 avg_IOU_control[type] = avg_IOU_control.get(type, 0.0) + IOU_control
                 avg_psnr_control_inter[type] = avg_psnr_control_inter.get(type, 0.0) + psnr_control_inter
@@ -360,6 +388,11 @@ def test(test_loader, encoder, decoder,npd):
     # axs[0].hist(bin_edges_iou[:-1], bins=bin_edges_iou, weights=hist_iou / count)
     # axs[0].set_title('Distribution of control samples based on IOU', size=8)
     # axs[0].set_ylim([0, 1])
+    # plt.scatter(sum_fpr,iou_plot_prediction)
+    # axs.set_ylabel("IOU")
+    # axs.set_xlabel('Total FRP of window')
+    # axs.set_xlim([100,5000])
+    # hist_iou_2, bin_edges_iou_2 = np.histogram(sum_fpr, bins=100)
     hist_iou_2, bin_edges_iou_2 = np.histogram(iou_plot_prediction, bins=100)
     axs.hist(bin_edges_iou_2[:-1], bins=bin_edges_iou_2, weights=hist_iou_2 / count)
     axs.set_title('Distribution of predictions  based on IOU', size=8)
@@ -434,9 +467,17 @@ def test_runner(npd):
     test(test_loader, encoder, decoder,npd)
 
 
-def supr_resolution(x):
+def supr_resolution(conf,x):
+    loss_function = conf.get(LOSS_FUNCTION)
+    loss_function_name = str(loss_function).split("'")[1].split(".")[1]
+    project_name = f"wildfire_{loss_function_name}_{conf.get(EPOCHS)}epochs_{conf.get(BATCH_SIZE)}batchsize_{conf.get(LEARNING_RATE)}lr"
+    path = model_path + project_name
+    LOSS_NAME = loss_function_name
+    OUTPUT_ACTIVATION = loss_function(1).last_activation
+    encoder_path = path + "/" + RES_ENCODER_PTH
+    decoder_path = path + "/" + RES_DECODER_PTH
     encoder = Encoder(1)
-    decoder = Decoder(256)
+    decoder = Decoder(256, OUTPUT_ACTIVATION)
     encoder.load_state_dict(torch.load(encoder_path))
     decoder.load_state_dict(torch.load(decoder_path))
     encoder.cuda()
@@ -448,11 +489,19 @@ def supr_resolution(x):
     with torch.no_grad():
         x = x.cuda()
         encoder_output = encoder(x)
-        output, output2 = decoder(encoder_output)
-        output = output.cpu()
+        decoder_output = decoder(encoder_output)
+        if len(decoder_output) == 1:
+            output_rmse, output_jaccard = None, None
+            if LOSS_NAME == 'jaccard_loss':
+                output_jaccard = decoder_output
+            else:
+                output_rmse = decoder_output
+        else:
+            output_rmse = decoder_output[0]
+        output_rmse = output_rmse.cpu()
         x = x.cpu()
         x = np.squeeze(x)
-        output = np.squeeze(output)
+        output = np.squeeze(output_rmse)
         return output
 
 
@@ -502,7 +551,7 @@ def main(config=None):
     train_files, test_files = train_test_split(file_list, test_size=0.2, random_state=random_state)
     # test_files = os.listdir(im_dir)
     logging.info(f'{len(test_files)} test_data samples found')
-    npd = npDataset(test_files, batch_size, im_dir, augment=False)
+    npd = npDataset(test_files, batch_size, im_dir, augment=False,evaluate=True)
     test_runner(npd)
 
 

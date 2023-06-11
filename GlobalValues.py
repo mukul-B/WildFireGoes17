@@ -15,6 +15,11 @@ LC = 'LC'
 HC = 'HC'
 LI = 'LI'
 HI = 'HI'
+GOES_MIN_VAL, GOES_MAX_VAL = 210, 413
+VIIRS_MAX_VAL = 367
+VIIRS_UNITS ='Brightness Temperature'
+GOES_UNITS = 'Radiance'
+PREDICTION_UNITS = 'Brightness Temperature'
 RES_OPT_PTH = 'SuperRes_Opt.pth'
 RES_DECODER_PTH = 'SuperRes_Decoder.pth'
 RES_ENCODER_PTH = 'SuperRes_Encoder.pth'
@@ -36,8 +41,8 @@ compare = 'compare'
 # site_conf = 'config/configuration_2019.yml'
 # toExecuteSiteList = "config/training_sites_2019"
 site_conf = 'config/conf_sites.yml'
-# toExecuteSiteList = "config/training_sites"
-toExecuteSiteList = "config/testing_sites"
+toExecuteSiteList = "config/training_sites"
+# toExecuteSiteList = "config/testing_sites"
 # training = 'training'
 # reference_data = "reference_data_working"
 reference_data = "reference_data"
@@ -62,5 +67,8 @@ videos = 'Videos/'
 
 # blind testing
 realtimeSiteList = "config/blind_testing_sites"
+
+
+
 
 

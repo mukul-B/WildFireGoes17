@@ -13,7 +13,7 @@ import os
 import numpy as np
 from PIL import Image
 
-from GlobalValues import viirs_dir, goes_dir
+from GlobalValues import viirs_dir, goes_dir, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL
 import xarray as xr
 
 
@@ -28,7 +28,6 @@ def sliding_window(image, stepSize, windowSize):
 
 def viirs_radiance_normaization(vf, vf_max):
     color_normal_value = 255
-    # vf_max = 367
     if vf_max > 1:
         return color_normal_value * (vf / vf_max)
     return vf
@@ -70,13 +69,14 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
     vf_FRP = VIIRS_data.variable.data[1]
     vf_FRP = np.array(vf_FRP)[:, :]
 
-    gf_max = np.max(gf)
-    gf_min = np.min(gf)
+    # gf_min, gf_max = np.min(gf), np.max(gf)
+    gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
     gf = goes_radiance_normaization(gf, gf_max, gf_min)
     gf = np.nan_to_num(gf)
     gf = gf.astype(int)
 
-    vf_max = np.max(vf)
+    # vf_max = np.max(vf)
+    vf_max = VIIRS_MAX_VAL
     vf = viirs_radiance_normaization(vf, vf_max)
     vf = vf.astype(int)
 
@@ -92,7 +92,7 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
         v_win = window[:, :, 0]
         vf_win = window[:, :, 2]
         #  only those windows are considered where it is not mostly empty
-        if np.count_nonzero(v_win) == 0 or np.count_nonzero(g_win)==0:
+        if np.count_nonzero(v_win) == 0 or np.count_nonzero(g_win) == 0:
             continue
         else:
             np.save(os.path.join(out_dir, 'comb.' + location + '_' + date
