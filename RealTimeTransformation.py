@@ -21,14 +21,12 @@ from pandas.io.common import file_exists
 from pyproj import Transformer
 
 from AutoEncoderEvaluation import supr_resolution
-from GlobalValues import RealTimeIncoming_files, RealTimeIncoming_results, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL
+from EvaluationMetrics import getth
+from GlobalValues import RealTimeIncoming_files, RealTimeIncoming_results, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL, \
+    PREDICTION_UNITS, GOES_UNITS
 from LossFunctionConfig import use_config
-from ModelPrediction4sample import ModelPrediction4singleEvent
 from RadarProcessing import RadarProcessing
 from WriteDataset import goes_radiance_normaization
-import pandas as pd
-import json
-from AutoEncoderEvaluation import getth
 
 
 def pad_with(vector, pad_width, iaxis, kwargs):
@@ -136,6 +134,7 @@ def plot_prediction(gpath, prediction=True):
         pred = th1 * pred
         pred[pred == 0] = None
         pred = VIIRS_MAX_VAL * pred
+
     else:
         pred = gfin
 
@@ -158,7 +157,7 @@ def plot_prediction(gpath, prediction=True):
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=1, alpha=0.5)
     cb = plt.colorbar(p, pad=0.01)
     cb.ax.tick_params(labelsize=11)
-    cb.set_label("Radiance (k)", fontsize=12)
+    cb.set_label(PREDICTION_UNITS if prediction else GOES_UNITS, fontsize=12)
     gl.top_labels = False
     gl.right_labels = False
     # gl.xlines = False
@@ -191,11 +190,13 @@ def get_lon_lat(path):
     lat = np.array([i[1] for i in data]).reshape(cfl.shape)
     return bbox, lat, lon
 
+
 def prepareDir():
     if not os.path.exists(RealTimeIncoming_files):
         os.mkdir(RealTimeIncoming_files)
     if not os.path.exists(RealTimeIncoming_results):
         os.mkdir(RealTimeIncoming_results)
+
 
 if __name__ == '__main__':
     prepareDir()
