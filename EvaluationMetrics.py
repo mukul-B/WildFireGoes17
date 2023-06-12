@@ -151,12 +151,16 @@ def noralize_viirs_to_radiance(nvf, vf_max):
 
 
 def safe_results(prediction_rmse, prediction_IOU, input, groundTruth, path, site, gf_min, gf_max, vf_max, LOSS_NAME):
-    groundTruth = groundTruth.numpy() * 255
-    # iou_i= psnr_intersection_i= psnr_union_i= \
+    
     iou_rmse = psnr_intersection_rmse = psnr_union_rmse = 0
-    # Input evaluation
+    # 1)Input 
     # ret2, th2, hist2, bins2, index_of_max_val2 = getth(input, 256, on=0)
     input = input.numpy() * 255
+
+    # 2)Ground truth
+    groundTruth = groundTruth.numpy() * 255
+
+    # 3)Evaluation on Input after OTSU thresholding
     iteration, ret2, th2 = best_threshold_iteration(groundTruth, input)
     _, th_l1, _, _, _ = getth(input, 256, on=0)
     th_img_i = th2 * input
@@ -170,7 +174,7 @@ def safe_results(prediction_rmse, prediction_IOU, input, groundTruth, path, site
                 f'\nIOU : {str(iou_i)}' \
                 f'\nPSNR_intersection : {str(round(psnr_intersection_i, 4))}'
 
-    #  rmse prediction evaluation
+    #  4)rmse prediction evaluation
     output_iou = None
     ret1_dis, ret3_dis = '', ''
     if prediction_rmse is not None:
@@ -186,7 +190,7 @@ def safe_results(prediction_rmse, prediction_IOU, input, groundTruth, path, site
                    f'\nIOU :  {str(iou_rmse)} ' \
                    f'\nPSNR_intersection : {str(round(psnr_intersection_rmse, 4))}'
 
-    # IOU prediction evaluation
+    # 5)IOU prediction evaluation
     if prediction_IOU is not None:
         prediction_IOU = prediction_IOU.numpy() * 255
         ret3, th3, hist3, bins3, index_of_max_val3 = getth(prediction_IOU, 256, on=0)
@@ -197,16 +201,22 @@ def safe_results(prediction_rmse, prediction_IOU, input, groundTruth, path, site
         ret3_dis = f'\nThreshold:  {str(round(ret3, 4))}  Coverage:  {str(round(coverage_p_iou, 4))} ' \
                    f'\nIOU :  {str(iou_p_iou)}'
 
-    cloud = HC if coverage_i > 0.2 else LC
-    cloud2 = HI if iou_i > 0.05 else LI
-    cloud += cloud2
+    (iou_p, psnr_intersection_p, psnr_union_p) = (iou_rmse, psnr_intersection_rmse, psnr_union_rmse) if (
+            prediction_rmse is not None) else (iou_p_iou, 0, 0)
+    condition_coverage = HC if coverage_i > 0.2 else LC
+    condition_intensity = HI if iou_i > 0.05 else LI
+    condition = condition_coverage + condition_intensity
+    
+    # ----------------------------------------------------------------------------------
+    # random result plot
+    
 
     pl = path.split('/')
     filename = pl[-1].split('.')
 
-    if filename[0] in ['79', '126', '199', '729', '183', '992', '140', '189', '1159', '190', '26', '188']:
+    # if filename[0] in ['79', '126', '199', '729', '183', '992', '140', '189', '1159', '190', '26', '188']:
         # if filename[0] in ['78','240','249','0','6','19','2','10','14','15','27','807']:
-        # if 1:
+    if 1:
         # fig, axs = plt.subplots(2, 3, constrained_layout=True, figsize=(12, 8))
         # image_blocks = ((input, th_img_i, groundTruth),
         #                 (prediction_rmse if prediction_rmse is not None else prediction_IOU,
@@ -225,62 +235,66 @@ def safe_results(prediction_rmse, prediction_IOU, input, groundTruth, path, site
                          'OTSU thresholding on Prediction(RMSE)' + ret1_dis,
                          'OTSU thresholding on Prediction(IOU)' + ret3_dis)
                         )
+        plot_it(image_blocks,lable_blocks,condition,path)
         site_date_time = '_'.join(site.split('.')[1].split('_'))
         logging.info(
-            f'{LOSS_NAME},{cloud},{filename[0]},{str(iou_rmse) if prediction_rmse is not None else ""},{str(iou_p_iou) if prediction_IOU is not None else ""},{psnr_intersection_rmse if prediction_rmse is not None else ""},{site_date_time}')
-        # display = False
-        # if display:
-        for col in range(2):
-            for row in range(3):
-                if image_blocks[col][row] is not None:
-                    # show_img(axs[col][row], image_blocks[col][row], lable_blocks[col][row])
-                    fig2 = plt.figure()
-                    ax = fig2.add_subplot()
+        f'{LOSS_NAME},{condition},{filename[0]},{str(iou_rmse) if prediction_rmse is not None else ""},{str(iou_p_iou) if prediction_IOU is not None else ""},{psnr_intersection_rmse if prediction_rmse is not None else ""},{site_date_time}')
+   
+    return coverage_i, iou_i, psnr_intersection_i, psnr_union_i, iou_p, psnr_intersection_p, psnr_union_p, condition
 
-                    X, Y = np.mgrid[0:1:128j, 0:1:128j]
-                    vmin = 200 if lable_blocks[col][row] in [VIIRS_GROUND_TRUTH] else None
-                    cb_unit = "Background | Fire Area     " if lable_blocks[col][row] in [
-                        Prediction_JACCARD] else VIIRS_UNITS
-                    if lable_blocks[col][row] in [Prediction_JACCARD]:
-                        cmap = plt.get_cmap("gray_r", 2)
-                        sc = ax.pcolormesh(Y, -X, image_blocks[col][row], cmap=cmap, vmin=vmin, vmax=420)
-                    else:
-                        cmap = plt.get_cmap("jet")
-                        sc = ax.pcolormesh(Y, -X, image_blocks[col][row], cmap=cmap, vmin=vmin, vmax=420)
-                        cb = fig2.colorbar(sc, pad=0.01)
-                        cb.ax.tick_params(labelsize=11)
-                        cb.set_label(cb_unit, fontsize=12)
+def plot_it(image_blocks,lable_blocks,condition,path):
+    pl = path.split('/')
+    filename = pl[-1].split('.')    
+    # display = False
+    # if display:
+    for col in range(2):
+        for row in range(3):
+            if image_blocks[col][row] is not None:
+                # show_img(axs[col][row], image_blocks[col][row], lable_blocks[col][row])
+                fig2 = plt.figure()
+                ax = fig2.add_subplot()
 
-                    plt.tick_params(left=False, right=False, labelleft=False,
-                                    labelbottom=False, bottom=False)
-                    # show_hist(ax, 'Histogram of GOES input', bins1, hist1 / imagesize, [ret1])
-                    # plt.show()
-                    # if lable_blocks[col][row] in [GOES_input, VIIRS_GROUND_TRUTH, Prediction_RMSE, Prediction_JACCARD]:
-                    #     print(f'{pl[:2]}/{cloud}_{filename[0]}_{lable_blocks[col][row]}.png')
-                    #     loss = pl[1].split('_')[1]
-                    #     if lable_blocks[col][row] in [GOES_input, VIIRS_GROUND_TRUTH]:
-                    #         loss=''
-                    #     plt.savefig('/'.join(pl[
-                    #                          :1]) + f'/{cloud}_{filename[0]}_{loss}_{lable_blocks[col][row]}.png',
-                    #                 bbox_inches='tight', dpi=600)
-                    #     # plt.savefig('/'.join(pl[
-                    #     #                      :2]) + f'/{cloud}_{filename[0]}_{lable_blocks[col][row]}.png',bbox_inches='tight',dpi=600)
-                    plt.savefig('/'.join(pl[:2]) + f'/{cloud}_{filename[0]}_{lable_blocks[col][row]}.png',
-                                bbox_inches='tight', dpi=600)
-                    plt.close()
-                    # plt.colorbar(p, shrink=0.9)
-                    # plt.imsave('/'.join(pl[
-                    #                     :2]) + f'/{cloud}/{filename[0]}_{lable_blocks[col][row]}.png',
-                    #            image_blocks[col][row])
-        #             , cmap='gray'
+                X, Y = np.mgrid[0:1:128j, 0:1:128j]
+                vmin = 200 if lable_blocks[col][row] in [VIIRS_GROUND_TRUTH] else None
+                cb_unit = "Background | Fire Area     " if lable_blocks[col][row] in [
+                    Prediction_JACCARD] else VIIRS_UNITS
+                if lable_blocks[col][row] in [Prediction_JACCARD]:
+                    cmap = plt.get_cmap("gray_r", 2)
+                    sc = ax.pcolormesh(Y, -X, image_blocks[col][row], cmap=cmap, vmin=vmin, vmax=420)
+                else:
+                    cmap = plt.get_cmap("jet")
+                    sc = ax.pcolormesh(Y, -X, image_blocks[col][row], cmap=cmap, vmin=vmin, vmax=420)
+                    cb = fig2.colorbar(sc, pad=0.01)
+                    cb.ax.tick_params(labelsize=11)
+                    cb.set_label(cb_unit, fontsize=12)
 
-        path = '/'.join(pl[
-                        :2]) + f"/{cloud}/{filename[0]}_{output_iou}_{psnr_intersection_i}_{psnr_union_i}_{str(round(coverage_i, 4))}.png"
-        plt.rcParams['savefig.dpi'] = 600
-        # fig.savefig(path)
-        # plt.show()
-        plt.close()
+                plt.tick_params(left=False, right=False, labelleft=False,
+                                labelbottom=False, bottom=False)
+                # show_hist(ax, 'Histogram of GOES input', bins1, hist1 / imagesize, [ret1])
+                # plt.show()
+                # if lable_blocks[col][row] in [GOES_input, VIIRS_GROUND_TRUTH, Prediction_RMSE, Prediction_JACCARD]:
+                #     print(f'{pl[:2]}/{condition}_{filename[0]}_{lable_blocks[col][row]}.png')
+                #     loss = pl[1].split('_')[1]
+                #     if lable_blocks[col][row] in [GOES_input, VIIRS_GROUND_TRUTH]:
+                #         loss=''
+                #     plt.savefig('/'.join(pl[
+                #                          :1]) + f'/{condition}_{filename[0]}_{loss}_{lable_blocks[col][row]}.png',
+                #                 bbox_inches='tight', dpi=600)
+                #     # plt.savefig('/'.join(pl[
+                #     #                      :2]) + f'/{condition}_{filename[0]}_{lable_blocks[col][row]}.png',bbox_inches='tight',dpi=600)
+                filenamecorrection = lable_blocks[col][row].replace('\n','_').replace(' ','_').replace('.','_').replace('(','_').replace(')','_').replace(':','_')
+                plt.savefig('/'.join(pl[:2]) + f'/{condition}_{filename[0]}_{filenamecorrection}.png',
+                            bbox_inches='tight', dpi=600)
+                plt.close()
+                # plt.colorbar(p, shrink=0.9)
+                # plt.imsave('/'.join(pl[
+                #                     :2]) + f'/{condition}/{filename[0]}_{lable_blocks[col][row]}.png',
+                #            image_blocks[col][row])
+    #             , cmap='gray'
 
-    (iou_p, psnr_intersection_p, psnr_union_p) = (iou_rmse, psnr_intersection_rmse, psnr_union_rmse) if (
-            prediction_rmse is not None) else (iou_p_iou, 0, 0)
-    return coverage_i, iou_i, psnr_intersection_i, psnr_union_i, iou_p, psnr_intersection_p, psnr_union_p, cloud
+    # path = '/'.join(pl[
+    #                 :2]) + f"/{condition}/{filename[0]}_{output_iou}_{psnr_intersection_i}_{psnr_union_i}_{str(round(coverage_i, 4))}.png"
+    plt.rcParams['savefig.dpi'] = 600
+    # fig.savefig(path)
+    # plt.show()
+    plt.close()
