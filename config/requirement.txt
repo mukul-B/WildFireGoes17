@@ -10,7 +10,7 @@ conda install scikit-learn
 conda install pytorch torchvision torchaudio cudatoolkit=11.6 -c pytorch -c conda-forge
 // check cuda version using : nvidia-smi
 conda install -c conda-forge wandb
-
+conda install -c conda-forge pyresample
 conda install -c conda-forge boto3
 conda install -c conda-forge netCDF4
 conda install -c conda-forge geopandas
