@@ -154,7 +154,10 @@ class ImagePlot:
         self.unit = unit
         self.vmin = vmin
         self.vmax = vmax
-        self.image_blocks = noralize_goes_to_radiance(image_blocks,vmax,vmin) if unit==GOES_UNITS else noralize_viirs_to_radiance(image_blocks,vmax)
+        if(self.unit):
+            self.image_blocks = noralize_goes_to_radiance(image_blocks,vmax,vmin) if unit==GOES_UNITS else noralize_viirs_to_radiance(image_blocks,vmax)
+        else:
+            self.image_blocks = None
         self.lable_blocks = lable_blocks
         
 def safe_results(prediction_rmse, prediction_IOU, input, groundTruth, path, site, gf_min, gf_max, vf_max, LOSS_NAME):
@@ -227,21 +230,21 @@ def safe_results(prediction_rmse, prediction_IOU, input, groundTruth, path, site
         g1 = ImagePlot(GOES_UNITS,gf_max, gf_min,
                        input, 
                        GOES_input)
-        g2 = ImagePlot(GOES_UNITS,gf_max, gf_min,
-                       th_img_i,
-                       OTSU_thresholding_on_GOES + input_dis)
+        # g2 = ImagePlot(GOES_UNITS,gf_max, gf_min,
+        #                th_img_i,
+        #                OTSU_thresholding_on_GOES + input_dis)
         g3 = ImagePlot(VIIRS_UNITS,vf_max,VIIRS_MIN_VAL,
                        groundTruth,
                        VIIRS_GROUND_TRUTH)
         g4 = ImagePlot(VIIRS_UNITS if prediction_rmse is not None else "IOU",vf_max,VIIRS_MIN_VAL,
                        prediction_rmse if prediction_rmse is not None else prediction_IOU,
                        Prediction_RMSE if prediction_rmse is not None else Prediction_JACCARD)
-        g5 = ImagePlot(VIIRS_UNITS,vf_max,VIIRS_MIN_VAL,
-                       th_img_rmse if prediction_rmse is not None else None,
-                       'OTSU thresholding on Prediction(RMSE)' + ret1_dis)
-        g6 = ImagePlot(VIIRS_UNITS,vf_max,VIIRS_MIN_VAL,
-                       th3_img if prediction_IOU is not None else None,
-                       'OTSU thresholding on Prediction(IOU)' + ret3_dis)
+        # g5 = ImagePlot(VIIRS_UNITS if prediction_rmse is not None else None,vf_max,VIIRS_MIN_VAL,
+        #                th_img_rmse if prediction_rmse is not None else None,
+        #                'OTSU thresholding on Prediction(RMSE)' + ret1_dis)
+        # g6 = ImagePlot(VIIRS_UNITS if prediction_IOU is not None else None,vf_max,VIIRS_MIN_VAL,
+        #                th3_img if prediction_IOU is not None else None,
+        #                'OTSU thresholding on Prediction(IOU)' + ret3_dis)
         # img_seq = ((g1,g2,g3),(g4,g5,g6))
         # img_seq = ((g1,g3),(g4,g6))
         img_seq = ((g1,g3,g4),)
@@ -258,7 +261,7 @@ def plot_it(img_seq,condition,path,colection=True):
     filename = pl[-1].split('.')
     c,r = len(img_seq) ,len(img_seq[0])
     if(colection):
-        fig, axs = plt.subplots(c, r, constrained_layout=True, figsize=(12, 4))
+        fig, axs = plt.subplots(c, r, constrained_layout=True, figsize=(12, 4*c))
     for col in range(c):
         for row in range(r):
             
