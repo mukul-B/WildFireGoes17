@@ -21,8 +21,8 @@ class SiteInfo():
         self.start_time, self.end_time = config.get(location).get('start') , config.get(location).get('end')
         self.latitude , self.longitude = config.get(location).get('latitude') , config.get(location).get('longitude')
         self.rectangular_size = config.get('rectangular_size')
-        # self.EPSG = config.get(location).get('EPSG')
-        self.EPSG = self.coordinate2EPSG(self.latitude, self.longitude)
+        self.EPSG = config.get(location).get('EPSG')
+        # self.EPSG = self.coordinate2EPSG(self.latitude, self.longitude)
 
     def coordinate2EPSG(self,lat,lon):
         if -126.0 < lon <= -120.0:

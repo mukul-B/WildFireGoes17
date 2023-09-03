@@ -16,7 +16,7 @@ import numpy as np
 import xarray as xr
 from PIL import Image
 
-from GlobalValues import viirs_dir, goes_dir, compare_dir
+from GlobalValues import VIIRS_UNITS, viirs_dir, goes_dir, compare_dir
 import datetime
 
 # demonstrate reference_data standardization with sklearn
@@ -26,8 +26,8 @@ import datetime
 def viewtiff(v_file, g_file, date, save=True, compare_dir=None):
     VIIRS_data = xr.open_rasterio(v_file)
     GOES_data = xr.open_rasterio(g_file)
-
-    fig, ax = plt.subplots(1, 3, constrained_layout=True, figsize=(12, 4))
+    n =3
+    fig, ax = plt.subplots(1, n, constrained_layout=True, figsize=(12, 4))
 
     vd = VIIRS_data.variable.data[0]
     gd = GOES_data.variable.data[0]
@@ -37,13 +37,14 @@ def viewtiff(v_file, g_file, date, save=True, compare_dir=None):
     # if in GOES and VIIRS , the values are normalized, using this flag to visualize result
     normalized = False
     vmin,vmax = (0, 250) if normalized else (200,420)
+    # p = ax.pcolormesh(Y, -X, vd, cmap="jet", vmin=vmin, vmax=vmax)
     p = ax[1].pcolormesh(Y, -X, vd, cmap="jet", vmin=vmin, vmax=vmax)
     q = ax[0].pcolormesh(Y, -X, gd, cmap="jet", vmin=vmin, vmax=vmax)
     r = ax[2].pcolormesh(Y, -X, (gd - vd), cmap="jet", vmin=vmin, vmax=vmax)
     cb = fig.colorbar(p, pad=0.01)
     cb.ax.tick_params(labelsize=11)
-    cb.set_label('Radiance (K)', fontsize=12)
-    for k in range(3):
+    cb.set_label(VIIRS_UNITS, fontsize=12)
+    for k in range(n):
         ax[k].tick_params(left=False, right=False, labelleft=False,
                           labelbottom=False, bottom=False)
     plt.rcParams['savefig.dpi'] = 600

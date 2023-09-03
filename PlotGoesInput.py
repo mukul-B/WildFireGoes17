@@ -16,7 +16,7 @@ from matplotlib import pyplot as plt
 #!/usr/bin/python
 import os
 
-os.environ['PROJ_LIB'] = "D:\PycharmProjects\WildFireGoes17"
+# os.environ['PROJ_LIB'] = "D:\PycharmProjects\WildFireGoes17"
 from netCDF4 import Dataset
 import numpy as np
 

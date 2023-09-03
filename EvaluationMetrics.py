@@ -15,13 +15,14 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 
-Prediction_JACCARD = 'Prediction(Jaccard)'
-Prediction_RMSE = 'Prediction(RMSE)'
-VIIRS_GROUND_TRUTH = 'VIIRS Ground Truth'
-OTSU_thresholding_on_GOES = 'OTSU thresholding on GOES'
-GOES_input = 'GOES input'
+
+Prediction_JACCARD_LABEL = 'Prediction(Jaccard)'
+Prediction_RMSE_LABEL = 'Prediction(RMSE)'
+VIIRS_GROUND_TRUTH_LABEL = 'VIIRS Ground Truth'
+OTSU_thresholding_on_GOES_LABEL = 'OTSU thresholding on GOES'
+GOES_input_LABEL = 'GOES input'
 plt.style.use('plot_style/wrf')
-from GlobalValues import GOES_UNITS, HC, HI, LI, LC, VIIRS_MIN_VAL, VIIRS_UNITS
+from GlobalValues import GOES_UNITS, HC, HI, LI, LC, THRESHOLD_COVERAGE, THRESHOLD_IOU, VIIRS_MIN_VAL, VIIRS_UNITS
 
 
 # logging.basicConfig(filename='evaluation.log', filemode='w',format='%(message)s', level=logging.INFO)
@@ -30,6 +31,7 @@ from GlobalValues import GOES_UNITS, HC, HI, LI, LC, VIIRS_MIN_VAL, VIIRS_UNITS
 def getth(image, bin_edges, on=0):
     # Set total number of bins in the histogram
     image_r = image.copy()
+    image_r = image_r * 255
     # Get the image histogram
     hist, bin_edges = np.histogram(image_r, bins=256)
     if (on):
@@ -70,9 +72,10 @@ def IOU_numpy(target, pred):
 
 def PSNR_union(target, pred):
     imdff = pred - target
-    union = pred + target
+    # union = pred + target
+    union = target
     imdff[union == 0] = 0
-    imdff = (1 / 255) * imdff.flatten()
+    imdff = imdff.flatten()
     pixcelsInUnion = np.count_nonzero(union)
     if pixcelsInUnion > 0:
         rmse = math.sqrt(np.sum(np.array(imdff ** 2)) / pixcelsInUnion)
@@ -87,7 +90,7 @@ def PSNR_intersection(target, pred):
     imdff = pred - target
     interaction = pred * target
     imdff[interaction == 0] = 0
-    imdff = (1 / 255) * imdff.flatten()
+    imdff =  imdff.flatten()
     pixelsInIntersection = np.count_nonzero(interaction)
     if pixelsInIntersection > 0:
         # return math.sqrt(np.sum(np.array(imdff ** 2)) / pixelsInIntersection)
@@ -107,9 +110,9 @@ def show_img(axis, img, label):
 
 def show_hist(axis, title, binsl, hist, minr_tick):
     axis.hist(binsl[:-1], bins=binsl, weights=hist, color='blue')
-    # axis.set_title(title, size=8)
-    axis.set_xticks(minr_tick, minor=True, color='red')
-    axis.set_xticklabels(minr_tick, fontdict=None, minor=True, color='red', size=13)
+    # # axis.set_title(title, size=8)
+    # axis.set_xticks(minr_tick, minor=True, color='red')
+    # axis.set_xticklabels(minr_tick, fontdict=None, minor=True, color='red', size=13)
     axis.tick_params(axis='x', which='minor', colors='red', size=13)
     axis.set_ylabel("Pixels Fraction", fontsize=15)
     axis.set_xlabel('Normalized Radiance', fontsize=15)
@@ -141,12 +144,12 @@ def best_threshold_iteration(groundTruth, input):
 
 
 def noralize_goes_to_radiance(ngf, gf_max, gf_min):
-    color_normal_value = 255
+    color_normal_value = 1
     return (gf_min + (ngf * ((gf_max - gf_min) / color_normal_value))).round(5)
 
 
 def noralize_viirs_to_radiance(nvf, vf_max,vf_min=0):
-    color_normal_value = 255
+    color_normal_value = 1
     return (vf_min + (nvf * ((vf_max-vf_min) / color_normal_value))).round(2)
 
 class ImagePlot:
@@ -159,86 +162,152 @@ class ImagePlot:
         else:
             self.image_blocks = None
         self.lable_blocks = lable_blocks
-        
+
+class EvaluationVariables:
+    def __init__(self,type):
+        self.type = type
+        self.iteration, self.ret, self.th = 0, 0, None
+        self.th_l1 = None
+        self.th_img = None
+        self.iou = 0
+        self.psnr_intersection = 0
+        self.psnr_union = 0
+        self.coverage = 0
+        self.imagesize = 0
+        self.dis = None
+def plot_histogramandimage(image,path):
+    # image = np.random.randint(0, 256, size=(256, 256), dtype=np.uint8)
+    # histogram, bins = np.histogram(image, bins=256, range=(0, 256))
+    ret2, th2, hist2, bins2, index_of_max_val2 = getth(image, 256)
+
+    
+
+    # Create subplots with constrained layout
+    fig, axs = plt.subplots(1, 2, constrained_layout=True, figsize=(12, 8))
+
+    # Plot the image
+    axs[0].imshow(image, cmap='gray')
+    axs[0].set_title("Image")
+    axs[0].axis('off')
+
+    # Plot the histogram
+    # axs[1].plot(hist2, color='black')
+    axs[1].hist(bins2[1:-1], bins=bins2[1:], weights=hist2[1:], color='blue')
+    axs[1].set_title("Histogram")
+    axs[1].set_xlabel("Pixel Value")
+    axs[1].set_ylabel("Frequency")
+    axs[1].set_xlim(0, 255)
+    # axs[1].set_ylim(0, 200)
+
+    # show_hist([1], "Histogram", bins2, hist2, 1)
+    
+
+    plt.tight_layout()
+    plt.savefig(path)
+    plt.close()
+
 def safe_results(prediction_rmse, prediction_IOU, input, groundTruth, path, site, gf_min, gf_max, vf_max, LOSS_NAME):
     
-    iou_rmse = psnr_intersection_rmse = psnr_union_rmse = 0
+    groundTruth_NZ_min = groundTruth[groundTruth>0].min()
+    groundTruth_max = groundTruth.max()
+    
+    
+    # iou_rmse = psnr_intersection_rmse = psnr_union_rmse = 0
     # 1)Input 
-    # ret2, th2, hist2, bins2, index_of_max_val2 = getth(input, 256, on=0)
-    input = input.numpy() * 255
+    input = input.numpy()
 
     # 2)Ground truth
-    groundTruth = groundTruth.numpy() * 255
+    groundTruth = groundTruth.numpy()
 
     # 3)Evaluation on Input after OTSU thresholding
-    iteration, ret2, th2 = best_threshold_iteration(groundTruth, input)
-    _, th_l1, _, _, _ = getth(input, 256, on=0)
-    th_img_i = th2 * input
-    iou_i = IOU_numpy(groundTruth, th2)
-    psnr_intersection_i = PSNR_intersection(groundTruth, th_img_i)
-    psnr_union_i = PSNR_union(groundTruth, th_img_i)
-    coverage_i = np.count_nonzero(th_l1) / th2.size
-    imagesize = input.size
-    input_dis = ''
-    input_dis = f'\nThreshold (Iteration:{str(iteration)}): {str(round(ret2, 4))} Coverage: {str(round(coverage_i, 4))}' \
-                f'\nIOU : {str(iou_i)}' \
-                f'\nPSNR_intersection : {str(round(psnr_intersection_i, 4))}'
 
-    #  4)rmse prediction evaluation
-    output_iou = None
-    ret1_dis, ret3_dis = '', ''
-    if prediction_rmse is not None:
-        prediction_rmse = prediction_rmse.numpy() * 255
-        ret1, th1, hist1, bins1, index_of_max_val1 = getth(prediction_rmse, 256, on=0)
-        th_img_rmse = th1 * prediction_rmse
-        iou_rmse = IOU_numpy(groundTruth, th1)
-        psnr_intersection_rmse = PSNR_intersection(groundTruth, th_img_rmse)
-        psnr_union_rmse = PSNR_union(groundTruth, th_img_rmse)
-        coverage_p = np.count_nonzero(th1) / th1.size
-        output_iou = iou_rmse
-        ret1_dis = f'\nThreshold: {str(round(ret1, 4))}  Coverage:  {str(round(coverage_p, 4))} ' \
-                   f'\nIOU :  {str(iou_rmse)} ' \
-                   f'\nPSNR_intersection : {str(round(psnr_intersection_rmse, 4))}'
+    inputEV = EvaluationVariables("input")
+    inputEV.iteration, inputEV.ret, inputEV.th = best_threshold_iteration(groundTruth, input)
+    _, inputEV.th_l1, _, _, _ = getth(input, 256, on=0)
+    inputEV.th_img = inputEV.th * input
+    inputEV.iou = IOU_numpy(groundTruth, inputEV.th)
+    inputEV.psnr_intersection = PSNR_intersection(groundTruth, inputEV.th_img)
+    inputEV.psnr_union = PSNR_union(groundTruth, inputEV.th_img)
+    inputEV.coverage = np.count_nonzero(inputEV.th_l1) / inputEV.th.size
+    inputEV.imagesize = input.size
+    inputEV.dis = ''
+    inputEV.dis = f'\nThreshold (Iteration:{str(inputEV.iteration)}): {str(round(inputEV.ret, 4))} Coverage: {str(round(inputEV.coverage, 4))}' \
+                f'\nIOU : {str(inputEV.iou)}' \
+                f'\nPSNR_intersection : {str(round(inputEV.psnr_intersection, 4))}'
 
-    # 5)IOU prediction evaluation
-    if prediction_IOU is not None:
-        prediction_IOU = prediction_IOU.numpy() * 255
-        ret3, th3, hist3, bins3, index_of_max_val3 = getth(prediction_IOU, 256, on=0)
-        th3_img = th3 * prediction_IOU
-        iou_p_iou = IOU_numpy(groundTruth, th3)
-        coverage_p_iou = np.count_nonzero(th3) / th3.size
-        output_iou = iou_p_iou
-        ret3_dis = f'\nThreshold:  {str(round(ret3, 4))}  Coverage:  {str(round(coverage_p_iou, 4))} ' \
-                   f'\nIOU :  {str(iou_p_iou)}'
-
-    (iou_p, psnr_intersection_p, psnr_union_p) = (iou_rmse, psnr_intersection_rmse, psnr_union_rmse) if (
-            prediction_rmse is not None) else (iou_p_iou, 0, 0)
-    condition_coverage = HC if coverage_i > 0.2 else LC
-    condition_intensity = HI if iou_i > 0.05 else LI
+    condition_coverage = HC if inputEV.coverage > THRESHOLD_COVERAGE else LC
+    condition_intensity = HI if inputEV.iou > THRESHOLD_IOU else LI
     condition = condition_coverage + condition_intensity
-    
-    # ----------------------------------------------------------------------------------
-    # random result plot
-    
-
     pl = path.split('/')
     filename = pl[-1].split('.')
 
+    #  4)rmse prediction evaluation
+    predRMSEEV = EvaluationVariables("prediction_rmse")
+    if prediction_rmse is not None:
+        outmap_min = prediction_rmse.min()
+        outmap_NZ = prediction_rmse[prediction_rmse>0.01]
+        if outmap_NZ.numel() > 0:
+            outmap_NZ_min = outmap_NZ.min()
+        else:
+            outmap_NZ_min = 0
+    
+        outmap_max = prediction_rmse.max()
+        
+        # logging.info(f'{condition},{filename[0]},{outmap_NZ_min},{outmap_max},{groundTruth_NZ_min},{groundTruth_max}')
+        if (outmap_max>0.18):
+            
+            prediction_rmse = (prediction_rmse - outmap_min) / (outmap_max - outmap_min)
+        prediction_rmse = prediction_rmse.numpy()
+        predRMSEEV.ret, predRMSEEV.th, histogram,_, _ = getth(prediction_rmse, 256, on=0)
+        # print(histogram)
+        # if filename[0] in ['79']:
+        if 1:
+         plot_histogramandimage(groundTruth,"results/histograms_groundtruth/"+filename[0]+".png")
+        predRMSEEV.th_img = predRMSEEV.th * prediction_rmse
+        predRMSEEV.iou = IOU_numpy(groundTruth, predRMSEEV.th)
+        predRMSEEV.psnr_intersection = PSNR_intersection(groundTruth, predRMSEEV.th_img)
+        predRMSEEV.psnr_union = PSNR_union(groundTruth, predRMSEEV.th_img)
+        predRMSEEV.coverage = np.count_nonzero(predRMSEEV.th) / predRMSEEV.th.size
+        predRMSEEV.dis = f'\nThreshold: {str(round(predRMSEEV.ret, 4))}  Coverage:  {str(round(predRMSEEV.coverage, 4))} ' \
+                   f'\nIOU :  {str(predRMSEEV.iou)} ' \
+                   f'\nPSNR_intersection : {str(round(predRMSEEV.psnr_intersection, 4))}'
+
+    # 5)IOU prediction evaluation
+    predIOUEV = EvaluationVariables("prediction_rmse")
+    if prediction_IOU is not None:
+        prediction_IOU = prediction_IOU.numpy()
+        predIOUEV.ret, predIOUEV.th,  _,_, _ = getth(prediction_IOU, 256, on=0)
+        predIOUEV.th_img = predIOUEV.th * prediction_IOU
+        predIOUEV.iou = IOU_numpy(groundTruth, predIOUEV.th)
+        predIOUEV.coverage = np.count_nonzero(predIOUEV.th) / predIOUEV.th.size
+        predIOUEV.dis = f'\nThreshold:  {str(round(predIOUEV.ret, 4))}  Coverage:  {str(round(predIOUEV.coverage, 4))} ' \
+                   f'\nIOU :  {str(predIOUEV.iou)}'
+
+    (iou_p, psnr_intersection_p, psnr_union_p) = (predRMSEEV.iou, predRMSEEV.psnr_intersection, predRMSEEV.psnr_union) if (
+            prediction_rmse is not None) else (predIOUEV.iou, 0, 0)
+    
+    
+    
+    # ----------------------------------------------------------------------------------
+    # random result plot
+
     # if filename[0] in ['79', '126', '199', '729', '183', '992', '140', '189', '1159', '190', '26', '188']:
      # if filename[0] in ['78','240','249','0','6','19','2','10','14','15','27','807']:
-    if 1:
+
+    if 0:
+    # if filename[0] in ['956']:
         g1 = ImagePlot(GOES_UNITS,gf_max, gf_min,
                        input, 
-                       GOES_input)
+                       GOES_input_LABEL)
         # g2 = ImagePlot(GOES_UNITS,gf_max, gf_min,
         #                th_img_i,
         #                OTSU_thresholding_on_GOES + input_dis)
         g3 = ImagePlot(VIIRS_UNITS,vf_max,VIIRS_MIN_VAL,
                        groundTruth,
-                       VIIRS_GROUND_TRUTH)
+                       VIIRS_GROUND_TRUTH_LABEL)
         g4 = ImagePlot(VIIRS_UNITS if prediction_rmse is not None else "IOU",vf_max,VIIRS_MIN_VAL,
                        prediction_rmse if prediction_rmse is not None else prediction_IOU,
-                       Prediction_RMSE if prediction_rmse is not None else Prediction_JACCARD)
+                       Prediction_RMSE_LABEL if prediction_rmse is not None else Prediction_JACCARD_LABEL)
         # g5 = ImagePlot(VIIRS_UNITS if prediction_rmse is not None else None,vf_max,VIIRS_MIN_VAL,
         #                th_img_rmse if prediction_rmse is not None else None,
         #                'OTSU thresholding on Prediction(RMSE)' + ret1_dis)
@@ -251,10 +320,13 @@ def safe_results(prediction_rmse, prediction_IOU, input, groundTruth, path, site
         # img_seq = ((g1,g3),)
         plot_it(img_seq,condition,path)
         site_date_time = '_'.join(site.split('.')[1].split('_'))
+        # print("-----------------------------------------------------------------------")
         logging.info(
-        f'{LOSS_NAME},{condition},{filename[0]},{str(iou_rmse) if prediction_rmse is not None else ""},{str(iou_p_iou) if prediction_IOU is not None else ""},{psnr_intersection_rmse if prediction_rmse is not None else ""},{site_date_time}')
-   
-    return coverage_i, iou_i, psnr_intersection_i, psnr_union_i, iou_p, psnr_intersection_p, psnr_union_p, condition
+        f'{LOSS_NAME},{condition},{filename[0]},{str(predRMSEEV.iou) if prediction_rmse is not None else ""},{str(predIOUEV.iou) if prediction_IOU is not None else ""},{predRMSEEV.psnr_intersection if prediction_rmse is not None else ""},{site_date_time}')
+    # logging.info(
+    #     f'{condition},{coverage_i},{iou_i},{condition_coverage},{condition_intensity}')
+        
+    return inputEV.coverage, inputEV.iou, inputEV.psnr_intersection, inputEV.psnr_union, iou_p, psnr_intersection_p, psnr_union_p, condition
 
 def plot_it(img_seq,condition,path,colection=True):
     pl = path.split('/')
@@ -268,7 +340,8 @@ def plot_it(img_seq,condition,path,colection=True):
             image_blocks=img_seq[col][row].image_blocks
             lable_blocks=img_seq[col][row].lable_blocks
             cb_unit=img_seq[col][row].unit
-            vmin,vmax = img_seq[col][row].vmin, img_seq[col][row].vmax
+            # vmin,vmax = img_seq[col][row].vmin, img_seq[col][row].vmax
+            vmin,vmax = 0 , 413
             if(colection):
                 if(r == 1):
                     ax = axs[col]
@@ -290,9 +363,10 @@ def plot_it(img_seq,condition,path,colection=True):
 
                 # cb_unit = "Background | Fire Area     " if lable_blocks in [
                 #     Prediction_JACCARD] else VIIRS_UNITS
-                if lable_blocks in [Prediction_JACCARD]:
+                if lable_blocks in [Prediction_JACCARD_LABEL]:
                     sc = ax.pcolormesh(Y, -X, image_blocks, cmap=plt.get_cmap("gray_r", 2), vmin=vmin, vmax=vmax)
                 else:
+                    # sc = ax.pcolormesh(Y, -X, image_blocks, cmap=plt.get_cmap("gray_r"), vmin=vmin, vmax=vmax)
                     sc = ax.pcolormesh(Y, -X, image_blocks, cmap=plt.get_cmap("jet"), vmin=vmin, vmax=vmax)
                     cb = fig.colorbar(sc, pad=0.01,ax=ax)
                     cb.ax.tick_params(labelsize=11)
@@ -314,6 +388,7 @@ def plot_it(img_seq,condition,path,colection=True):
                     plt.show()
                     plt.close()
     if(colection):
+        # path ="check.png"
         path = '/'.join(pl[
                         :2]) + f"/{condition}/{filename[0]}.png" 
         # path = '/'.join(pl[

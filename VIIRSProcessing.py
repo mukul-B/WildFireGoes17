@@ -253,7 +253,16 @@ class VIIRSProcessing:
             # 122 -140 58 2021-07-16 1012 21926.29492325522 52647.5308539886
             # 137 -140 58 2021-07-16 1012 21806.47712273756 52779.97441741172
             # writing bright_ti4 ( record[2] )to tif
-            b1_pixels[-cord_y, cord_x] = max(b1_pixels[-cord_y, cord_x], record[2])
+            modified_BT = record[2]
+            if(record[2] ==208):
+                modified_BT = 367
+            if(record[2]<record[11] and record[11]<=367):
+                modified_BT = record[11]
+            # if(modified_BT > 367):
+            #     modified_BT = 367
+            
+            
+            b1_pixels[-cord_y, cord_x] = max(b1_pixels[-cord_y, cord_x], modified_BT)
             b2_pixels[-cord_y, cord_x] = max(b2_pixels[-cord_y, cord_x], record[12])
         return b1_pixels,b2_pixels
 

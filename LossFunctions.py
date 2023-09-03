@@ -80,12 +80,15 @@ class two_branch_loss(nn.Module):
         pred_sup = pred_sup.view(-1)
         target_sup = target.view(-1)
         rmse_loss = torch.sqrt(torch.mean((target_sup - pred_sup) ** 2))
-        # rmse_loss = nn.functional.mse_loss(pred_sup, target)
-        # rmse_loss = torch.sqrt(rmse_loss)
+
 
         # jaccard
         binary_target = target.cuda()
         binary_target[binary_target > 0] = 1
+
+        # binary_target_sup = binary_target.view(-1)
+        # # rmse_loss = torch.sqrt(torch.sum(((target_sup - pred_sup) ** 2 )* binary_target_sup) / torch.sum(binary_target_sup))
+        # rmse_loss = torch.sqrt(torch.mean(((target_sup - pred_sup) ** 2 )* binary_target_sup) )
         intersection = torch.sum(pred_seg * binary_target, (1, 2, 3))
         sum_pred = torch.sum(pred_seg, (1, 2, 3))
         sum_targets = torch.sum(binary_target, (1, 2, 3))
@@ -94,3 +97,20 @@ class two_branch_loss(nn.Module):
 
         total_loss = self.beta * rmse_loss + (1 - self.beta) * jaccard_loss
         return rmse_loss, jaccard_loss, total_loss
+        # return rmse_loss, rmse_loss, rmse_loss
+    
+# Global plus local MSE
+class LRMSE(nn.Module):
+    def __init__(self, beta):
+        self.last_activation = ACTIVATION_RELU
+        self.beta = beta
+        super(LRMSE, self).__init__()
+
+    def forward(self, pred, targets):
+        pred = pred.view(-1)
+        targets = targets.view(-1)
+        a = (targets - pred) ** 2
+        a = a * targets
+        local_rmse = torch.sqrt(torch.sum(a) / torch.sum(targets))
+     
+        return local_rmse

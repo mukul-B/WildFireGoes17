@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 
 import torch
+torch.cuda.empty_cache()
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -12,14 +13,7 @@ from Autoencoder import Encoder, Decoder
 from AutoencoderDataset import npDataset
 from GlobalValues import training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
     LEARNING_RATE, random_state, BETA, LOSS_FUNCTION
-from LossFunctionConfig import use_config
-from LossFunctions import two_branch_loss
-
-# from LossFunctions import conbine_loss
-
-# OUTPUT_ACTIVATION = "relu"
-
-# from LossFunctions import GetLossFunction
+from LossFunctionConfig import SWEEP_OPERATION, use_config,sweep_loss_funtion
 
 im_dir = training_dir
 log_interval = 10
@@ -156,8 +150,9 @@ def main(config=None):
     learning_rate = wandb.config.get(LEARNING_RATE)
     beta = wandb.config.get(BETA)
     loss_function = wandb.config.get(LOSS_FUNCTION)
+
+    loss_function = sweep_loss_funtion if loss_function is None else loss_function
     loss_function_name = str(loss_function).split("'")[1].split(".")[1]
-    # loss_function_name = 'two_branch_loss'
     project_name = f"wildfire_{loss_function_name}_{n_epochs}epochs_{batch_size}batchsize_{learning_rate}lr"
     print(project_name)
     run = wandb.init(project=project_name, name="run_" + current_time)
@@ -199,14 +194,15 @@ def main(config=None):
 if __name__ == "__main__":
     if not os.path.exists(model_path):
         os.mkdir(model_path)
-
-    # Initialize sweep by passing in config. (Optional) Provide a name of the project.
-    # wandb.login()
-    # sweep_configuration = sweep_configuration_two_branch
-    # sweep_id = wandb.sweep(sweep=sweep_configuration, project='sweep_two_branch')
-    # wandb.agent(sweep_id, function=main, count=20)
-
-    config = use_config
-    main(config)
+    if SWEEP_OPERATION:
+        # Initialize sweep by passing in config. (Optional) Provide a name of the project.
+        # # wandb.login()
+        from LossFunctionConfig import sweep_configuration_IOU_LRMSE
+        sweep_configuration = sweep_configuration_IOU_LRMSE
+        sweep_id = wandb.sweep(sweep=sweep_configuration, project='sweep_config')
+        wandb.agent(sweep_id, function=main, count=1)
+    else:
+        config = use_config
+        main(config)
 
 # https://pytorch.org/tutorials/beginner/hyperparameter_tuning_tutorial.html
