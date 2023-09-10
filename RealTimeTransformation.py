@@ -23,10 +23,15 @@ from pyproj import Transformer
 from AutoEncoderEvaluation import supr_resolution
 from EvaluationMetrics import getth
 from GlobalValues import RealTimeIncoming_files, RealTimeIncoming_results, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL, \
-    PREDICTION_UNITS, GOES_UNITS
+    PREDICTION_UNITS, GOES_UNITS,Results,goes_folder
 from LossFunctionConfig import use_config
 from RadarProcessing import RadarProcessing
+from SiteInfo import SiteInfo
 from WriteDataset import goes_radiance_normaization
+import pandas as pd
+
+
+from GlobalValues import realtimeSiteList, RealTimeIncoming_files, RealTimeIncoming_results
 
 
 def pad_with(vector, pad_width, iaxis, kwargs):
@@ -51,7 +56,7 @@ def image2windows(gf):
     result = [[np.array((0, 0)) for x in range(h)] for y in range(w)]
     for x, y, window in sliding_window(gf, 128, (128, 128)):
         result[int(x / 128)][int(y / 128)] = window
-    return np.array(result)
+    return result
 
 
 def padWindow(window):
@@ -112,9 +117,11 @@ def plot_improvement(path='reference_data/Dixie/GOES/ABI-L1b-RadC/tif/GOES-2021-
     plt.savefig('result_for_video' + '/FRP_' + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
 
 
-def plot_prediction(gpath, prediction=True):
-    print(gpath)
+def plot_prediction(gpath,output_path,epsg, prediction=True):
+    print(gpath,output_path)
+    # return 0
     d = gpath.split('/')[-1].split('.')[0][5:].split('_')
+    print(d)
     date_radar = ''.join(d).replace('-', '')
     gfI = Image.open(gpath)
     gfin = np.array(gfI)[:, :]
@@ -130,15 +137,17 @@ def plot_prediction(gpath, prediction=True):
         pred = windows2image(res)
         # modelPrediction = ModelPrediction4singleEvent(use_config)
         # pred = modelPrediction.prediction(gfin)
-        ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, 1, on=0)
+        ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, on=0)
         pred = th1 * pred
         pred[pred == 0] = None
         pred = VIIRS_MAX_VAL * pred
+        
 
     else:
         pred = gfin
+        
 
-    bbox, lat, lon = get_lon_lat(gpath)
+    bbox, lat, lon = get_lon_lat(gpath,epsg)
     proj = ccrs.PlateCarree()
     # plt.figure(figsize=(6, 3))
     ax = plt.axes(projection=proj)
@@ -149,9 +158,9 @@ def plot_prediction(gpath, prediction=True):
     plt.suptitle('{0} at {1}:{2} UTC'.format(d[0], d[1][:2], d[1][2:]))
     p = ax.pcolormesh(lat, lon, pred,
                       transform=ccrs.PlateCarree(),
-                      # vmin=32,
+                      vmin=0,
                       # vmax=34,
-                      vmax=420,
+                      vmax=GOES_MAX_VAL,
                       cmap=cmap)
 
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=1, alpha=0.5)
@@ -166,20 +175,21 @@ def plot_prediction(gpath, prediction=True):
     gl.ylabel_style = {'size': 9}
     plt.tight_layout()
     radarprocessing = RadarProcessing()
-    returnval = radarprocessing.plot_radar_json(f'radar_data/Bear/bear_{date_radar}_smooth_perim.geojson', ax)
-    # returnval = plot_radar_json(f'radar_data/Caldor/Caldor_{date_radar}_smooth_perim_new.geojson', ax)
+    # returnval = radarprocessing.plot_radar_json(f'radar_data/Bear/bear_{date_radar}_smooth_perim.geojson', ax)
+    returnval = radarprocessing.plot_radar_json(f'radar_data/Caldor/Caldor_{date_radar}_smooth_perim_new.geojson', ax)
     # plt.show()
     if returnval:
         print('/FRP_' + str(d[0] + '_' + d[1]) + '.png')
-        plt.savefig(RealTimeIncoming_results + '/FRP_' + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
+        plt.savefig(output_path  + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
     # plt.show()
     plt.close()
 
 
-def get_lon_lat(path):
+def get_lon_lat(path,epsg):
+    print(epsg)
     # caldor 32611
     # bear 32610
-    transformer = Transformer.from_crs(32610, 4326)
+    transformer = Transformer.from_crs(epsg, 4326)
     with rasterio.open(path, "r") as ds:
         cfl = ds.read(1)
         bl = transformer.transform(ds.bounds.left, ds.bounds.bottom)
@@ -197,18 +207,51 @@ def prepareDir():
     if not os.path.exists(RealTimeIncoming_results):
         os.mkdir(RealTimeIncoming_results)
 
+def prepareSiteDir(location):
+    if not os.path.exists(RealTimeIncoming_results+"/"+location):
+        print(RealTimeIncoming_results+"/"+location)
+        os.mkdir(RealTimeIncoming_results+"/"+location)
+    if not os.path.exists(RealTimeIncoming_results+"/"+location+"/"+ goes_folder):
+        print(RealTimeIncoming_results+"/"+location+"/"+ goes_folder)
+        os.mkdir(RealTimeIncoming_results+"/"+location+"/"+goes_folder)
+    if not os.path.exists(RealTimeIncoming_results+"/"+location+"/"+Results):
+        print(RealTimeIncoming_results+"/"+location+"/"+ Results)
+        os.mkdir(RealTimeIncoming_results+"/"+location+"/"+Results)
+
 
 if __name__ == '__main__':
+
+
+    print(realtimeSiteList)
+    data = pd.read_csv(realtimeSiteList)
+    locations = data["Sites"]
+    plotPredition = True
+    # pool = mp.Pool(8)
+    # pipeline run for sites mentioned in toExecuteSiteList
     prepareDir()
-    dir = RealTimeIncoming_files
-    GOES_list = os.listdir(dir)
-    print(GOES_list)
-    pool = mp.Pool(6)
-    pathC = RealTimeIncoming_results + '/FRP_'
-    for gfile in GOES_list:
-        if not file_exists(pathC + gfile[5:-3] + "png"):
-            pool.apply_async(plot_prediction, args=(dir + gfile,))
-            # print(res.get())
-            # plot_prediction(dir + gfile,False)
-    pool.close()
-    pool.join()
+    # implemented only to handle one wildfire event
+    # change 1st wildfire location to run for that location
+    for location in locations[:1]:
+        print(location)
+        prepareSiteDir(location)
+        site = SiteInfo(location)
+        epsg = site.EPSG
+        dir = RealTimeIncoming_files+"/"+location+"/"
+        GOES_list = os.listdir(dir)
+        print(GOES_list)
+        pool = mp.Pool(6)
+        pathC = RealTimeIncoming_results +"/"+location + "/"+( Results if plotPredition else goes_folder) + '/FRP_'
+        for gfile in GOES_list:
+            print(dir + gfile)
+            if not file_exists(pathC + gfile[5:-3] + "png"):
+                # pool.apply_async(plot_prediction, args=(dir + gfile,))
+                # print(res.get())
+                plot_prediction(dir + gfile,pathC,epsg,plotPredition)
+        pool.close()
+        pool.join()
+
+
+
+
+
+    

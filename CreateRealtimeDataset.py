@@ -66,7 +66,7 @@ def create_realtime_dataset(location, product_name=RAD, verify=False):
             print(fire_date, ac_time)
             path = goes.download_goes(fire_date, str(ac_time), product_name=product_name)
             if path != -1:
-                goes.nc2tiff(fire_date, ac_time, path, site, v2r_viirs.image_size, RealTimeIncoming_files)
+                goes.nc2tiff(fire_date, ac_time, path, site, v2r_viirs.image_size, RealTimeIncoming_files+"/"+location+"/")
                 if verify:
                     GOES_visual_verification(ac_time, fire_date, path, site, save=False)
 
@@ -79,6 +79,13 @@ def prepareDir():
     if not os.path.exists(videos):
         os.mkdir(videos)
 
+def prepareSiteDir(location):
+    if not os.path.exists(RealTimeIncoming_files+"/"+location):
+        os.mkdir(RealTimeIncoming_files+"/"+location)
+    if not os.path.exists(RealTimeIncoming_results+"/"+location):
+        os.mkdir(RealTimeIncoming_results+"/"+location)
+    
+    
 
 if __name__ == '__main__':
 
@@ -93,6 +100,7 @@ if __name__ == '__main__':
     # change 1st wildfire location to run for that location
     for location in locations[:1]:
         print(location)
+        prepareSiteDir(location)
         # ret = pool.apply_async(create_realtime_dataset, args=(product,))
         # print(ret.get())
         create_realtime_dataset(location, product_name=product, verify=False)
