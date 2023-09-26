@@ -53,7 +53,7 @@ def test(test_loader, encoder, decoder, npd):
     mc = []
     for i in range(0, 11):
         dir[i / 10] = (0, 0)
-    logging.info(dir)
+    # logging.info(dir)
     with torch.no_grad():
         # for batch_idx, (x, y) in enumerate(test_loader):
         for batch_idx, (x, y, z, gf_min, gf_max, vf_max) in enumerate(test_loader):
@@ -111,11 +111,11 @@ def test(test_loader, encoder, decoder, npd):
                 incv, incc = dir[round(maxdif, 1)]
                 dir[round(maxdif, 1)] = (incv + IOU_predicted, incc + 1)
 
-    logging.info(dir)
+    # logging.info(dir)
     for i in range(0, 11):
         incv, incc = dir[i / 10]
         dir[i / 10] = (0 if incc == 0 else (incv / incc), incc)
-    logging.info(dir)
+    # logging.info(dir)
     fig, axs = plt.subplots(1, 1, constrained_layout=True, figsize=(12, 8))
     # hist_iou, bin_edges_iou = np.histogram(iou_plot_control, bins=100)
     # axs[0].hist(bin_edges_iou[:-1], bins=bin_edges_iou, weights=hist_iou / count)

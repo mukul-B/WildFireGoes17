@@ -15,9 +15,13 @@ warnings.filterwarnings('ignore')
 
 
 class RadarProcessing:
-    def __init__(self):
+    def __init__(self,location):
         self.d = 1
-
+        
+        if(location=='Bear'):
+            self.file_r = 'radar_data/Bear/bear_{date_radar}_smooth_perim.geojson'
+        if(location=='Caldor'):
+            self.file_r = 'radar_data/Caldor/Caldor_{date_radar}_smooth_perim_new.geojson'
     def plot_radar_csv(self, file_r, ax):
         listx = []
         listy = []
@@ -51,8 +55,8 @@ class RadarProcessing:
                 perim.append(np.squeeze(np.array(ii['geometry']['coordinates'])))
         return perim
 
-    def plot_radar_json(self, file_r, ax):
-        perim = self.read_json_perim(file_r)
+    def plot_radar_json(self, date_radar, ax):
+        perim = self.read_json_perim(self.file_r.format(date_radar=date_radar))
         if (not perim):
             return None
         for peri_p in perim:

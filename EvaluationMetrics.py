@@ -83,6 +83,7 @@ def safe_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
 
     pl = path.split('/')
     filename = pl[-1].split('.')
+    site_date_time = '_'.join(site.split('.')[1].split('_')).replace(' ','_' ).replace('-','_' )
 
     groundTruth_NZ_min = groundTruth[groundTruth>0].min()
     groundTruth_max = groundTruth.max()
@@ -160,13 +161,13 @@ def safe_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
     # if filename[0] in ['79', '126', '199', '729', '183', '992', '140', '189', '1159', '190', '26', '188']:
      # if filename[0] in ['78','240','249','0','6','19','2','10','14','15','27','807']:
     # if filename[0] in ['401','237','122','713','792','821','888','358','728','626','943','594','969','118','395','730','444','408','387','204','296','774','93','882','720','823','280','859','809','115','952','849','956','884','156','171','104','663','396']:
-    if filename[0] in ['713','122','956','728','118','358','408','387','849','104','663','609']:
+    if filename[0] in ['713','122','956','728','118','553','408','387','849','104','663','609']:
     # if inputEV.iteration > 1 :
     # if 1:
     # if filename[0] in ['24']:
         g1 = ImagePlot(GOES_UNITS,gf_max, gf_min,
                        inp, 
-                       GOES_input_LABEL)
+                       GOES_input_LABEL+site_date_time)
         # g2 = ImagePlot(GOES_UNITS,gf_max, gf_min,
         #                inputEV.th_l1 * inp,
         #                OTSU_thresholding_on_GOES_LABEL + inputEV.dis)
@@ -206,7 +207,7 @@ def safe_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
         # img_seq = ((g1,g3),)
         # path ='/'.join(pl[:-1]+[f'{str(round(iou_p,4))}_{str(round(inputEV.coverage,4))}_{str(round(inputEV.iou,4))}_{pl[-1]}']) 
         plot_it(img_seq,condition,path)
-        site_date_time = '_'.join(site.split('.')[1].split('_'))
+        
         # print("-----------------------------------------------------------------------")
         logging.info(
         f'{LOSS_NAME},{condition},{filename[0]},{str(predRMSEEV.iou) if prediction_rmse is not None else ""},{str(predIOUEV.iou) if prediction_IOU is not None else ""},{predRMSEEV.psnr_intersection if prediction_rmse is not None else ""},{site_date_time}')
@@ -259,7 +260,7 @@ def plot_it(img_seq,condition,path,colection=False):
                     cb = fig.colorbar(sc, pad=0.01,ax=ax)
                     cb.ax.tick_params(labelsize=11)
                     # cb.set_label(cb_unit, fontsize=12)
-                    cb.set_label(cb_unit, fontsize=12)
+                    cb.set_label(cb_unit, fontsize=13)
                 
                 # plt.tick_params(left=False, right=False, labelleft=False,
                 #                 labelbottom=False, bottom=False)
@@ -274,7 +275,7 @@ def plot_it(img_seq,condition,path,colection=False):
                     filenamecorrection = lable_blocks.replace('\n','_').replace(' ','_').replace('.','_').replace('(','_').replace(')','_').replace(':','_')
                     # path ='/'.join(pl[:2]) + f'/{condition}_{filename}_{filenamecorrection}.png'
                     path = '/'.join(pl[:1]) + f"/allresults/{condition}/{filename}_{filenamecorrection}.png" 
-                    print(path)
+                    # print(path)
                     plt.savefig(path,
                                 bbox_inches='tight', dpi=600)
                     plt.show()

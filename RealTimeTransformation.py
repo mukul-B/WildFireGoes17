@@ -118,10 +118,8 @@ def plot_improvement(path='reference_data/Dixie/GOES/ABI-L1b-RadC/tif/GOES-2021-
 
 
 def plot_prediction(gpath,output_path,epsg, prediction=True):
-    print(gpath,output_path)
     # return 0
     d = gpath.split('/')[-1].split('.')[0][5:].split('_')
-    print(d)
     date_radar = ''.join(d).replace('-', '')
     gfI = Image.open(gpath)
     gfin = np.array(gfI)[:, :]
@@ -174,19 +172,21 @@ def plot_prediction(gpath,output_path,epsg, prediction=True):
     gl.xlabel_style = {'size': 9, 'rotation': 30}
     gl.ylabel_style = {'size': 9}
     plt.tight_layout()
-    radarprocessing = RadarProcessing()
+    
     # returnval = radarprocessing.plot_radar_json(f'radar_data/Bear/bear_{date_radar}_smooth_perim.geojson', ax)
-    returnval = radarprocessing.plot_radar_json(f'radar_data/Caldor/Caldor_{date_radar}_smooth_perim_new.geojson', ax)
+    # returnval = radarprocessing.plot_radar_json(f'radar_data/Caldor/Caldor_{date_radar}_smooth_perim_new.geojson', ax)
+    returnval = radarprocessing.plot_radar_json(date_radar, ax)
     # plt.show()
     if returnval:
-        print('/FRP_' + str(d[0] + '_' + d[1]) + '.png')
-        plt.savefig(output_path  + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
+        # print('/FRP_' + str(d[0] + '_' + d[1]) + '.png')
+        result_file =output_path  + str(d[0] + '_' + d[1]) + '.png'
+        print(result_file)
+        plt.savefig(result_file, bbox_inches='tight', dpi=240)
     # plt.show()
     plt.close()
 
 
 def get_lon_lat(path,epsg):
-    print(epsg)
     # caldor 32611
     # bear 32610
     transformer = Transformer.from_crs(epsg, 4326)
@@ -209,24 +209,19 @@ def prepareDir():
 
 def prepareSiteDir(location):
     if not os.path.exists(RealTimeIncoming_results+"/"+location):
-        print(RealTimeIncoming_results+"/"+location)
         os.mkdir(RealTimeIncoming_results+"/"+location)
     if not os.path.exists(RealTimeIncoming_results+"/"+location+"/"+ goes_folder):
-        print(RealTimeIncoming_results+"/"+location+"/"+ goes_folder)
         os.mkdir(RealTimeIncoming_results+"/"+location+"/"+goes_folder)
     if not os.path.exists(RealTimeIncoming_results+"/"+location+"/"+Results):
-        print(RealTimeIncoming_results+"/"+location+"/"+ Results)
         os.mkdir(RealTimeIncoming_results+"/"+location+"/"+Results)
 
 
 if __name__ == '__main__':
-
-
-    print(realtimeSiteList)
+    
     data = pd.read_csv(realtimeSiteList)
     locations = data["Sites"]
     plotPredition = True
-    # pool = mp.Pool(8)
+    pool = mp.Pool(8)
     # pipeline run for sites mentioned in toExecuteSiteList
     prepareDir()
     # implemented only to handle one wildfire event
@@ -235,23 +230,18 @@ if __name__ == '__main__':
         print(location)
         prepareSiteDir(location)
         site = SiteInfo(location)
+        radarprocessing = RadarProcessing(location)
         epsg = site.EPSG
         dir = RealTimeIncoming_files+"/"+location+"/"
         GOES_list = os.listdir(dir)
-        print(GOES_list)
         pool = mp.Pool(6)
         pathC = RealTimeIncoming_results +"/"+location + "/"+( Results if plotPredition else goes_folder) + '/FRP_'
         for gfile in GOES_list:
-            print(dir + gfile)
+            
             if not file_exists(pathC + gfile[5:-3] + "png"):
-                # pool.apply_async(plot_prediction, args=(dir + gfile,))
+                print(dir + gfile)
+                pool.apply_async(plot_prediction, args=(dir + gfile,pathC,epsg,plotPredition,))
                 # print(res.get())
-                plot_prediction(dir + gfile,pathC,epsg,plotPredition)
+                #plot_prediction(dir + gfile,pathC,epsg,plotPredition)
         pool.close()
         pool.join()
-
-
-
-
-
-    
