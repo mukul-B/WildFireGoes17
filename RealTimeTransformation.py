@@ -142,7 +142,14 @@ def plot_prediction(gpath,output_path,epsg, prediction=True):
         
 
     else:
+        # gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
+        # gfin = goes_radiance_normaization(gfin, gf_max, gf_min)
         pred = gfin
+        # ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, on=0)
+        # pred = th1 * pred
+        # pred[pred == 0] = None
+        # pred = VIIRS_MAX_VAL * pred
+        
         
 
     bbox, lat, lon = get_lon_lat(gpath,epsg)
@@ -172,9 +179,6 @@ def plot_prediction(gpath,output_path,epsg, prediction=True):
     gl.xlabel_style = {'size': 9, 'rotation': 30}
     gl.ylabel_style = {'size': 9}
     plt.tight_layout()
-    
-    # returnval = radarprocessing.plot_radar_json(f'radar_data/Bear/bear_{date_radar}_smooth_perim.geojson', ax)
-    # returnval = radarprocessing.plot_radar_json(f'radar_data/Caldor/Caldor_{date_radar}_smooth_perim_new.geojson', ax)
     returnval = radarprocessing.plot_radar_json(date_radar, ax)
     # plt.show()
     if returnval:
@@ -240,8 +244,8 @@ if __name__ == '__main__':
             
             if not file_exists(pathC + gfile[5:-3] + "png"):
                 print(dir + gfile)
-                pool.apply_async(plot_prediction, args=(dir + gfile,pathC,epsg,plotPredition,))
+                # pool.apply_async(plot_prediction, args=(dir + gfile,pathC,epsg,plotPredition,))
                 # print(res.get())
-                #plot_prediction(dir + gfile,pathC,epsg,plotPredition)
+                plot_prediction(dir + gfile,pathC,epsg,plotPredition)
         pool.close()
         pool.join()

@@ -50,12 +50,10 @@ def create_video(img_src, out_put, fps):
     print('Done.\n')
 
 
-#
-# create_video(img_src=RealTimeIncoming_results
-#              , out_put='GOES_RAD_input.mp4'
-#              , fps=36)
-create_video(img_src='RealTimeIncoming_results_bear_input'
-             , out_put='bear_input.mp4'
+site = 'Caldor'
+GOES_OR_RESULT = 'GOES'
+create_video(img_src=f'{RealTimeIncoming_results}{site}'
+             , out_put=f'{site}_{GOES_OR_RESULT}.mp4'
              , fps=8)
 
 # create_video(img_src='results/goodsamples'
