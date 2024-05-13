@@ -29,6 +29,8 @@ from RadarProcessing import RadarProcessing
 from SiteInfo import SiteInfo
 from WriteDataset import goes_radiance_normaization
 import pandas as pd
+from datetime import datetime
+
 
 
 from GlobalValues import realtimeSiteList, RealTimeIncoming_files, RealTimeIncoming_results
@@ -160,10 +162,10 @@ def plot_prediction(gpath,output_path,epsg, prediction=True):
     # ax.set_extent(bbox)
     cmap = 'YlOrRd'
     # plt.suptitle('Mosquito Fire on {0} at {1} UTC'.format(d[0], d[1]))
-    plt.suptitle('{0} at {1}:{2} UTC'.format(d[0], d[1][:2], d[1][2:]))
+    plt.suptitle('{0} at {1}:{2} UTC'.format((datetime.strptime(d[0], '%Y-%m-%d')).strftime('%d %B %Y'), d[1][:2], d[1][2:]))
     p = ax.pcolormesh(lat, lon, pred,
                       transform=ccrs.PlateCarree(),
-                      vmin=0,
+                      vmin=290,
                       # vmax=34,
                       vmax=GOES_MAX_VAL,
                       cmap=cmap)
@@ -210,7 +212,6 @@ def prepareDir():
         os.mkdir(RealTimeIncoming_files)
     if not os.path.exists(RealTimeIncoming_results):
         os.mkdir(RealTimeIncoming_results)
-
 def prepareSiteDir(location):
     if not os.path.exists(RealTimeIncoming_results+"/"+location):
         os.mkdir(RealTimeIncoming_results+"/"+location)
@@ -224,8 +225,8 @@ if __name__ == '__main__':
     
     data = pd.read_csv(realtimeSiteList)
     locations = data["Sites"]
-    plotPredition = True
-    pool = mp.Pool(8)
+    plotPredition = False
+    #pool = mp.Pool(1)
     # pipeline run for sites mentioned in toExecuteSiteList
     prepareDir()
     # implemented only to handle one wildfire event
@@ -238,7 +239,7 @@ if __name__ == '__main__':
         epsg = site.EPSG
         dir = RealTimeIncoming_files+"/"+location+"/"
         GOES_list = os.listdir(dir)
-        pool = mp.Pool(6)
+        # pool = mp.Pool(3)
         pathC = RealTimeIncoming_results +"/"+location + "/"+( Results if plotPredition else goes_folder) + '/FRP_'
         for gfile in GOES_list:
             
@@ -247,5 +248,5 @@ if __name__ == '__main__':
                 # pool.apply_async(plot_prediction, args=(dir + gfile,pathC,epsg,plotPredition,))
                 # print(res.get())
                 plot_prediction(dir + gfile,pathC,epsg,plotPredition)
-        pool.close()
-        pool.join()
+        # pool.close()
+        # pool.join()

@@ -154,7 +154,7 @@ def show_plot(lon, lat, data, data_units, data_time_grab, data_long_name, band_i
     prd = dt.datetime.strftime(pdate, '%Y%m%d_%H%M')
 
     if (save):
-        plt.savefig('plots' + '/FRP_' + prd + '.png', bbox_inches='tight', dpi=240)
+        plt.savefig('plots' + '/FRP_' + prd + '.png', bbox_inches='tight', dpi=600)
     else:
         plt.show()
     print('Done.')

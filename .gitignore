@@ -1,0 +1,7 @@
+__pycache__/
+.idea/
+GOES_netcdfs/
+logs/
+reference_data/
+RealTimeIncoming_files/
+RealTimeIncoming_results/
