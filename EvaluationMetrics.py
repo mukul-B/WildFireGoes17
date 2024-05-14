@@ -79,7 +79,7 @@ def plot_histogramandimage(image,path):
     plt.savefig(path)
     plt.close()
 
-def safe_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, gf_min, gf_max, vf_max, LOSS_NAME):
+def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, gf_min, gf_max, vf_max, LOSS_NAME):
 
     pl = path.split('/')
     filename = pl[-1].split('.')
