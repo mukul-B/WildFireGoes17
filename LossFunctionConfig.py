@@ -9,7 +9,7 @@ Created on Sun nov 23 11:17:09 2022
 from GlobalValues import BATCH_SIZE, EPOCHS, LEARNING_RATE, BETA, LOSS_FUNCTION
 from LossFunctions import GMSE, LRMSE, jaccard_loss, two_branch_loss, GLMSE
 
-selected_case = 4
+selected_case = 1
 loss_cases = [
     # case 1 : GMSE
      {

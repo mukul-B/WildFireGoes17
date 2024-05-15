@@ -216,7 +216,7 @@ def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
         
     return inputEV.coverage, inputEV.iou, inputEV.psnr_intersection, inputEV.psnr_union, iou_p, psnr_intersection_p, psnr_union_p, condition
 
-def plot_it(img_seq,condition,path,colection=False):
+def plot_it(img_seq,condition,path,colection=True):
     pl = path.split('/')
     # filename = pl[-1].split('.')
     filename = pl[-1].replace('.png','')
@@ -273,8 +273,8 @@ def plot_it(img_seq,condition,path,colection=False):
                 ax.set_yticks([])
                 if(not colection):
                     filenamecorrection = lable_blocks.replace('\n','_').replace(' ','_').replace('.','_').replace('(','_').replace(')','_').replace(':','_')
-                    # path ='/'.join(pl[:2]) + f'/{condition}_{filename}_{filenamecorrection}.png'
-                    path = '/'.join(pl[:1]) + f"/allresults/{condition}/{filename}_{filenamecorrection}.png" 
+                    path ='/'.join(pl[:2]) + f'/{condition}_{filename}_{filenamecorrection}.png'
+                    # path = '/'.join(pl[:1]) + f"/allresults/{condition}/{filename}_{filenamecorrection}.png" 
                     # print(path)
                     plt.savefig(path,
                                 bbox_inches='tight', dpi=600)
@@ -282,9 +282,11 @@ def plot_it(img_seq,condition,path,colection=False):
                     plt.close()
     if(colection):
         # path ="check.png"
-        path = '/'.join(pl[:1]) + f"allresults/{condition}/{filename}/{pl[:1]}.png" 
+        # path = '/'.join(pl[:1]) + f"allresults/{condition}/{filename}/{pl[:1]}.png" 
         # path = "cheko.png"
         # path = '/'.join(pl[:2]) + f"/{condition}/{filename[0]}_{output_iou}_{psnr_intersection_i}_{psnr_union_i}_{str(round(coverage_i, 4))}.png"
+        print(filename)
+        path = '/'.join(pl[:2]) + f"/{condition}/{filename}.png"
         plt.rcParams['savefig.dpi'] = 600
         fig.savefig(path)
         # input()

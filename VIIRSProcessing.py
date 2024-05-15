@@ -28,6 +28,7 @@ class VIIRSProcessing:
 
         self.location = site.location
         self.fire_pixels = pd.read_csv(Sdirectory)
+        self.satellite = satellite
         self.crs = site.EPSG
         self.res = res
 
@@ -80,7 +81,7 @@ class VIIRSProcessing:
 
         # output file name
         viirs_tif_dir = viirs_dir.replace('$LOC', self.location)
-        out_file = viirs_tif_dir + 'FIRMS' + '-' + str(fire_date) + "_" + str(ac_time) + '.tif'
+        out_file = viirs_tif_dir + self.satellite + '-' + str(fire_date) + "_" + str(ac_time) + '.tif'
 
         # filter firepixel for time of date
         fire_data_filter_on_time = fire_data_filter_on_date_and_bbox[

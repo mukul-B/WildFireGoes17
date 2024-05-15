@@ -21,15 +21,21 @@ if __name__ == '__main__':
 
     data = pd.read_csv(toExecuteSiteList)
     locations = data["Sites"]
-    product = RAD
+    # product = RAD
+    product = {'product_name': RAD, 'band': 7}
     train_test = training_dir
     start_time = time.time()
     # train_test = testing_dir
     # pipeline run for sites mentioned in toExecuteSiteList
+    # pool = mp.Pool(8)
     for location in locations:
         print(location)
+        # ret = pool.apply_async(create_realtime_dataset, args=(product,))
+        # print(ret.get())
         prepareDir(location, product)
-        createDataset(location, product_name=product)
+        createDataset(location, product=product)
         # print("--- %s seconds ---" % (time.time() - start_time))
         evaluate(location, product)
         writeDataset(location, product, train_test)
+    # pool.close()
+    # pool.join()

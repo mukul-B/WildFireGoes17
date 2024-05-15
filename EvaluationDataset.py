@@ -26,8 +26,6 @@ import datetime
 def viewtiff(v_file, g_file, date, save=True, compare_dir=None):
     VIIRS_data = xr.open_rasterio(v_file)
     GOES_data = xr.open_rasterio(g_file)
-    n =3
-    fig, ax = plt.subplots(1, n, constrained_layout=True, figsize=(12, 4))
 
     vd = VIIRS_data.variable.data[0]
     gd = GOES_data.variable.data[0]
@@ -38,15 +36,29 @@ def viewtiff(v_file, g_file, date, save=True, compare_dir=None):
     normalized = False
     vmin,vmax = (0, 250) if normalized else (200,420)
     # p = ax.pcolormesh(Y, -X, vd, cmap="jet", vmin=vmin, vmax=vmax)
-    p = ax[1].pcolormesh(Y, -X, vd, cmap="jet", vmin=vmin, vmax=vmax)
-    q = ax[0].pcolormesh(Y, -X, gd, cmap="jet", vmin=vmin, vmax=vmax)
-    r = ax[2].pcolormesh(Y, -X, (gd - vd), cmap="jet", vmin=vmin, vmax=vmax)
-    cb = fig.colorbar(p, pad=0.01)
-    cb.ax.tick_params(labelsize=11)
-    cb.set_label(VIIRS_UNITS, fontsize=12)
+    # q = ax[0].pcolormesh(Y, -X, gd, cmap="jet", vmin=vmin, vmax=vmax)
+    # p = ax[1].pcolormesh(Y, -X, vd, cmap="jet", vmin=vmin, vmax=vmax)
+    # r = ax[2].pcolormesh(Y, -X, (gd - vd), cmap="jet", vmin=vmin, vmax=vmax)
+    # cb = fig.colorbar(p, pad=0.01)
+    # cb.ax.tick_params(labelsize=11)
+    # cb.set_label(VIIRS_UNITS, fontsize=12)
+    # n =1
+    to_plot = [gd,vd,(gd - vd)]
+    lables = ["GOES","VIIRS","VIIRS On GOES"]
+
+    n = len(to_plot)
+    fig, ax = plt.subplots(1, n, constrained_layout=True, figsize=(4*n, 4))
+
     for k in range(n):
-        ax[k].tick_params(left=False, right=False, labelleft=False,
+        curr_img = ax[k] if n > 1 else ax
+        p = curr_img.pcolormesh(Y, -X, to_plot[k], cmap="jet", vmin=vmin, vmax=vmax)
+        curr_img.tick_params(left=False, right=False, labelleft=False,
                           labelbottom=False, bottom=False)
+        curr_img.text(0.5, -0.1, lables[k], transform=curr_img.transAxes, ha='center', fontsize=12)
+
+        cb = fig.colorbar(p, pad=0.01)
+        cb.ax.tick_params(labelsize=11)
+        cb.set_label(VIIRS_UNITS, fontsize=12)
     plt.rcParams['savefig.dpi'] = 600
     if (save):
         fig.savefig(f'{compare_dir}{date}.png')
@@ -96,12 +108,14 @@ def shape_check(v_file, g_file):
 
 # the dataset created is evaluated visually and statistically
 def evaluate(location, product):
+    product_name = product['product_name']
+    band = product['band']
     viirs_tif_dir = viirs_dir.replace('$LOC', location)
-    goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product)
+    goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product_name).replace('$BAND', format(band,"02d"))
     comp_dir = compare_dir.replace('$LOC', location)
     viirs_list = os.listdir(viirs_tif_dir)
     for v_file in viirs_list:
-        g_file = "GOES" + v_file[5:]
+        g_file = "GOES" + v_file[10:]
         # print(g_file)
         # shape_check(viirs_tif_dir + v_file, goes_tif_dir + g_file)
-        viewtiff(viirs_tif_dir + v_file, goes_tif_dir + g_file, v_file[6:-4], compare_dir=comp_dir, save=True)
+        viewtiff(viirs_tif_dir + v_file, goes_tif_dir + g_file, v_file[11:-4], compare_dir=comp_dir, save=True)

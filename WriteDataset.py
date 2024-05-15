@@ -100,10 +100,12 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
 
 
 def writeDataset(location, product, train_test):
+    product_name = product['product_name']
+    band = product['band']
     viirs_tif_dir = viirs_dir.replace('$LOC', location)
-    goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product)
+    goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product_name).replace('$BAND', format(band,"02d"))
     viirs_list = os.listdir(viirs_tif_dir)
     for v_file in viirs_list:
-        g_file = "GOES" + v_file[5:]
-        create_training_dataset(viirs_tif_dir + v_file, goes_tif_dir + g_file, v_file[6:-4],
+        g_file = "GOES" + v_file[10:]
+        create_training_dataset(viirs_tif_dir + v_file, goes_tif_dir + g_file, v_file[11:-4],
                                 out_dir=train_test, location=location)

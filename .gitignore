@@ -6,3 +6,6 @@ reference_data/
 RealTimeIncoming_files/
 RealTimeIncoming_results/
 training_data/
+wandb/
+results/
+Model/
