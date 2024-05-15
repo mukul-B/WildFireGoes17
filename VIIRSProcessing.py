@@ -37,7 +37,7 @@ class VIIRSProcessing:
         rectangular_size = site.rectangular_size
         bottom_left = [latitude - rectangular_size, longitude - rectangular_size]
         top_right = [latitude + rectangular_size, longitude + rectangular_size]
-        print(bottom_left, top_right)
+        # print(bottom_left, top_right)
 
         # filtering in fire pixel inside the bounding box of the given site
         self.fire_pixels = self.fire_pixels[self.fire_pixels.latitude.gt(bottom_left[0])
