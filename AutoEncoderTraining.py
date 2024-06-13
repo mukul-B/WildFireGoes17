@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 import wandb
 from Autoencoder import Encoder, Decoder
 from AutoencoderDataset import npDataset
-from GlobalValues import training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
+from GlobalValues import GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
     LEARNING_RATE, random_state, BETA, LOSS_FUNCTION
 from LossFunctionConfig import SWEEP_OPERATION, use_config,sweep_loss_funtion
 
@@ -163,7 +163,7 @@ def main(config=None):
     # criteria = two_branch_loss(beta)
     OUTPUT_ACTIVATION = criteria.last_activation if criteria.last_activation else "relu"
     # Set up the encoder, decoder. and optimizer
-    encoder = Encoder(1)
+    encoder = Encoder(GOES_Bands)
     decoder = Decoder(256, OUTPUT_ACTIVATION)
     encoder.cuda()
     decoder.cuda()

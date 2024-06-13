@@ -70,7 +70,8 @@ def padWindow(window):
         ro = np.zeros(window.shape)
     else:
         ro = supr_resolution(use_config, [ro])
-        # ro = ro
+        # ro = ro /255
+        # ro = ro 
     ro = ro[0:sx, 0:sy]
     return ro
 
@@ -137,10 +138,10 @@ def plot_prediction(gpath,output_path,epsg, prediction=True):
         pred = windows2image(res)
         # modelPrediction = ModelPrediction4singleEvent(use_config)
         # pred = modelPrediction.prediction(gfin)
-        ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, on=0)
+        ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, on=100)
         pred = th1 * pred
-        pred[pred == 0] = None
-        pred = VIIRS_MAX_VAL * pred
+        # pred[pred == 0] = None
+        # pred = VIIRS_MAX_VAL * pred
         
 
     else:
@@ -156,6 +157,7 @@ def plot_prediction(gpath,output_path,epsg, prediction=True):
 
     bbox, lat, lon = get_lon_lat(gpath,epsg)
     proj = ccrs.PlateCarree()
+    # plt.style.use('dark_background')
     # plt.figure(figsize=(6, 3))
     ax = plt.axes(projection=proj)
     ax.add_image(StreetmapESRI(), 10)
@@ -165,9 +167,9 @@ def plot_prediction(gpath,output_path,epsg, prediction=True):
     plt.suptitle('{0} at {1}:{2} UTC'.format((datetime.strptime(d[0], '%Y-%m-%d')).strftime('%d %B %Y'), d[1][:2], d[1][2:]))
     p = ax.pcolormesh(lat, lon, pred,
                       transform=ccrs.PlateCarree(),
-                      vmin=290,
-                      # vmax=34,
-                      vmax=GOES_MAX_VAL,
+                    #   vmin=0 if prediction else GOES_MIN_VAL,
+                    #   # vmax=34,
+                    #   vmax=VIIRS_MAX_VAL if prediction else GOES_MAX_VAL,
                       cmap=cmap)
 
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=1, alpha=0.5)

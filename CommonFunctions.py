@@ -10,7 +10,9 @@ from GlobalValues import compare_dir,goes_dir,viirs_dir,data_dir, goes_folder, v
 def prepareDir(location, product):
     # site_dir = location
     # product_dir = product
-    goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product['product_name']).replace('$BAND', format(product['band'],'02d'))
+    product_band = ''.join(map(lambda item: f"{item['product_name']}{format(item['band'],'02d')}", product))
+    goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD_BAND', product_band)
+    # goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product['product_name']).replace('$BAND', format(product['band'],'02d'))
     viirs_tif_dir = viirs_dir.replace('$LOC', location)
     comp_dir = compare_dir.replace('$LOC', location)
 

@@ -21,31 +21,42 @@ from satpy import Scene
 
 from GlobalValues import RAD, FDC, GOES_ndf
 import cartopy.crs as ccrs
+from osgeo import gdal
+from osgeo import osr
 
 warnings.filterwarnings('ignore')
 
 
 class GoesProcessing:
-    def __init__(self, log_path):
+    def __init__(self, log_path, product_name, bands):
         # failure log ex missing files logged in file
         self.product_name = None
         self.band = None
         self.g_reader = None
         self.failures = open(log_path, 'w')
+        # self.band = band
+        self.band = [('C' + str(band).zfill(2) if band else "") for band in bands]
+        self.product_name = product_name
+
+        # product to g_reader for Satpy
+        self.g_reader = []
+        for pn in product_name:
+            g_reader = pn.split('-')
+            g_reader = '_'.join(g_reader[:2]).lower()
+            g_reader = 'abi_l2_nc' if (g_reader == 'abi_l2') else g_reader
+            self.g_reader.append(g_reader)
+
 
     def __del__(self):
         self.failures.close()
 
+    def download_goes(self, fire_date, ac_time):
+        return [self.download_goes_product(fire_date, ac_time, product_name, band) for product_name , band in zip(self.product_name,self.band)]
+        
+        
     # download GOES reference_data for date , product band and mode , finction have default values
-    def download_goes(self, fire_date, ac_time, product_name=RAD, band=7, mode='M6',
+    def download_goes_product(self, fire_date, ac_time, product_name, band, mode='M6',
                       bucket_name='noaa-goes17'):
-
-        # product to g_reader for Satpy
-        g_reader = product_name.split('-')
-        self.g_reader = '_'.join(g_reader[:2]).lower()
-        self.g_reader = 'abi_l2_nc' if (self.g_reader == 'abi_l2') else self.g_reader
-        self.band = band
-        self.product_name = product_name
 
         # extract date parameter of AWS request from given date and time
         sDATE = dt.datetime.strptime(fire_date + "_" + ac_time.zfill(4), '%Y-%m-%d_%H%M')
@@ -57,7 +68,7 @@ class GoesProcessing:
 
         # Use anonymous credentials to access public reference_data  from AWS
         fs = s3fs.S3FileSystem(anon=True)
-        band = ('C' + str(band).zfill(2) if band else "")
+        # band = ('C' + str(band).zfill(2) if band else "")
         # fdc does have commutative bands
         band = "" if (self.product_name == FDC) else band
         # Write prefix for the files of inteest, and list all files beginning with this prefix.
@@ -148,7 +159,10 @@ class GoesProcessing:
         plt.close('all')
 
     #   resampling GOES file for given site and writing in a tiff file
-    def nc2tiff(self, fire_date, ac_time, path, site, image_size, directory):
+    def nc2tiff(self, fire_date, ac_time, paths, site, image_size, directory):
+
+
+        # path = paths[0]
 
         # ouput file location
         out_file = "GOES-" + str(fire_date) + "_" + str(ac_time) + '.tif'
@@ -156,7 +170,7 @@ class GoesProcessing:
 
         # creating bouding box from site information
         band = self.band
-        band = ('C' + str(band).zfill(2) if band else "")
+        # band = ('C' + str(band).zfill(2) if band else "")
         layer = "Mask" if (self.product_name == FDC) else band
         latitude, longitude = site.latitude, site.longitude
         rectangular_size = site.rectangular_size
@@ -167,25 +181,47 @@ class GoesProcessing:
         # using satpy to crop goes for the given site
         try:
             goes_scene = Scene(reader=self.g_reader,
-                               filenames=[path])
+                               filenames=paths)
         except:
-            self.failures.write("issue in satpy netcdf read {}\n".format(path))
+            self.failures.write("issue in satpy netcdf read {}\n".format(paths))
             return -1
-        goes_scene.load([layer])
+        goes_scene.load(layer)
         goes_scene = goes_scene.resample(area_def)
 
-        goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
+        out_val = [np.nan_to_num(goes_scene[band].values) for band in layer]
+
+        # goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
         # goes_scene[layer].values = 255 * (goes_scene[layer].values - goes_scene[layer].values.min()) / (
         #         goes_scene[layer].values.max() - goes_scene[layer].values.min())
         # goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
-        bbox = [latitude - rectangular_size, longitude - rectangular_size, latitude + rectangular_size,
-                longitude + rectangular_size]
+        # bbox = [latitude - rectangular_size, longitude - rectangular_size, latitude + rectangular_size,
+        #         longitude + rectangular_size]
         # self.showgoes(goes_scene[layer].x, goes_scene[layer].y, goes_scene[layer].values, bbox)
         # goes_scene[layer].rio.to_raster(raster_path=out_path, driver='GTiff', dtype='int32')
-        goes_scene[layer].rio.to_raster(raster_path=out_path, driver='GTiff', dtype='float32')
+        # goes_scene[layer].rio.to_raster(raster_path=out_path, driver='GTiff', dtype='float32')
+        # goes_scene.save_dataset(layer, out_path)
         # , writer='geotiff',dtype=np.float32
         # was using int
-
+        self.gdal_writter(out_path,EPSG,image_size,out_val)
+    
+    def gdal_writter(self, out_file, crs, image_size, b1_pixels):
+        dst_ds = gdal.GetDriverByName('GTiff').Create(
+            out_file, image_size[1],
+            image_size[0], len(b1_pixels),
+            gdal.GDT_Float32)
+        # transforms between pixel raster space to projection coordinate space.
+        # new_raster.SetGeoTransform((x_min, pixel_size, 0, y_min, 0, pixel_size))
+        # geotransform = (self.xmin, self.res, 0, self.ymax, 0, -self.res)
+        # dst_ds.SetGeoTransform(geotransform)  # specify coords
+        srs = osr.SpatialReference()  # establish encoding
+        srs.ImportFromEPSG(crs)  # WGS84 lat/long
+        dst_ds.SetProjection(srs.ExportToWkt())  # export coords to file
+        for i in range(len(b1_pixels)):
+            dst_ds.GetRasterBand(i+1).WriteArray(b1_pixels[i]) 
+        # dst_ds.GetRasterBand(2).WriteArray(b1_pixels[1])
+        dst_ds.FlushCache()  # write to disk
+        dst_ds = None
+        
     # get area defination for satpy, with new projection and bounding pox
     def get_areaDefination(self, EPSG, image_size, latitude, longitude, rectangular_size):
         bottom_left = [latitude - rectangular_size, longitude - rectangular_size]

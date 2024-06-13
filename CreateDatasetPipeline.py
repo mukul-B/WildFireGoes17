@@ -11,9 +11,9 @@ import pandas as pd
 
 from CommonFunctions import prepareDir
 from CreateDataset import createDataset
-from EvaluationDataset import evaluate
+from ValidateAndVisualizeDataset import validateAndVisualizeDataset
 from WriteDataset import writeDataset
-from GlobalValues import RAD, toExecuteSiteList, training_dir,testing_dir, realtimeSiteList
+from GlobalValues import RAD, GOES_product, toExecuteSiteList, training_dir,testing_dir, realtimeSiteList
 import time
 import multiprocessing as mp
 from tqdm import tqdm
@@ -28,16 +28,15 @@ def on_error(e):
 def CreateDatasetPipeline(location, product, train_test):
     prepareDir(location, product)
     createDataset(location, product)
-    evaluate(location, product)
+    validateAndVisualizeDataset(location, product)
     writeDataset(location, product, train_test)
+    print(location)
     return location
 
 if __name__ == '__main__':
 
     data = pd.read_csv(toExecuteSiteList)
-    locations = data["Sites"]
-    # product = RAD
-    product = {'product_name': RAD, 'band': 7}
+    locations = data["Sites"][:]
     train_test = training_dir
     start_time = time.time()
     # train_test = testing_dir
@@ -47,10 +46,10 @@ if __name__ == '__main__':
     with tqdm(total=len(locations)) as pbar:
         results = []
         for location in locations:
-            result = pool.apply_async(CreateDatasetPipeline, args=(location, product, train_test), 
+            result = pool.apply_async(CreateDatasetPipeline, args=(location, GOES_product, train_test), 
                                       callback=on_success, error_callback=on_error)
             # print(results.get())
-            # CreateDatasetPipeline(location, product, train_test)
+            # result = CreateDatasetPipeline(location, GOES_product, train_test)
             results.append(result)
         pool.close()
         pool.join()

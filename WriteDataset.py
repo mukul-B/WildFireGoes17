@@ -13,7 +13,7 @@ import os
 import numpy as np
 from PIL import Image
 
-from GlobalValues import viirs_dir, goes_dir, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL
+from GlobalValues import GOES_Bands, GOES_product_size, viirs_dir, goes_dir, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL
 import xarray as xr
 
 
@@ -50,14 +50,30 @@ def goes_radiance_normaization(gf, gf_max, gf_min):
     #
     return color_normal_value * ((gf - gf_min) / (gf_max - gf_min))
 
+def goes_img_pkg(GOES_data):
+    gf = [None] * GOES_product_size
+    for i in range(GOES_product_size):
+        gf[i] = GOES_data.variable.data[i]
+        gf[i] = np.array(gf[i])[:, :]
+
+        gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
+        gf[i] = goes_radiance_normaization(gf[i], gf_max, gf_min)
+        gf[i] = np.nan_to_num(gf[i])
+        gf[i] = gf[i].astype(int)
+    return gf
+
 
 #  creating dataset in npy format containing both input and reference files ,
 # whole image is croped in window of size 128
 def create_training_dataset(v_file, g_file, date, out_dir, location):
+    td = {}
     # vf = Image.open(v_file)
     VIIRS_data = xr.open_rasterio(v_file)
     vf = VIIRS_data.variable.data[0]
-    gf = Image.open(g_file)
+    GOES_data = xr.open_rasterio(g_file)
+    kf = goes_img_pkg(GOES_data)
+    gf = GOES_data.variable.data[0]
+    # gf = Image.open(g_file)
     vf = np.array(vf)[:, :]
     gf = np.array(gf)[:, :]
     # gf = np.array(gf)[:, :, 0]
@@ -83,10 +99,26 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
     gf_min = np.full(gf.shape, gf_min)
     gf_max = np.full(gf.shape, gf_max)
     vf_max = np.full(gf.shape, vf_max)
+    training_data_field_names = ['vf'] + [f'gf_c{i}' for i in range(1, GOES_Bands + 1)] + ['vf_FRP', 'gf_min', 'gf_max', 'vf_max']
 
-    stack = np.stack((vf, gf, vf_FRP, gf_min, gf_max, vf_max), axis=2)
+    training_data_with_field = {
+    'vf': vf,
+    'vf_FRP': vf_FRP,
+    'gf_min': gf_min,
+    'gf_max': gf_max,
+    'vf_max': vf_max
+}
+    for i in range(GOES_Bands):
+        training_data_with_field[f'gf_c{i+1}'] = kf[i]
+
+    ordered_data = [training_data_with_field[key] for key in training_data_field_names]
+
+    if(len(ordered_data) != len(training_data_with_field)):
+        print("not matching expecting fields for training data")
+    stack = np.stack(ordered_data, axis=2)
+    # stack = np.stack((vf, kf[0], kf[1],kf[2], vf_FRP, gf_min, gf_max, vf_max), axis=2)
     for x, y, window in sliding_window(stack, 128, (128, 128)):
-        if window.shape != (128, 128, 6):
+        if window.shape != (128, 128, len(training_data_field_names)):
             continue
         g_win = window[:, :, 1]
         v_win = window[:, :, 0]
@@ -100,10 +132,12 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
 
 
 def writeDataset(location, product, train_test):
-    product_name = product['product_name']
-    band = product['band']
+    # product_name = product['product_name']
+    # band = product['band']
     viirs_tif_dir = viirs_dir.replace('$LOC', location)
-    goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product_name).replace('$BAND', format(band,"02d"))
+    product_band = ''.join(map(lambda item: f"{item['product_name']}{format(item['band'],'02d')}", product))
+    goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD_BAND', product_band)
+    # goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product['product_name']).replace('$BAND', format(product['band'],'02d'))
     viirs_list = os.listdir(viirs_tif_dir)
     for v_file in viirs_list:
         g_file = "GOES" + v_file[10:]

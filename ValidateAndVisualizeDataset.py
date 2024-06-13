@@ -16,7 +16,7 @@ import numpy as np
 import xarray as xr
 from PIL import Image
 
-from GlobalValues import VIIRS_UNITS, viirs_dir, goes_dir, compare_dir
+from GlobalValues import VIIRS_UNITS, GOES_product_size, viirs_dir, goes_dir, compare_dir
 import datetime
 
 # demonstrate reference_data standardization with sklearn
@@ -28,7 +28,7 @@ def viewtiff(v_file, g_file, date, save=True, compare_dir=None):
     GOES_data = xr.open_rasterio(g_file)
 
     vd = VIIRS_data.variable.data[0]
-    gd = GOES_data.variable.data[0]
+    gd = [GOES_data.variable.data[i] for i in range(GOES_product_size)]
 
     X, Y = np.mgrid[0:1:complex(str(vd.shape[0]) + "j"), 0:1:complex(str(vd.shape[1]) + "j")]
     # plot_individual_images(X, Y, compare_dir, g_file, gd, vd)
@@ -43,7 +43,7 @@ def viewtiff(v_file, g_file, date, save=True, compare_dir=None):
     # cb.ax.tick_params(labelsize=11)
     # cb.set_label(VIIRS_UNITS, fontsize=12)
     # n =1
-    to_plot = [gd,vd,(gd - vd)]
+    to_plot = [gd[0],vd,(gd[0] - vd)]
     lables = ["GOES","VIIRS","VIIRS On GOES"]
 
     n = len(to_plot)
@@ -107,11 +107,13 @@ def shape_check(v_file, g_file):
 
 
 # the dataset created is evaluated visually and statistically
-def evaluate(location, product):
-    product_name = product['product_name']
-    band = product['band']
+def validateAndVisualizeDataset(location, product):
+    # product_name = product['product_name']
+    # band = product['band']
     viirs_tif_dir = viirs_dir.replace('$LOC', location)
-    goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product_name).replace('$BAND', format(band,"02d"))
+    product_band = ''.join(map(lambda item: f"{item['product_name']}{format(item['band'],'02d')}", product))
+    goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD_BAND', product_band)
+    # goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product['product_name']).replace('$BAND', format(product['band'],'02d'))
     comp_dir = compare_dir.replace('$LOC', location)
     viirs_list = os.listdir(viirs_tif_dir)
     for v_file in viirs_list:

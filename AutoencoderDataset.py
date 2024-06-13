@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+from GlobalValues import GOES_Bands, training_data_field_names
 
 
 class npDataset(Dataset):
@@ -40,17 +41,21 @@ class npDataset(Dataset):
         for file in files:
             file_path = os.path.join(self.im_dir, file)
             sample = np.load(file_path)
-            x.append(sample[:, :, 1])
-            y.append(sample[:, :, 0])
+            training_data = {name: sample[:, :, i] for i, name in enumerate(training_data_field_names)}
+            gf_c_fields = [f'gf_c{i+1}' for i in range(GOES_Bands)]
+            x.append(np.stack([training_data[field] for field in gf_c_fields], axis=0))
+            y.append(training_data['vf'])
             if (self.evaluate):
-                z.append(sample[:, :, 2])
-                a.append(sample[:, :, 3])
-                b.append(sample[:, :, 4])
-                c.append(sample[:, :, 5])
+                z.append(training_data['vf_FRP'])
+                a.append(training_data['gf_min'])
+                b.append(training_data['gf_max'])
+                c.append(training_data['vf_max'])
         x, y = np.array(x) / 255., np.array(y) / 255.
-        x, y = np.expand_dims(x, 1), np.expand_dims(y, 1)
+        y =  np.expand_dims(y, 1)
+        # x, y = np.expand_dims(x, 1) if GOES_Bands == 1 else x, np.expand_dims(y, 1)
         x,y = torch.Tensor(x), torch.Tensor(y)
         if(self.augment):
+            # TODO not doing transformation increases the accuracy in testing (need to be checked)
             x, y = self.transform(x,y)
         if self.evaluate:
             z = np.array(z)

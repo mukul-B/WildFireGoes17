@@ -3,6 +3,7 @@ __pycache__/
 GOES_netcdfs/
 logs/
 reference_data/
+Backups_Data_files/
 RealTimeIncoming_files/
 RealTimeIncoming_results/
 training_data/

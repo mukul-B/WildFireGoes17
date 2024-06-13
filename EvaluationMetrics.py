@@ -22,7 +22,7 @@ VIIRS_GROUND_TRUTH_LABEL = 'VIIRS Ground Truth'
 OTSU_thresholding_on_GOES_LABEL = 'OTSU thresholding on GOES'
 GOES_input_LABEL = 'GOES input'
 plt.style.use('plot_style/wrf')
-from GlobalValues import GOES_UNITS, HC, HI, LI, LC, THRESHOLD_COVERAGE, THRESHOLD_IOU, VIIRS_MIN_VAL, VIIRS_UNITS
+from GlobalValues import ALL_SAMPLES, GOES_UNITS, HC, HI, LI, LC, SELECTED_SAMPLES, THRESHOLD_COVERAGE, THRESHOLD_IOU, VIIRS_MIN_VAL, VIIRS_UNITS
 
 
 class ImagePlot:
@@ -158,15 +158,10 @@ def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
     # ----------------------------------------------------------------------------------
     # random result plot
 
-    # if filename[0] in ['79', '126', '199', '729', '183', '992', '140', '189', '1159', '190', '26', '188']:
-     # if filename[0] in ['78','240','249','0','6','19','2','10','14','15','27','807']:
-    # if filename[0] in ['401','237','122','713','792','821','888','358','728','626','943','594','969','118','395','730','444','408','387','204','296','774','93','882','720','823','280','859','809','115','952','849','956','884','156','171','104','663','396']:
-    if filename[0] in ['713','122','956','728','118','553','408','387','849','104','663','609']:
-    # if inputEV.iteration > 1 :
-    # if 1:
-    # if filename[0] in ['24']:
+    if ALL_SAMPLES or filename[0] in SELECTED_SAMPLES :
+        extract_img = inp[0]
         g1 = ImagePlot(GOES_UNITS,gf_max, gf_min,
-                       inp, 
+                       extract_img, 
                        GOES_input_LABEL+site_date_time)
         # g2 = ImagePlot(GOES_UNITS,gf_max, gf_min,
         #                inputEV.th_l1 * inp,

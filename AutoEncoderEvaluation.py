@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 import wandb
 from Autoencoder import Encoder, Decoder
 from AutoencoderDataset import npDataset
-from GlobalValues import RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, model_path, \
+from GlobalValues import RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
     HC, HI, LI, LC
 from GlobalValues import training_dir, Results, random_state
 from LossFunctionConfig import use_config
@@ -189,7 +189,7 @@ def test_runner(npd):
     test_loader = DataLoader(npd)
 
     # Set up the encoder, decoder. and optimizer
-    encoder = Encoder(1)
+    encoder = Encoder(GOES_Bands)
     decoder = Decoder(256, OUTPUT_ACTIVATION)
     encoder.load_state_dict(torch.load(encoder_path))
     decoder.load_state_dict(torch.load(decoder_path))
@@ -209,7 +209,7 @@ def supr_resolution(conf, x):
     OUTPUT_ACTIVATION = loss_function(1).last_activation
     encoder_path = path + "/" + RES_ENCODER_PTH
     decoder_path = path + "/" + RES_DECODER_PTH
-    encoder = Encoder(1)
+    encoder = Encoder(GOES_Bands)
     decoder = Decoder(256, OUTPUT_ACTIVATION)
     encoder.load_state_dict(torch.load(encoder_path))
     decoder.load_state_dict(torch.load(decoder_path))
