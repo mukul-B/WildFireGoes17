@@ -13,7 +13,7 @@ import os
 import numpy as np
 from PIL import Image
 
-from GlobalValues import GOES_Bands, GOES_product_size, viirs_dir, goes_dir, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL
+from GlobalValues import GOES_Bands, GOES_product_size, viirs_dir, goes_dir, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL, training_data_field_names
 import xarray as xr
 
 
@@ -99,8 +99,6 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
     gf_min = np.full(gf.shape, gf_min)
     gf_max = np.full(gf.shape, gf_max)
     vf_max = np.full(gf.shape, vf_max)
-    training_data_field_names = ['vf'] + [f'gf_c{i}' for i in range(1, GOES_Bands + 1)] + ['vf_FRP', 'gf_min', 'gf_max', 'vf_max']
-
     training_data_with_field = {
     'vf': vf,
     'vf_FRP': vf_FRP,

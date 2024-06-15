@@ -22,7 +22,7 @@ VIIRS_GROUND_TRUTH_LABEL = 'VIIRS Ground Truth'
 OTSU_thresholding_on_GOES_LABEL = 'OTSU thresholding on GOES'
 GOES_input_LABEL = 'GOES input'
 plt.style.use('plot_style/wrf')
-from GlobalValues import ALL_SAMPLES, GOES_UNITS, HC, HI, LI, LC, SELECTED_SAMPLES, THRESHOLD_COVERAGE, THRESHOLD_IOU, VIIRS_MIN_VAL, VIIRS_UNITS
+from GlobalValues import ALL_SAMPLES, GOES_UNITS, HC, HI, LI, LC, SELECTED_SAMPLES, THRESHOLD_COVERAGE, THRESHOLD_IOU, VIIRS_MIN_VAL, VIIRS_UNITS, GOES_Bands
 
 
 class ImagePlot:
@@ -96,14 +96,16 @@ def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
 
     # 3)Evaluation on Input after OTSU thresholding
     inputEV = EvaluationVariables("input")
-    inputEV.iteration, inputEV.ret, inputEV.th = best_threshold_iteration(groundTruth, inp)
-    _, inputEV.th_l1, _, _, _ = getth(inp, on=0)
-    inputEV.th_img = inputEV.th * inp
+    # extract_img = inp
+    extract_img = inp if GOES_Bands == 1 else inp[0]
+    inputEV.iteration, inputEV.ret, inputEV.th = best_threshold_iteration(groundTruth, extract_img)
+    _, inputEV.th_l1, _, _, _ = getth(extract_img, on=0)
+    inputEV.th_img = inputEV.th * extract_img
     inputEV.iou = IOU_numpy(groundTruth, inputEV.th)
     inputEV.psnr_intersection = PSNR_intersection(groundTruth, inputEV.th_img)
     inputEV.psnr_union = PSNR_union(groundTruth, inputEV.th_img)
     inputEV.coverage = np.count_nonzero(inputEV.th_l1) / inputEV.th.size
-    inputEV.imagesize = inp.size
+    inputEV.imagesize = extract_img.size
     inputEV.dis = ''
     inputEV.dis = f'\nThreshold (Iteration:{str(inputEV.iteration)}): {str(round(inputEV.ret, 4))} Coverage: {str(round(inputEV.coverage, 4))}' \
                 f'\nIOU : {str(inputEV.iou)}' \
@@ -159,7 +161,6 @@ def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
     # random result plot
 
     if ALL_SAMPLES or filename[0] in SELECTED_SAMPLES :
-        extract_img = inp[0]
         g1 = ImagePlot(GOES_UNITS,gf_max, gf_min,
                        extract_img, 
                        GOES_input_LABEL+site_date_time)

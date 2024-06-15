@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
-from GlobalValues import GOES_Bands, training_data_field_names
+from GlobalValues import GOES_Bands, training_data_field_names, gf_c_fields
 
 
 class npDataset(Dataset):
@@ -42,7 +42,6 @@ class npDataset(Dataset):
             file_path = os.path.join(self.im_dir, file)
             sample = np.load(file_path)
             training_data = {name: sample[:, :, i] for i, name in enumerate(training_data_field_names)}
-            gf_c_fields = [f'gf_c{i+1}' for i in range(GOES_Bands)]
             x.append(np.stack([training_data[field] for field in gf_c_fields], axis=0))
             y.append(training_data['vf'])
             if (self.evaluate):

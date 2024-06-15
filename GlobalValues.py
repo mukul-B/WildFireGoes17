@@ -20,13 +20,14 @@ VIIRS_MIN_VAL,VIIRS_MAX_VAL = 0 , 367
 VIIRS_UNITS ='Brightness Temperature'
 
 # GOES_product = RAD
-# GOES_product = [{'product_name': RAD, 'band': 7},
-#            {'product_name': RAD, 'band': 14},
-#            {'product_name': RAD, 'band': 15}]
-GOES_product = [{'product_name': RAD, 'band': 7}]
+GOES_product = [{'product_name': RAD, 'band': 7},
+           {'product_name': RAD, 'band': 14},
+           {'product_name': RAD, 'band': 15}]
+# GOES_product = [{'product_name': RAD, 'band': 7}]
 GOES_product_size = len(GOES_product)
-GOES_Bands = 1
-training_data_field_names = ['vf'] + [f'gf_c{i+1}' for i in range(GOES_Bands)] + ['vf_FRP', 'gf_min', 'gf_max', 'vf_max']
+GOES_Bands = 3
+gf_c_fields = [f'gf_c{i+1}' for i in range(GOES_Bands)]
+training_data_field_names = ['vf'] + gf_c_fields + ['vf_FRP', 'gf_min', 'gf_max', 'vf_max']
 
 # GOES_UNITS = 'Radiance'
 GOES_UNITS = 'Brightness Temperature'
@@ -83,9 +84,10 @@ videos = 'Videos/'
 # blind testing
 realtimeSiteList = "config/blind_testing_sites"
 
-
+paper_results = ['713','122','956','728','118','553','408','387','849','104','663','609']
+NO_SAMPLES = []
 ALL_SAMPLES = 0
-SELECTED_SAMPLES = []
+SELECTED_SAMPLES = paper_results
 
 
 # if filename[0] in ['79', '126', '199', '729', '183', '992', '140', '189', '1159', '190', '26', '188']:
