@@ -97,7 +97,7 @@ class VIIRSProcessing:
         # comment normalize_VIIRS for visualizing real values
         # b1_pixels = self.normalize_VIIRS(b1_pixels)
         # print("--------------------", np.max(b1_pixels))
-        self.gdal_writter(out_file,b1_pixels,b2_pixels)
+        self.gdal_writter(out_file,[b1_pixels])
 
     def normalize_VIIRS(self, b1_pixels):
         max_val = np.max(b1_pixels)
@@ -310,10 +310,10 @@ class VIIRSProcessing:
 
         return grid_z
 
-    def gdal_writter(self, out_file, b1_pixels,b2_pixels):
+    def gdal_writter(self, out_file, b_pixels):
         dst_ds = gdal.GetDriverByName('GTiff').Create(
             out_file, self.image_size[1],
-            self.image_size[0], 2,
+            self.image_size[0], len(b_pixels),
             gdal.GDT_Float32)
         # transforms between pixel raster space to projection coordinate space.
         # new_raster.SetGeoTransform((x_min, pixel_size, 0, y_min, 0, pixel_size))
@@ -322,7 +322,9 @@ class VIIRSProcessing:
         srs = osr.SpatialReference()  # establish encoding
         srs.ImportFromEPSG(self.crs)  # WGS84 lat/long
         dst_ds.SetProjection(srs.ExportToWkt())  # export coords to file
-        dst_ds.GetRasterBand(1).WriteArray(b1_pixels)  # write r-band to the raster
-        dst_ds.GetRasterBand(2).WriteArray(b2_pixels)
+        for i in range(len(b_pixels)):
+            dst_ds.GetRasterBand(i+1).WriteArray(b_pixels[i])
+        # dst_ds.GetRasterBand(1).WriteArray(b1_pixels)  # write r-band to the raster
+        # dst_ds.GetRasterBand(2).WriteArray(b2_pixels)
         dst_ds.FlushCache()  # write to disk
         dst_ds = None

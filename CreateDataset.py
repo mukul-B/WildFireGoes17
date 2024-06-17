@@ -44,7 +44,6 @@ def createDataset(location, product):
             # path = goes.download_goes(fire_date, str(ac_time), product_name=product_name,band=band) 
             paths = goes.download_goes(fire_date, str(ac_time))
             if -1 not in paths:
-            #if path != -1:
                 v2r_viirs.make_tiff(fire_date, ac_time, fire_data_filter_on_date_and_bbox)
                 goes.nc2tiff(fire_date, ac_time, paths, site, v2r_viirs.image_size, goes_tif_dir)
 
