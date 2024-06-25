@@ -16,10 +16,46 @@ import numpy as np
 import xarray as xr
 from PIL import Image
 
-from GlobalValues import VIIRS_UNITS, GOES_product_size, viirs_dir, goes_dir, compare_dir
+from GlobalValues import GOES_MAX_VAL, VIIRS_UNITS, GOES_product_size, viirs_dir, goes_dir, compare_dir
 import datetime
 
+from WriteDataset import Normalize_img
+
 # demonstrate reference_data standardization with sklearn
+
+
+def getth(image, on=0):
+    # bins= 413
+    # print(max([ image[i].max() for i in range(len(image))]) != image.max())
+    
+    bins = int(image.max()-image.min() + 1)
+    # on = int(image.min())
+    # Set total number of bins in the histogram
+    image_r = image.copy()
+    # image_r = image_r * (bins-1)
+    # Get the image histogram
+    hist, bin_edges = np.histogram(image_r, bins=bins)
+    if (on):
+        hist, bin_edges = hist[on:], bin_edges[on:]
+    # Get normalized histogram if it is required
+
+    # Calculate centers of bins
+    bin_mids = (bin_edges[:-1] + bin_edges[1:]) / 2.
+    # Iterate over all thresholds (indices) and get the probabilities w1(t), w2(t)
+    weight1 = np.cumsum(hist)
+    weight2 = np.cumsum(hist[::-1])[::-1]
+    # Get the class means mu0(t)
+    mean1 = np.cumsum(hist * bin_mids) / weight1
+    # Get the class means mu1(t)
+    mean2 = (np.cumsum((hist * bin_mids)[::-1]) / weight2[::-1])[::-1]
+    inter_class_variance = weight1[:-1] * weight2[1:] * (mean1[:-1] - mean2[1:]) ** 2
+    # Maximize the inter_class_variance function val
+    index_of_max_val = np.argmax(inter_class_variance)
+    threshold = bin_mids[:-1][index_of_max_val]
+    threshold = threshold + on if ((threshold + on) < (bins-1)) else threshold
+    image_r[image_r < threshold] = 0
+    image_r[image_r >= threshold] = 1
+    return round(threshold, 2), image_r, hist, bin_edges, index_of_max_val
 
 
 # visualising GOES and VIIRS
@@ -29,23 +65,30 @@ def viewtiff(v_file, g_file, date, save=True, compare_dir=None):
 
     vd = VIIRS_data.variable.data[0]
     gd = [GOES_data.variable.data[i] for i in range(GOES_product_size)]
-
-    X, Y = np.mgrid[0:1:complex(str(vd.shape[0]) + "j"), 0:1:complex(str(vd.shape[1]) + "j")]
-    # plot_individual_images(X, Y, compare_dir, g_file, gd, vd)
     # if in GOES and VIIRS , the values are normalized, using this flag to visualize result
     normalized = False
     vmin,vmax = (0, 250) if normalized else (200,420)
-    # p = ax.pcolormesh(Y, -X, vd, cmap="jet", vmin=vmin, vmax=vmax)
-    # q = ax[0].pcolormesh(Y, -X, gd, cmap="jet", vmin=vmin, vmax=vmax)
-    # p = ax[1].pcolormesh(Y, -X, vd, cmap="jet", vmin=vmin, vmax=vmax)
-    # r = ax[2].pcolormesh(Y, -X, (gd - vd), cmap="jet", vmin=vmin, vmax=vmax)
-    # cb = fig.colorbar(p, pad=0.01)
-    # cb.ax.tick_params(labelsize=11)
-    # cb.set_label(VIIRS_UNITS, fontsize=12)
-    # n =1
+    # Active_fire = (gd[0]-gd[1])/(gd[0]+gd[1])
+    # cloud_remove_280 = Active_fire * (gd[2]> 280) * 1000
+    # # ret1, th1, hist1, bins1, index_of_max_val1 = getth(cloud_remove_280, on=0)
+    # # print(cloud_remove_280.min(),cloud_remove_280.max(),ret1)
+    # # cloud_remove = Active_fire * (cloud_remove_280 > ret1) * 1000
+    # cloud_remove = cloud_remove_280 * (cloud_remove_280 > 0) 
+    # cloud_remove = (cloud_remove * GOES_MAX_VAL)  / cloud_remove.max()
+    # gd[0] = Normalize_img(gd[0])
+    # cloud_remove = Normalize_img(cloud_remove,gf_min = 0, gf_max = GOES_MAX_VAL)
+    # to_plot = [gd[0],Active_fire,cloud_remove_280,cloud_remove,vd]
+    # lables = ["GOES","Active_fire","cloud_remove_280","cloud_remove","VIIRS"]
+    
     to_plot = [gd[0],vd,(gd[0] - vd)]
     lables = ["GOES","VIIRS","VIIRS On GOES"]
+    
+    save_path = f'{compare_dir}{date}.png' if save else None
+    Plot_list(  to_plot, lables, vd.shape, None, None, save_path)
 
+def Plot_list(  to_plot, lables, shape, vmin=None, vmax=None, save_path=None):
+
+    X, Y = np.mgrid[0:1:complex(str(shape[0]) + "j"), 0:1:complex(str(shape[1]) + "j")]
     n = len(to_plot)
     fig, ax = plt.subplots(1, n, constrained_layout=True, figsize=(4*n, 4))
 
@@ -60,8 +103,8 @@ def viewtiff(v_file, g_file, date, save=True, compare_dir=None):
         cb.ax.tick_params(labelsize=11)
         cb.set_label(VIIRS_UNITS, fontsize=12)
     plt.rcParams['savefig.dpi'] = 600
-    if (save):
-        fig.savefig(f'{compare_dir}{date}.png')
+    if (save_path):
+        fig.savefig(save_path)
         plt.close()
     plt.show()
 

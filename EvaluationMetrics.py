@@ -282,7 +282,7 @@ def plot_it(img_seq,condition,path,colection=True):
         # path = "cheko.png"
         # path = '/'.join(pl[:2]) + f"/{condition}/{filename[0]}_{output_iou}_{psnr_intersection_i}_{psnr_union_i}_{str(round(coverage_i, 4))}.png"
         print(filename)
-        path = '/'.join(pl[:2]) + f"/{condition}/{filename}.png"
+        path = '/'.join(pl[:-1]) + f"/{condition}/{filename}.png"
         plt.rcParams['savefig.dpi'] = 600
         fig.savefig(path)
         # input()

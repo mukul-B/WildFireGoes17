@@ -25,7 +25,7 @@ GOES_product = [{'product_name': RAD, 'band': 7},
            {'product_name': RAD, 'band': 15}]
 # GOES_product = [{'product_name': RAD, 'band': 7}]
 GOES_product_size = len(GOES_product)
-GOES_Bands = 3
+GOES_Bands = 2
 gf_c_fields = [f'gf_c{i+1}' for i in range(GOES_Bands)]
 training_data_field_names = ['vf'] + gf_c_fields + ['vf_FRP', 'gf_min', 'gf_max', 'vf_max']
 
@@ -46,7 +46,7 @@ GOES_ndf = 'GOES_netcdfs'
 goes_folder = "GOES"
 viirs_folder = "VIIRS"
 logs = 'logs'
-data_dir = "reference_data"
+data_dir = "DataRepository/reference_data"
 compare = 'compare'
 
 # data loading and preprocessing
@@ -57,28 +57,28 @@ toExecuteSiteList = "config/training_sites"
 # toExecuteSiteList = "config/testing_sites"
 # training = 'training'
 # reference_data = "reference_data_working"
-reference_data = "reference_data"
+reference_data = "DataRepository/reference_data"
 compare_dir = f'{reference_data}/$LOC/compare/'
 viirs_dir = f'{reference_data}/$LOC/VIIRS/'
 goes_dir = f'{reference_data}/$LOC/GOES/$PROD_BAND/tif/'
 # training_dir = 'training_data_workingwithFRP/'
-training_dir = 'training_data/'
+training_dir = 'DataRepository/training_data/'
 # training_dir = 'training_data_working/'
 
 # Autoencoder training and testing
 # model_path = 'Model_BEFORE_MOVING_NORMALIZATION/'
 model_path = 'Model/'
-Results = 'results/'
+Results = 'DataRepository/results/'
 # THRESHOLD_COVERAGE = 0.2
 # THRESHOLD_IOU = 0.05
 THRESHOLD_COVERAGE, THRESHOLD_IOU = 0.453186035,0.005117899
 
 
 # toExecuteSiteList = "config/testing_sites"
-testing_dir = 'testing_dir/'
+testing_dir = 'DataRepository/testing_dir/'
 # realtimeSiteList = "config/realtime_sites"
-RealTimeIncoming_files = 'RealTimeIncoming_files/'
-RealTimeIncoming_results = 'RealTimeIncoming_results/'
+RealTimeIncoming_files = 'DataRepository/RealTimeIncoming_files/'
+RealTimeIncoming_results = 'DataRepository/RealTimeIncoming_results/'
 videos = 'Videos/'
 
 # blind testing

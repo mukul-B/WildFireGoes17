@@ -25,9 +25,17 @@ class VIIRSProcessing:
 
         country = 'United_States'
         Sdirectory = "VIIRS_Source/" + satellite + "_" + year + "_" + country + ".csv"
+        VIIRS_pixel= pd.read_csv(Sdirectory)
+        # Sdirectory = f'VIIRS_Source_new/fire_archive_SV-C2_{year}.csv'
+        # Sdirectory2 = f'VIIRS_Source_new/fire_nrt_J1V-C2_{year}.csv'
+        # snpp_pixels = pd.read_csv(Sdirectory)
+        # NOAA_pixels = pd.read_csv(Sdirectory2)
+        # NOAA_pixels.rename(columns={'brightness':'bright_ti4'}, inplace=True)
+        # NOAA_pixels.rename(columns={'bright_t31':'bright_ti5'}, inplace=True)
+        # VIIRS_pixel = pd.concat([snpp_pixels, NOAA_pixels], ignore_index=True)
 
         self.location = site.location
-        self.fire_pixels = pd.read_csv(Sdirectory)
+        self.fire_pixels = VIIRS_pixel
         self.satellite = satellite
         self.crs = site.EPSG
         self.res = res
@@ -97,7 +105,7 @@ class VIIRSProcessing:
         # comment normalize_VIIRS for visualizing real values
         # b1_pixels = self.normalize_VIIRS(b1_pixels)
         # print("--------------------", np.max(b1_pixels))
-        self.gdal_writter(out_file,[b1_pixels])
+        self.gdal_writter(out_file,[b1_pixels,b2_pixels])
 
     def normalize_VIIRS(self, b1_pixels):
         max_val = np.max(b1_pixels)

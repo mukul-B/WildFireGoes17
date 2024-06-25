@@ -1,12 +1,12 @@
 from flask import Flask, render_template
 import os
 
-app = Flask(__name__,static_folder='reference_data/Dixie/compare')
+app = Flask(__name__,static_folder='DataRepository/reference_data/Dixie/compare')
 
 @app.route('/')
 def index():
     # Folder containing images
-    image_folder = 'reference_data/Dixie/compare'
+    image_folder = 'DataRepository/reference_data/Dixie/compare'
 
     # Get the list of image files in the folder
     image_files = os.listdir(image_folder)
@@ -18,4 +18,4 @@ def index():
     return render_template('index.html', image_files=image_files)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=8080)

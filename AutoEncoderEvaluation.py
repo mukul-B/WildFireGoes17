@@ -239,10 +239,13 @@ def supr_resolution(conf, x):
 
 
 def prepare_dir(res):
-    if not os.path.exists(Results):
-        os.mkdir(Results)
-    if not os.path.exists(res):
-        os.mkdir(res)
+
+    os.makedirs(Results, exist_ok=True)
+    os.makedirs(res, exist_ok=True)
+    # if not os.path.exists(Results):
+    #     os.mkdir(Results)
+    # if not os.path.exists(res):
+    #     os.mkdir(res)
     for coverage_type in [LC, HC]:
         for iou_type in [LI, HI]:
             type = coverage_type + iou_type
