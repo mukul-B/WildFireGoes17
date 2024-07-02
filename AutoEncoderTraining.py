@@ -7,6 +7,7 @@ import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
+import logging
 
 import wandb
 from Autoencoder import Encoder, Decoder
@@ -186,6 +187,15 @@ def main(config=None):
     mp = model_path  + project_name
     if not os.path.exists(mp):
         os.mkdir(mp)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[
+            logging.FileHandler(f"{mp}/training.log"),
+            logging.StreamHandler()
+        ]
+    )
+    logging.info(wandb.run.get_url())
     torch.save(encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
     torch.save(decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
     torch.save(optimizer.state_dict(), mp + "/" + RES_OPT_PTH)
