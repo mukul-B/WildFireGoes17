@@ -56,11 +56,32 @@ def goes_img_pkg(GOES_data):
         gf[i] = GOES_data.variable.data[i]
         gf[i] = np.array(gf[i])[:, :]
 
-        gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
-        gf[i] = goes_radiance_normaization(gf[i], gf_max, gf_min)
-        gf[i] = np.nan_to_num(gf[i])
-        gf[i] = gf[i].astype(int)
+        # gf[i] = Normalize_img(gf[i])
     return gf
+
+# def goes_img_to_channels(gf):
+#     gf_channels = [None] * GOES_Bands
+#     gf_channels[0] = gf[0]
+#     gf_channels[0] = Normalize_img(gf_channels[0])
+
+#     Active_fire = (gf[0]-gf[1])/(gf[0]+gf[1])
+#     cloud_remove_280 = Active_fire * (gf[2]> 280) * 1000
+#     cloud_remove = cloud_remove_280 * (cloud_remove_280 > 0) 
+#     cloud_remove = (cloud_remove * GOES_MAX_VAL)  / cloud_remove.max()
+#     gf_channels[1] = Normalize_img(cloud_remove,gf_min = 0, gf_max = GOES_MAX_VAL)
+#     return gf_channels
+
+def goes_img_to_channels(gf):
+    gf_channels = [None] * GOES_Bands
+    for i in range(GOES_Bands):
+        gf_channels[i] = Normalize_img(gf[i])
+    return gf_channels
+
+def Normalize_img(img,gf_min = GOES_MIN_VAL, gf_max = GOES_MAX_VAL):
+    img = goes_radiance_normaization(img, gf_max, gf_min)
+    img = np.nan_to_num(img)
+    img = img.astype(int)
+    return img
 
 
 #  creating dataset in npy format containing both input and reference files ,
@@ -106,8 +127,11 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
     'gf_max': gf_max,
     'vf_max': vf_max
 }
+    
+    gf_channels = goes_img_to_channels(kf)
+
     for i in range(GOES_Bands):
-        training_data_with_field[f'gf_c{i+1}'] = kf[i]
+        training_data_with_field[f'gf_c{i+1}'] = gf_channels[i]
 
     ordered_data = [training_data_with_field[key] for key in training_data_field_names]
 
