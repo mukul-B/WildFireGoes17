@@ -185,6 +185,12 @@ def main(config=None):
     # Train and save the model components
     train(train_loader, validation_loader, encoder, decoder, optimizer, n_epochs, criteria)
     mp = model_path  + project_name
+    end =  datetime.now()
+    duration = end - now
+    seconds = duration.total_seconds()
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    seconds = seconds % 60
     if not os.path.exists(mp):
         os.mkdir(mp)
     logging.basicConfig(
@@ -195,7 +201,7 @@ def main(config=None):
             logging.StreamHandler()
         ]
     )
-    logging.info(wandb.run.get_url())
+    logging.info(f'{current_time} run took {hours} hours {minutes} minutes {seconds} seconds\n details : {wandb.run.get_url()}')
     torch.save(encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
     torch.save(decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
     torch.save(optimizer.state_dict(), mp + "/" + RES_OPT_PTH)
