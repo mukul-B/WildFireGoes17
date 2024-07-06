@@ -13,7 +13,7 @@ import wandb
 from Autoencoder import Encoder, Decoder
 from AutoencoderDataset import npDataset
 from GlobalValues import GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
-    LEARNING_RATE, random_state, BETA, LOSS_FUNCTION
+    LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template
 from LossFunctionConfig import SWEEP_OPERATION, use_config,sweep_loss_funtion
 
 im_dir = training_dir
@@ -154,7 +154,14 @@ def main(config=None):
 
     loss_function = sweep_loss_funtion if loss_function is None else loss_function
     loss_function_name = str(loss_function).split("'")[1].split(".")[1]
-    project_name = f"wildfire_{loss_function_name}_{n_epochs}epochs_{batch_size}batchsize_{learning_rate}lr"
+    
+    project_name = project_name_template.format(
+    loss_function_name=loss_function_name,
+    n_epochs=n_epochs,
+    batch_size=batch_size,
+    learning_rate=learning_rate
+)
+    # project_name = f"wildfire_{loss_function_name}_{n_epochs}epochs_{batch_size}batchsize_{learning_rate}lr"
     print(project_name)
     run = wandb.init(project=project_name, name="run_" + current_time)
     print(f'Train with n_epochs : {n_epochs} , batch_size : {batch_size} , learning_rate : {learning_rate}')

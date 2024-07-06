@@ -24,7 +24,7 @@ from Autoencoder import Encoder, Decoder
 from AutoencoderDataset import npDataset
 from GlobalValues import RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
     HC, HI, LI, LC
-from GlobalValues import training_dir, Results, random_state
+from GlobalValues import training_dir, Results, random_state, project_name_template
 from LossFunctionConfig import use_config
 from EvaluationMetrics import save_results
 
@@ -85,6 +85,7 @@ def test(test_loader, encoder, decoder, npd):
             y = np.squeeze(y)
 
             if output_rmse is not None:
+                # output_rmse = output_rmse.view(1, 128, 128)
                 output_rmse = output_rmse.cpu()
                 output_rmse = np.squeeze(output_rmse)
             if output_jaccard is not None:
@@ -203,7 +204,13 @@ def test_runner(npd):
 def supr_resolution(conf, x):
     loss_function = conf.get(LOSS_FUNCTION)
     loss_function_name = str(loss_function).split("'")[1].split(".")[1]
-    project_name = f"wildfire_{loss_function_name}_{conf.get(EPOCHS)}epochs_{conf.get(BATCH_SIZE)}batchsize_{conf.get(LEARNING_RATE)}lr"
+    project_name = project_name_template.format(
+    loss_function_name=loss_function_name,
+    n_epochs=conf.get(EPOCHS),
+    batch_size=conf.get(BATCH_SIZE),
+    learning_rate=conf.get(LEARNING_RATE)
+)
+    # project_name = f"wildfire_{loss_function_name}_{conf.get(EPOCHS)}epochs_{conf.get(BATCH_SIZE)}batchsize_{conf.get(LEARNING_RATE)}lr"
     path = model_path + project_name
     LOSS_NAME = loss_function_name
     OUTPUT_ACTIVATION = loss_function(1).last_activation
@@ -260,7 +267,16 @@ def main(config=None):
 
     loss_function = wandb.config.get(LOSS_FUNCTION)
     loss_function_name = str(loss_function).split("'")[1].split(".")[1]
-    project_name = f"wildfire_{loss_function_name}_{wandb.config.get(EPOCHS)}epochs_{wandb.config.get(BATCH_SIZE)}batchsize_{wandb.config.get(LEARNING_RATE)}lr"
+    # config.py
+
+    
+    project_name = project_name_template.format(
+    loss_function_name=loss_function_name,
+    n_epochs=wandb.config.get(EPOCHS),
+    batch_size=wandb.config.get(BATCH_SIZE),
+    learning_rate=wandb.config.get(LEARNING_RATE)
+)
+    # project_name = f"wildfire_{loss_function_name}_{wandb.config.get(EPOCHS)}epochs_{wandb.config.get(BATCH_SIZE)}batchsize_{wandb.config.get(LEARNING_RATE)}lr"
     print(project_name)
 
     global encoder_path, decoder_path, res, OUTPUT_ACTIVATION, LOSS_NAME

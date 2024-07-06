@@ -20,12 +20,23 @@ VIIRS_MIN_VAL,VIIRS_MAX_VAL = 0 , 367
 VIIRS_UNITS ='Brightness Temperature'
 
 # GOES_product = RAD
-GOES_product = [{'product_name': RAD, 'band': 7},
-           {'product_name': RAD, 'band': 14},
-           {'product_name': RAD, 'band': 15}]
-# GOES_product = [{'product_name': RAD, 'band': 7}]
+# GOES_product = [{'product_name': RAD, 'band': 7},
+#            {'product_name': RAD, 'band': 14},
+#            {'product_name': RAD, 'band': 15}]
+GOES_product = [{'product_name': RAD, 'band': 7}]
 GOES_product_size = len(GOES_product)
-GOES_Bands = 2
+GOES_Bands = 1
+
+no_postfix = ''
+_3channel_postfix = '_3channel'
+_1channel_postfix = '_1channel'
+_2channel_postfix = '_activeFire_2branch'
+
+
+trainingDir_speficic_Postfix = no_postfix
+model_specific_postfix = _1channel_postfix
+result_specific_postfix = _1channel_postfix
+
 gf_c_fields = [f'gf_c{i+1}' for i in range(GOES_Bands)]
 training_data_field_names = ['vf'] + gf_c_fields + ['vf_FRP', 'gf_min', 'gf_max', 'vf_max']
 
@@ -61,14 +72,14 @@ reference_data = "DataRepository/reference_data"
 compare_dir = f'{reference_data}/$LOC/compare/'
 viirs_dir = f'{reference_data}/$LOC/VIIRS/'
 goes_dir = f'{reference_data}/$LOC/GOES/$PROD_BAND/tif/'
-# training_dir = 'training_data_workingwithFRP/'
-training_dir = 'DataRepository/training_data/'
+training_dir = f'DataRepository/training_data{trainingDir_speficic_Postfix}/'
 # training_dir = 'training_data_working/'
 
 # Autoencoder training and testing
 # model_path = 'Model_BEFORE_MOVING_NORMALIZATION/'
 model_path = 'Model/'
-Results = 'DataRepository/results/'
+project_name_template = "wildfire_{loss_function_name}_{n_epochs}epochs_{batch_size}batchsize_{learning_rate}lr" + model_specific_postfix
+Results = f'DataRepository/results{result_specific_postfix}/'
 # THRESHOLD_COVERAGE = 0.2
 # THRESHOLD_IOU = 0.05
 THRESHOLD_COVERAGE, THRESHOLD_IOU = 0.453186035,0.005117899
@@ -87,7 +98,7 @@ realtimeSiteList = "config/blind_testing_sites"
 paper_results = ['713','122','956','728','118','553','408','387','849','104','663','609']
 NO_SAMPLES = []
 ALL_SAMPLES = 0
-SELECTED_SAMPLES = paper_results
+SELECTED_SAMPLES = NO_SAMPLES
 
 
 # if filename[0] in ['79', '126', '199', '729', '183', '992', '140', '189', '1159', '190', '26', '188']:
@@ -95,9 +106,3 @@ SELECTED_SAMPLES = paper_results
 # if filename[0] in ['401','237','122','713','792','821','888','358','728','626','943','594','969','118','395','730','444','408','387','204','296','774','93','882','720','823','280','859','809','115','952','849','956','884','156','171','104','663','396']:
 # if filename[0] in ['713','122','956','728','118','553','408','387','849','104','663','609']:
 # if filename[0] in ['24']
-
-
-
-
-
-
