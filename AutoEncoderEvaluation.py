@@ -24,7 +24,7 @@ from Autoencoder import Encoder, Decoder
 from AutoencoderDataset import npDataset
 from GlobalValues import RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
     HC, HI, LI, LC
-from GlobalValues import training_dir, Results, random_state, project_name_template
+from GlobalValues import training_dir, Results, random_state, project_name_template, test_split
 from LossFunctionConfig import use_config
 from EvaluationMetrics import save_results
 
@@ -299,7 +299,7 @@ def main(config=None):
     )
     file_list = os.listdir(im_dir)
     logging.info(f'{len(file_list)} reference_data samples found')
-    train_files, test_files = train_test_split(file_list, test_size=0.2, random_state=random_state)
+    train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
     # test_files = os.listdir(im_dir)
     logging.info(f'{len(test_files)} test_data samples found')
     npd = npDataset(test_files, batch_size, im_dir, augment=False, evaluate=True)

@@ -13,7 +13,7 @@ import wandb
 from Autoencoder import Encoder, Decoder
 from AutoencoderDataset import npDataset
 from GlobalValues import GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
-    LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template
+    LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template, validation_split, test_split
 from LossFunctionConfig import SWEEP_OPERATION, use_config,sweep_loss_funtion
 
 im_dir = training_dir
@@ -132,6 +132,16 @@ def train(train_loader, test_loader, encoder, decoder, optimizer, n_epochs, crit
         print(f'validation Loss: ({validation_loss})]')
     print(f"Finished Training")
 
+def reset_logging():
+    # Get the root logger
+    root_logger = logging.getLogger()
+    
+    # Remove all handlers associated with the root logger
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Clear existing handlers
+    root_logger.handlers = []
 
 def main(config=None):
     now = datetime.now()
@@ -141,11 +151,10 @@ def main(config=None):
     if config:
         wandb.config = config
     else:
-        wandb.init()
+        run = wandb.init()
 
 
-        # setting hyper parameters
-    #
+    # setting hyper parameters
     n_epochs = wandb.config.get(EPOCHS)
     batch_size = wandb.config.get(BATCH_SIZE)
     learning_rate = wandb.config.get(LEARNING_RATE)
@@ -163,7 +172,12 @@ def main(config=None):
 )
     # project_name = f"wildfire_{loss_function_name}_{n_epochs}epochs_{batch_size}batchsize_{learning_rate}lr"
     print(project_name)
-    run = wandb.init(project=project_name, name="run_" + current_time)
+    if config:
+        run = wandb.init(project=project_name, name="run_" + current_time)
+    else:
+        run.name = project_name
+    run_url = run.get_url() 
+       
     print(f'Train with n_epochs : {n_epochs} , batch_size : {batch_size} , learning_rate : {learning_rate}')
     print(f'beta : {beta}, loss function :{loss_function}')
     # loss Function
@@ -180,8 +194,8 @@ def main(config=None):
     # Get List of downloaded files and set up reference_data loader
     file_list = os.listdir(im_dir)
     print(f'{len(file_list)} reference_data samples found')
-    train_files, test_files = train_test_split(file_list, test_size=0.2, random_state=random_state)
-    train_files, validation_files = train_test_split(train_files, test_size=0.2, random_state=random_state)
+    train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
+    train_files, validation_files = train_test_split(train_files, test_size=validation_split, random_state=random_state)
 
     train_loader = DataLoader(npDataset(train_files, batch_size, im_dir,True,False), shuffle=True)
     validation_loader = DataLoader(npDataset(validation_files, batch_size, im_dir,True,False), shuffle=False)
@@ -190,28 +204,40 @@ def main(config=None):
         f'Training sample : {len(train_files)} , validation samples : {len(validation_files)} , testing samples : {len(test_files)}')
 
     # Train and save the model components
-    train(train_loader, validation_loader, encoder, decoder, optimizer, n_epochs, criteria)
     mp = model_path  + project_name
+    if not os.path.exists(mp):
+        os.mkdir(mp)
+    file_handler = logging.FileHandler(f"{mp}/training.log")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[
+            file_handler,
+            logging.StreamHandler()
+        ]
+    )
+
+    
+
+    print(f"The log file path is: {file_handler.baseFilename}")
+    logging.info(f'Starting training at {current_time} \n\t Url : {run_url}')
+
+    #starting training
+    train(train_loader, validation_loader, encoder, decoder, optimizer, n_epochs, criteria)
+    
     end =  datetime.now()
     duration = end - now
     seconds = duration.total_seconds()
     hours = seconds // 3600
     minutes = (seconds % 3600) // 60
     seconds = seconds % 60
-    if not os.path.exists(mp):
-        os.mkdir(mp)
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(message)s",
-        handlers=[
-            logging.FileHandler(f"{mp}/training.log"),
-            logging.StreamHandler()
-        ]
-    )
-    logging.info(f'{current_time} run took {hours} hours {minutes} minutes {seconds} seconds\n details : {wandb.run.get_url()}')
+
+    logging.info(f'\tTime Taken : {hours} hours {minutes} minutes {seconds} seconds')
+    
     torch.save(encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
     torch.save(decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
     torch.save(optimizer.state_dict(), mp + "/" + RES_OPT_PTH)
+    reset_logging()
 
 
 if __name__ == "__main__":
@@ -223,7 +249,7 @@ if __name__ == "__main__":
         from LossFunctionConfig import sweep_configuration_IOU_LRMSE
         sweep_configuration = sweep_configuration_IOU_LRMSE
         sweep_id = wandb.sweep(sweep=sweep_configuration, project='sweep_config')
-        wandb.agent(sweep_id, function=main, count=1)
+        wandb.agent(sweep_id, function=main, count=14)
     else:
         config = use_config
         main(config)

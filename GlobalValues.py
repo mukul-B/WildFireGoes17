@@ -25,17 +25,18 @@ VIIRS_UNITS ='Brightness Temperature'
 #            {'product_name': RAD, 'band': 15}]
 GOES_product = [{'product_name': RAD, 'band': 7}]
 GOES_product_size = len(GOES_product)
-GOES_Bands = 1
+GOES_Bands = 3
 
 no_postfix = ''
 _3channel_postfix = '_3channel'
 _1channel_postfix = '_1channel'
 _2channel_postfix = '_activeFire_2branch'
+_1channel_norm_postfix = '_1channel_perimageNormalized'
 
 
-trainingDir_speficic_Postfix = no_postfix
-model_specific_postfix = _1channel_postfix
-result_specific_postfix = _1channel_postfix
+trainingDir_speficic_Postfix = _3channel_postfix
+model_specific_postfix = _3channel_postfix
+result_specific_postfix = _3channel_postfix
 
 gf_c_fields = [f'gf_c{i+1}' for i in range(GOES_Bands)]
 training_data_field_names = ['vf'] + gf_c_fields + ['vf_FRP', 'gf_min', 'gf_max', 'vf_max']
@@ -79,6 +80,8 @@ training_dir = f'DataRepository/training_data{trainingDir_speficic_Postfix}/'
 # model_path = 'Model_BEFORE_MOVING_NORMALIZATION/'
 model_path = 'Model/'
 project_name_template = "wildfire_{loss_function_name}_{n_epochs}epochs_{batch_size}batchsize_{learning_rate}lr" + model_specific_postfix
+test_split = 0.2
+validation_split = 0.2
 Results = f'DataRepository/results{result_specific_postfix}/'
 # THRESHOLD_COVERAGE = 0.2
 # THRESHOLD_IOU = 0.05
@@ -90,7 +93,7 @@ testing_dir = 'DataRepository/testing_dir/'
 # realtimeSiteList = "config/realtime_sites"
 RealTimeIncoming_files = 'DataRepository/RealTimeIncoming_files/'
 RealTimeIncoming_results = 'DataRepository/RealTimeIncoming_results/'
-videos = 'Videos/'
+videos = 'DataRepository/Videos/'
 
 # blind testing
 realtimeSiteList = "config/blind_testing_sites"
@@ -98,7 +101,7 @@ realtimeSiteList = "config/blind_testing_sites"
 paper_results = ['713','122','956','728','118','553','408','387','849','104','663','609']
 NO_SAMPLES = []
 ALL_SAMPLES = 0
-SELECTED_SAMPLES = NO_SAMPLES
+SELECTED_SAMPLES = paper_results
 
 
 # if filename[0] in ['79', '126', '199', '729', '183', '992', '140', '189', '1159', '190', '26', '188']:
