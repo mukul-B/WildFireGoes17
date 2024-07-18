@@ -19,7 +19,7 @@ from pyproj import Transformer
 from pyresample.geometry import AreaDefinition
 from satpy import Scene
 
-from GlobalValues import RAD, FDC, GOES_ndf
+from GlobalValues import RAD, FDC, GOES_ndf, GOES_OVERWRITE
 import cartopy.crs as ccrs
 from osgeo import gdal
 from osgeo import osr
@@ -167,6 +167,9 @@ class GoesProcessing:
         # ouput file location
         out_file = "GOES-" + str(fire_date) + "_" + str(ac_time) + '.tif'
         out_path = directory + out_file
+
+        if ((not GOES_OVERWRITE) and file_exists(out_path)):
+            return
 
         # creating bouding box from site information
         band = self.band

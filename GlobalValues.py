@@ -20,10 +20,10 @@ VIIRS_MIN_VAL,VIIRS_MAX_VAL = 0 , 367
 VIIRS_UNITS ='Brightness Temperature'
 
 # GOES_product = RAD
-# GOES_product = [{'product_name': RAD, 'band': 7},
-#            {'product_name': RAD, 'band': 14},
-#            {'product_name': RAD, 'band': 15}]
-GOES_product = [{'product_name': RAD, 'band': 7}]
+GOES_product = [{'product_name': RAD, 'band': 7},
+           {'product_name': RAD, 'band': 14},
+           {'product_name': RAD, 'band': 15}]
+# GOES_product = [{'product_name': RAD, 'band': 7}]
 GOES_product_size = len(GOES_product)
 GOES_Bands = 3
 
@@ -32,11 +32,11 @@ _3channel_postfix = '_3channel'
 _1channel_postfix = '_1channel'
 _2channel_postfix = '_activeFire_2branch'
 _1channel_norm_postfix = '_1channel_perimageNormalized'
+_3channel_classifier_postfix = '_3channel_classifier'
 
-
-trainingDir_speficic_Postfix = _3channel_postfix
-model_specific_postfix = _3channel_postfix
-result_specific_postfix = _3channel_postfix
+trainingDir_speficic_Postfix = _3channel_classifier_postfix
+model_specific_postfix = _3channel_classifier_postfix
+result_specific_postfix = _3channel_classifier_postfix
 
 gf_c_fields = [f'gf_c{i+1}' for i in range(GOES_Bands)]
 training_data_field_names = ['vf'] + gf_c_fields + ['vf_FRP', 'gf_min', 'gf_max', 'vf_max']
@@ -71,10 +71,13 @@ toExecuteSiteList = "config/training_sites"
 # reference_data = "reference_data_working"
 reference_data = "DataRepository/reference_data"
 compare_dir = f'{reference_data}/$LOC/compare/'
+# compare_dir = f'{reference_data}/compare_all/'
 viirs_dir = f'{reference_data}/$LOC/VIIRS/'
 goes_dir = f'{reference_data}/$LOC/GOES/$PROD_BAND/tif/'
 training_dir = f'DataRepository/training_data{trainingDir_speficic_Postfix}/'
 # training_dir = 'training_data_working/'
+GOES_OVERWRITE = False
+VIIRS_OVERWRITE = True
 
 # Autoencoder training and testing
 # model_path = 'Model_BEFORE_MOVING_NORMALIZATION/'
@@ -100,6 +103,7 @@ realtimeSiteList = "config/blind_testing_sites"
 
 paper_results = ['713','122','956','728','118','553','408','387','849','104','663','609']
 NO_SAMPLES = []
+RANDOM_SAMPLES = [str(i) for i in range(5000) if i % 100 == 0]
 ALL_SAMPLES = 0
 SELECTED_SAMPLES = paper_results
 

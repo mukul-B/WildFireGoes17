@@ -59,7 +59,7 @@ def getth(image, on=0):
 
 
 # visualising GOES and VIIRS
-def viewtiff(v_file, g_file, date, save=True, compare_dir=None):
+def viewtiff(location,v_file, g_file, date, save=True, compare_dir=None):
     VIIRS_data = xr.open_rasterio(v_file)
     GOES_data = xr.open_rasterio(g_file)
 
@@ -80,17 +80,20 @@ def viewtiff(v_file, g_file, date, save=True, compare_dir=None):
     # to_plot = [gd[0],Active_fire,cloud_remove_280,cloud_remove,vd]
     # lables = ["GOES","Active_fire","cloud_remove_280","cloud_remove","VIIRS"]
     
+    # to_plot = [gd[0],Active_fire,cloud_remove_280,vd]
+    # lables = ["GOES","Active_fire","Active_fire with Cloud Mask","VIIRS"]
     to_plot = [gd[0],vd,(gd[0] - vd)]
     lables = ["GOES","VIIRS","VIIRS On GOES"]
     
     save_path = f'{compare_dir}{date}.png' if save else None
-    Plot_list(  to_plot, lables, vd.shape, None, None, save_path)
+    Plot_list(f'{location} at {date}',  to_plot, lables, vd.shape, None, None, save_path)
 
-def Plot_list(  to_plot, lables, shape, vmin=None, vmax=None, save_path=None):
+def Plot_list( title, to_plot, lables, shape, vmin=None, vmax=None, save_path=None):
 
     X, Y = np.mgrid[0:1:complex(str(shape[0]) + "j"), 0:1:complex(str(shape[1]) + "j")]
     n = len(to_plot)
     fig, ax = plt.subplots(1, n, constrained_layout=True, figsize=(4*n, 4))
+    fig.suptitle(title)
 
     for k in range(n):
         curr_img = ax[k] if n > 1 else ax
@@ -163,4 +166,4 @@ def validateAndVisualizeDataset(location, product):
         g_file = "GOES" + v_file[10:]
         # print(g_file)
         # shape_check(viirs_tif_dir + v_file, goes_tif_dir + g_file)
-        viewtiff(viirs_tif_dir + v_file, goes_tif_dir + g_file, v_file[11:-4], compare_dir=comp_dir, save=True)
+        viewtiff(location,viirs_tif_dir + v_file, goes_tif_dir + g_file, v_file[11:-4], compare_dir=comp_dir, save=True)

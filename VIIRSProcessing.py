@@ -17,7 +17,8 @@ from scipy.interpolate import griddata
 from sklearn.neighbors import NearestNeighbors
 from scipy import interpolate
 
-from GlobalValues import viirs_dir
+from GlobalValues import viirs_dir, VIIRS_OVERWRITE
+from os.path import exists as file_exists
 
 
 class VIIRSProcessing:
@@ -26,13 +27,14 @@ class VIIRSProcessing:
         country = 'United_States'
         Sdirectory = "VIIRS_Source/" + satellite + "_" + year + "_" + country + ".csv"
         VIIRS_pixel= pd.read_csv(Sdirectory)
-        # Sdirectory = f'VIIRS_Source_new/fire_archive_SV-C2_{year}.csv'
+        # Sdirectory3 = f'VIIRS_Source_new/fire_archive_SV-C2_{year}.csv'
         # Sdirectory2 = f'VIIRS_Source_new/fire_nrt_J1V-C2_{year}.csv'
-        # snpp_pixels = pd.read_csv(Sdirectory)
+        # snpp_pixels = pd.read_csv(Sdirectory3)
         # NOAA_pixels = pd.read_csv(Sdirectory2)
         # NOAA_pixels.rename(columns={'brightness':'bright_ti4'}, inplace=True)
         # NOAA_pixels.rename(columns={'bright_t31':'bright_ti5'}, inplace=True)
         # VIIRS_pixel = pd.concat([snpp_pixels, NOAA_pixels], ignore_index=True)
+        # VIIRS_pixel = NOAA_pixels
 
         self.location = site.location
         self.fire_pixels = VIIRS_pixel
@@ -91,6 +93,8 @@ class VIIRSProcessing:
         viirs_tif_dir = viirs_dir.replace('$LOC', self.location)
         out_file = viirs_tif_dir + self.satellite + '-' + str(fire_date) + "_" + str(ac_time) + '.tif'
 
+        if ((not VIIRS_OVERWRITE) and file_exists(out_file)):
+            return
         # filter firepixel for time of date
         fire_data_filter_on_time = fire_data_filter_on_date_and_bbox[
             fire_data_filter_on_date_and_bbox.acq_time.eq(ac_time)]
