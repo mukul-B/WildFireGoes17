@@ -141,3 +141,7 @@ def noralize_goes_to_radiance(ngf, gf_max, gf_min):
 def noralize_viirs_to_radiance(nvf, vf_max,vf_min=0):
     color_normal_value = 1
     return (vf_min + (nvf * ((vf_max-vf_min) / color_normal_value))).round(2)
+
+def denoralize(value, v_max, v_min):
+    color_normal_value = 1
+    return (v_min + (value * ((v_max - v_min) / color_normal_value))).round(2)

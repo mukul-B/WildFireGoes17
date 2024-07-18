@@ -39,6 +39,34 @@ random_seed = 1
 torch.manual_seed(random_seed)
 SMOOTH = 1e-6
 
+class Evaluations:
+    def __init__(self):
+        self.evals = {
+            'control': {
+                'avg_IOU': {},
+                'avg_psnr_inter': {},
+                'avg_psnr_union': {}
+            },
+            'predicted': {
+                'avg_IOU': {},
+                'avg_psnr_inter': {},
+                'avg_psnr_union': {}
+            },
+            'typecount': {}
+        }
+
+    def update(self, type, IOU_control, psnr_control_inter, psnr_control_union, IOU_predicted, psnr_predicted_inter, psnr_predicted_union):
+        self.evals['control']['avg_IOU'][type] = self.evals['control']['avg_IOU'].get(type, 0.0) + IOU_control
+        self.evals['control']['avg_psnr_inter'][type] = self.evals['control']['avg_psnr_inter'].get(type, 0.0) + psnr_control_inter
+        self.evals['control']['avg_psnr_union'][type] = self.evals['control']['avg_psnr_union'].get(type, 0.0) + psnr_control_union
+        self.evals['predicted']['avg_IOU'][type] = self.evals['predicted']['avg_IOU'].get(type, 0.0) + IOU_predicted
+        self.evals['predicted']['avg_psnr_inter'][type] = self.evals['predicted']['avg_psnr_inter'].get(type, 0.0) + psnr_predicted_inter
+        self.evals['predicted']['avg_psnr_union'][type] = self.evals['predicted']['avg_psnr_union'].get(type, 0.0) + psnr_predicted_union
+        self.evals['typecount'][type] = self.evals['typecount'].get(type, 0) + 1
+
+    def get_evaluations(self):
+        return self.evals
+
 
 def test(test_loader, encoder, decoder, npd):
     avg_elapsed_time = 0.0
@@ -46,6 +74,7 @@ def test(test_loader, encoder, decoder, npd):
     typecount = {}
     count = 0.0
     dir = {}
+    evals = Evaluations()
     # maxdif = 0
     iou_plot_control = []
     iou_plot_prediction = []
@@ -99,13 +128,16 @@ def test(test_loader, encoder, decoder, npd):
                 maxdif, IOU_control, psnr_control_inter, psnr_control_union, IOU_predicted, psnr_predicted_inter, psnr_predicted_union, type = \
                     save_results(output_rmse, output_jaccard, x, y, path, npd.array[batch_idx], gf_min, gf_max, vf_max,
                                  LOSS_NAME)
-                avg_IOU_control[type] = avg_IOU_control.get(type, 0.0) + IOU_control
-                avg_psnr_control_inter[type] = avg_psnr_control_inter.get(type, 0.0) + psnr_control_inter
-                avg_psnr_control_union[type] = avg_psnr_control_union.get(type, 0.0) + psnr_control_union
-                avg_IOU_predicted[type] = avg_IOU_predicted.get(type, 0.0) + IOU_predicted
-                avg_psnr_predicted_inter[type] = avg_psnr_predicted_inter.get(type, 0.0) + psnr_predicted_inter
-                avg_psnr_predicted_union[type] = avg_psnr_predicted_union.get(type, 0.0) + psnr_predicted_union
-                typecount[type] = typecount.get(type, 0) + 1
+                # avg_IOU_control[type] = avg_IOU_control.get(type, 0.0) + IOU_control
+                # avg_psnr_control_inter[type] = avg_psnr_control_inter.get(type, 0.0) + psnr_control_inter
+                # avg_psnr_control_union[type] = avg_psnr_control_union.get(type, 0.0) + psnr_control_union
+                # avg_IOU_predicted[type] = avg_IOU_predicted.get(type, 0.0) + IOU_predicted
+                # avg_psnr_predicted_inter[type] = avg_psnr_predicted_inter.get(type, 0.0) + psnr_predicted_inter
+                # avg_psnr_predicted_union[type] = avg_psnr_predicted_union.get(type, 0.0) + psnr_predicted_union
+                # typecount[type] = typecount.get(type, 0) + 1
+
+                evals.update(type, IOU_control, psnr_control_inter, psnr_control_union, IOU_predicted, psnr_predicted_inter, psnr_predicted_union)
+
                 iou_plot_control.append(IOU_control)
                 iou_plot_prediction.append(IOU_predicted)
                 mc.append(maxdif)
@@ -117,6 +149,12 @@ def test(test_loader, encoder, decoder, npd):
         incv, incc = dir[i / 10]
         dir[i / 10] = (0 if incc == 0 else (incv / incc), incc)
     # logging.info(dir)
+    plot_result_histogram(count, iou_plot_prediction)
+    # report_results(avg_IOU_control, avg_psnr_control_inter, avg_psnr_control_union, avg_IOU_predicted, avg_psnr_predicted_inter, avg_psnr_predicted_union, typecount, count)
+    report_results(evals.get_evaluations())
+    logging.info("It took  {}s for processing  {} records".format(avg_elapsed_time, count))
+
+def plot_result_histogram(count, iou_plot_prediction):
     fig, axs = plt.subplots(1, 1, constrained_layout=True, figsize=(12, 8))
     # hist_iou, bin_edges_iou = np.histogram(iou_plot_control, bins=100)
     # axs[0].hist(bin_edges_iou[:-1], bins=bin_edges_iou, weights=hist_iou / count)
@@ -139,19 +177,32 @@ def test(test_loader, encoder, decoder, npd):
     fig.savefig(f'{res}/IOU_distribution.png')
     # plt.show()
     plt.close()
+
+def report_results(evaluations):
+
     st = ''.join(['-' for _ in range(128)])
     logging.info(st)
     logging.info("| {:<25}| {:<20}| {:<20}| {:<20}| {:<20}| {:<10}|".format("Type", "Control/Predicted", "IOU",
                                                                             "PSNR_intersection", "PSNR_union", "Count"))
     logging.info(st)
+    count = sum(evaluations['typecount'].values())
+    for type in evaluations['typecount']:
+    # for coverage_type in [LC, HC]:
+    #     for iou_type in [LI, HI]:
+            # type = coverage_type + iou_type
+            # type_name = coverage_type + iou_type
+            # if type not in evaluations['typecount']:
+            #     continue
+            type_name = type
+            count2 = evaluations['typecount'][type]
+            
+            avg_IOU_predicted = evaluations['predicted']['avg_IOU']
+            avg_IOU_control = evaluations['control']['avg_IOU']
+            avg_psnr_predicted_inter = evaluations['predicted']['avg_psnr_inter']
+            avg_psnr_control_inter = evaluations['control']['avg_psnr_inter']
+            avg_psnr_predicted_union = evaluations['predicted']['avg_psnr_union']
+            avg_psnr_control_union = evaluations['control']['avg_psnr_union']
 
-    for coverage_type in [LC, HC]:
-        for iou_type in [LI, HI]:
-            type = coverage_type + iou_type
-            type_name = coverage_type + iou_type
-            if type not in typecount:
-                continue
-            count2 = typecount[type]
             IOU_predicted = avg_IOU_predicted[type] / count2
             IOU_control = avg_IOU_control[type] / count2
             PSNR_predicted_intersection = avg_psnr_predicted_inter[type] / count2
@@ -182,9 +233,6 @@ def test(test_loader, encoder, decoder, npd):
                                                                     sum(avg_psnr_predicted_union.values()) / count,
                                                                     count))
     logging.info(st)
-
-    logging.info("It took  {}s for processing  {} records".format(avg_elapsed_time, count))
-
 
 def test_runner(npd):
     test_loader = DataLoader(npd)
@@ -304,6 +352,7 @@ def main(config=None):
     logging.info(f'{len(test_files)} test_data samples found')
     npd = npDataset(test_files, batch_size, im_dir, augment=False, evaluate=True)
     test_runner(npd)
+    print(f'{res}/evaluation.log')
 
 
 if __name__ == "__main__":

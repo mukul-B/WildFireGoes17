@@ -6,6 +6,7 @@ Created on Sun Jul 23 11:17:09 2022
 @author: mukul
 """
 import glob
+import os
 
 import cv2
 import imageio
@@ -43,6 +44,7 @@ def create_video(img_src, out_put, fps):
             continue
     print(dir, count)
     print('Creating mp4 video...', end='', flush=True)
+    os.makedirs(videos, exist_ok=True)
     print(videos + '/' + out_put)
     imageio.mimwrite(videos + '/2' + out_put, image_list, fps=fps)
     # imageio.mimwrite(videos + '/2' + out_put, image_list2, fps=fps)
@@ -52,9 +54,18 @@ def create_video(img_src, out_put, fps):
 
 site = 'Caldor'
 GOES_OR_RESULT = 'GOES'
-create_video(img_src=f'{RealTimeIncoming_results}{site}'
-             , out_put=f'{site}_{GOES_OR_RESULT}.mp4'
-             , fps=8)
+# create_video(img_src=f'{RealTimeIncoming_results}{site}'
+#              , out_put=f'{site}_{GOES_OR_RESULT}.mp4'
+#              , fps=8)
+
+# create_video(img_src=f'DataRepository/reference_data_sNPP_REQ/compare_all_SNPP_REQ'
+#              , out_put=f'VIIRS_SNPP_Req.mp4'
+#              , fps=4)
+
+create_video(img_src=f'DataRepository/reference_data_NOAA/compare_all_NOAA'
+             , out_put=f'VIIRS_NOAA_Req.mp4'
+             , fps=4)
+
 
 # create_video(img_src='results/goodsamples'
 #              , out_put='good_sample_predction.mp4'

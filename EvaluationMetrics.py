@@ -13,7 +13,8 @@ import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
-from EvaluationOperations import IOU_numpy, PSNR_intersection, PSNR_union, best_threshold_iteration, getth, noralize_goes_to_radiance, noralize_viirs_to_radiance
+from EvaluationOperations import IOU_numpy, PSNR_intersection, PSNR_union, best_threshold_iteration, denoralize, getth, noralize_goes_to_radiance, noralize_viirs_to_radiance
+from PlotInputandResults import ImagePlot, plot_from_ImagePlot
 
 
 Prediction_JACCARD_LABEL = 'Prediction(Jaccard)'
@@ -23,18 +24,6 @@ OTSU_thresholding_on_GOES_LABEL = 'OTSU thresholding on GOES'
 GOES_input_LABEL = 'GOES input'
 plt.style.use('plot_style/wrf')
 from GlobalValues import ALL_SAMPLES, GOES_UNITS, HC, HI, LI, LC, SELECTED_SAMPLES, THRESHOLD_COVERAGE, THRESHOLD_IOU, VIIRS_MIN_VAL, VIIRS_UNITS, GOES_Bands
-
-
-class ImagePlot:
-    def __init__(self,unit,vmax,vmin,image_blocks,lable_blocks):
-        self.unit = unit
-        self.vmin = vmin
-        self.vmax = vmax
-        if(self.unit):
-            self.image_blocks = noralize_goes_to_radiance(image_blocks,vmax,vmin) if unit==GOES_UNITS else noralize_viirs_to_radiance(image_blocks,vmax)
-        else:
-            self.image_blocks = None
-        self.lable_blocks = lable_blocks
 
 class EvaluationVariables:
     def __init__(self,type):
@@ -48,36 +37,6 @@ class EvaluationVariables:
         self.coverage = 0
         self.imagesize = 0
         self.dis = None
-def plot_histogramandimage(image,path):
-    # image = np.random.randint(0, 256, size=(256, 256), dtype=np.uint8)
-    # histogram, bins = np.histogram(image, bins=256, range=(0, 256))
-    ret2, th2, hist2, bins2, index_of_max_val2 = getth(image)
-
-    
-
-    # Create subplots with constrained layout
-    fig, axs = plt.subplots(1, 2, constrained_layout=True, figsize=(12, 8))
-
-    # Plot the image
-    axs[0].imshow(image, cmap='gray')
-    axs[0].set_title("Image")
-    axs[0].axis('off')
-
-    # Plot the histogram
-    # axs[1].plot(hist2, color='black')
-    axs[1].hist(bins2[1:-1], bins=bins2[1:], weights=hist2[1:], color='blue')
-    axs[1].set_title("Histogram")
-    axs[1].set_xlabel("Pixel Value")
-    axs[1].set_ylabel("Frequency")
-    axs[1].set_xlim(0, 255)
-    # axs[1].set_ylim(0, 200)
-
-    # show_hist([1], "Histogram", bins2, hist2, 1)
-    
-
-    plt.tight_layout()
-    plt.savefig(path)
-    plt.close()
 
 def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, gf_min, gf_max, vf_max, LOSS_NAME):
 
@@ -85,8 +44,8 @@ def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
     filename = pl[-1].split('.')
     site_date_time = '_'.join(site.split('.')[1].split('_')).replace(' ','_' ).replace('-','_' )
 
-    groundTruth_NZ_min = groundTruth[groundTruth>0].min()
-    groundTruth_max = groundTruth.max()
+    # groundTruth_NZ_min = groundTruth[groundTruth>0].min()
+    # groundTruth_max = groundTruth.max()
 
     # 1)Input 
     inp = inp.numpy()
@@ -106,10 +65,29 @@ def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
     inputEV.psnr_union = PSNR_union(groundTruth, inputEV.th_img)
     inputEV.coverage = np.count_nonzero(inputEV.th_l1) / inputEV.th.size
     inputEV.imagesize = extract_img.size
-    inputEV.dis = ''
+    # inputEV.dis = ''
     inputEV.dis = f'\nThreshold (Iteration:{str(inputEV.iteration)}): {str(round(inputEV.ret, 4))} Coverage: {str(round(inputEV.coverage, 4))}' \
                 f'\nIOU : {str(inputEV.iou)}' \
                 f'\nPSNR_intersection : {str(round(inputEV.psnr_intersection, 4))}'
+
+    #  #  7)rmse prediction evaluation
+    # predRMSEEV = EvaluationVariables("prediction_Classification")
+    # if prediction_rmse is not None:
+    #     outmap_min = prediction_rmse.min()
+    #     outmap_max = prediction_rmse.max()
+    #     prediction_rmse_normal = (prediction_rmse - outmap_min) / (outmap_max - outmap_min)
+
+    #     # prediction_rmse = prediction_rmse.numpy()
+    #     zx = 1 if np.sum(groundTruth) > 0 else 0
+    #     predRMSEEV.iou = np.sum(zx == 1 and zx == prediction_rmse.item())
+    #     predRMSEEV.psnr_intersection = np.sum(zx == 1 and zx != prediction_rmse.item())
+    #     predRMSEEV.psnr_union = np.sum(zx == 0 and zx != prediction_rmse.item())
+    #     predRMSEEV.coverage = np.sum(zx == 0 and zx == prediction_rmse.item())
+    #     positiveNegitive = HC if zx == 1 else LC
+    #     TRUEFalse = HI if np.sum(zx == prediction_rmse.item()) > 0 else LI
+    #     condition = positiveNegitive + TRUEFalse
+    #     predRMSEEV.dis = f''
+
 
     # finding coverage and intensity criteria based on input and groundthruth
     condition_coverage = HC if inputEV.coverage > THRESHOLD_COVERAGE else LC
@@ -142,7 +120,7 @@ def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
                    f'\nPSNR_intersection : {str(round(predRMSEEV.psnr_intersection, 4))}'
 
     # 5)IOU prediction evaluation
-    predIOUEV = EvaluationVariables("prediction_rmse")
+    predIOUEV = EvaluationVariables("prediction_jaccard")
     if prediction_IOU is not None:
         prediction_IOU = prediction_IOU.numpy()
         predIOUEV.ret, predIOUEV.th,  _,_, _ = getth(prediction_IOU, on=0)
@@ -161,9 +139,27 @@ def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
     # random result plot
 
     if ALL_SAMPLES or filename[0] in SELECTED_SAMPLES :
+
+        active_fire = (inp[0]-inp[1])/(inp[0]+inp[1])
+        # gf_min, gf_max = [210, 207, 205],[413,342, 342]
+        cloud_mask_activeFire = denoralize(inp[2],gf_max, gf_min)
+        cloud_mask_activeFire = active_fire * (cloud_mask_activeFire > 319)
+        print(cloud_mask_activeFire.max())
         g1 = ImagePlot(GOES_UNITS,gf_max, gf_min,
                        extract_img, 
-                       GOES_input_LABEL+site_date_time)
+                       GOES_input_LABEL)
+        
+        g7 = ImagePlot(GOES_UNITS,gf_max, gf_min,
+                       inp[1], 
+                       GOES_input_LABEL)
+        g8 = ImagePlot(GOES_UNITS,np.max(cloud_mask_activeFire), np.min(cloud_mask_activeFire),
+                       cloud_mask_activeFire, 
+                       GOES_input_LABEL)
+        
+        g9 = ImagePlot(GOES_UNITS,np.max(active_fire), np.min(active_fire),
+                       active_fire, 
+                       GOES_input_LABEL)
+
         # g2 = ImagePlot(GOES_UNITS,gf_max, gf_min,
         #                inputEV.th_l1 * inp,
         #                OTSU_thresholding_on_GOES_LABEL + inputEV.dis)
@@ -179,6 +175,11 @@ def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
         g4 = ImagePlot(VIIRS_UNITS if prediction_rmse is not None else "IOU",vf_max,VIIRS_MIN_VAL,
                        prediction_rmse if prediction_rmse is not None else prediction_IOU,
                        Prediction_RMSE_LABEL+ pl[1] if prediction_rmse is not None else Prediction_JACCARD_LABEL)
+        
+        # classification
+        # g4 = ImagePlot(None,vf_max,VIIRS_MIN_VAL,
+        #                prediction_rmse if prediction_rmse is not None else prediction_IOU,
+        #                str(prediction_rmse.item())+' '+Prediction_RMSE_LABEL if prediction_rmse is not None else Prediction_JACCARD_LABEL)
 
         
         # psnr_intersection6 = PSNR_intersection(groundTruth, thN * prediction_rmse_TH)
@@ -197,12 +198,12 @@ def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
         # g6 = ImagePlot(VIIRS_UNITS if prediction_IOU is not None else None,vf_max,VIIRS_MIN_VAL,
         #                th3_img if prediction_IOU is not None else None,
         #                'OTSU thresholding on Prediction(IOU)' + ret3_dis)
-        img_seq = ((g1,g3,g4),)
+        img_seq = ((g1,g7,g8),(g3,g4,g9))
         # img_seq = ((g1,g3),(g4,g6))
         # img_seq = ((g1,g3,g4,g5,g6),)
         # img_seq = ((g1,g3),)
         # path ='/'.join(pl[:-1]+[f'{str(round(iou_p,4))}_{str(round(inputEV.coverage,4))}_{str(round(inputEV.iou,4))}_{pl[-1]}']) 
-        plot_it(img_seq,condition,path)
+        plot_from_ImagePlot(site_date_time+ pl[1],img_seq,condition,path)
         
         # print("-----------------------------------------------------------------------")
         logging.info(
@@ -211,81 +212,3 @@ def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
     #     f'{condition},{coverage_i},{iou_i},{condition_coverage},{condition_intensity}')
         
     return inputEV.coverage, inputEV.iou, inputEV.psnr_intersection, inputEV.psnr_union, iou_p, psnr_intersection_p, psnr_union_p, condition
-
-def plot_it(img_seq,condition,path,colection=True):
-    pl = path.split('/')
-    # filename = pl[-1].split('.')
-    filename = pl[-1].replace('.png','')
-    c,r = len(img_seq) ,len(img_seq[0])
-    if(colection):
-        fig, axs = plt.subplots(c, r, constrained_layout=True, figsize=(12, 4*c))
-    for col in range(c):
-        for row in range(r):
-            
-            image_blocks=img_seq[col][row].image_blocks
-            lable_blocks=img_seq[col][row].lable_blocks
-            cb_unit=img_seq[col][row].unit
-            # vmin,vmax = img_seq[col][row].vmin, img_seq[col][row].vmax
-            vmin,vmax = 0 , 413
-            if(colection):
-                if(r == 1):
-                    ax = axs[col]
-                elif(c==1):
-                    ax = axs[row]
-                else:
-                    ax = axs[col][row]
-                ax.set_title(lable_blocks)
-
-            if  image_blocks is not None:
-                if(not colection):
-                    fig = plt.figure()
-                    ax = fig.add_subplot()
-
-                X, Y = np.mgrid[0:1:128j, 0:1:128j]
-                
-                # vmin = VIIRS_MIN_VAL if lable_blocks in [VIIRS_GROUND_TRUTH] else None
-                # vmax =420
-
-                # cb_unit = "Background | Fire Area     " if lable_blocks in [
-                #     Prediction_JACCARD] else VIIRS_UNITS
-                if lable_blocks in [Prediction_JACCARD_LABEL]:
-                    sc = ax.pcolormesh(Y, -X, image_blocks, cmap=plt.get_cmap("gray_r", 2), vmin=vmin, vmax=vmax)
-                else:
-                    # sc = ax.pcolormesh(Y, -X, image_blocks, cmap=plt.get_cmap("gray_r"), vmin=vmin, vmax=vmax)
-                    sc = ax.pcolormesh(Y, -X, image_blocks, cmap=plt.get_cmap("jet"), vmin=vmin, vmax=vmax)
-                    cb = fig.colorbar(sc, pad=0.01,ax=ax)
-                    cb.ax.tick_params(labelsize=11)
-                    # cb.set_label(cb_unit, fontsize=12)
-                    cb.set_label(cb_unit, fontsize=13)
-                
-                # plt.tick_params(left=False, right=False, labelleft=False,
-                #                 labelbottom=False, bottom=False)
-                # Hide X and Y axes label marks
-                # ax.xaxis.set_tick_params(labelbottom=False)
-                # ax.yaxis.set_tick_params(labelleft=False)
-                
-                # Hide X and Y axes tick marks
-                ax.set_xticks([])
-                ax.set_yticks([])
-                if(not colection):
-                    filenamecorrection = lable_blocks.replace('\n','_').replace(' ','_').replace('.','_').replace('(','_').replace(')','_').replace(':','_')
-                    path ='/'.join(pl[:2]) + f'/{condition}_{filename}_{filenamecorrection}.png'
-                    # path = '/'.join(pl[:1]) + f"/allresults/{condition}/{filename}_{filenamecorrection}.png" 
-                    # print(path)
-                    plt.savefig(path,
-                                bbox_inches='tight', dpi=600)
-                    plt.show()
-                    plt.close()
-    if(colection):
-        # path ="check.png"
-        # path = '/'.join(pl[:1]) + f"allresults/{condition}/{filename}/{pl[:1]}.png" 
-        # path = "cheko.png"
-        # path = '/'.join(pl[:2]) + f"/{condition}/{filename[0]}_{output_iou}_{psnr_intersection_i}_{psnr_union_i}_{str(round(coverage_i, 4))}.png"
-        print(filename)
-        path = '/'.join(pl[:-1]) + f"/{condition}/{filename}.png"
-        plt.rcParams['savefig.dpi'] = 600
-        fig.savefig(path)
-        # input()
-        
-        # plt.show()
-        plt.close()
