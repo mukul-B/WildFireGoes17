@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EvaluationOperations import denoralize, getth
+from EvaluationMetricsAndUtilities import denoralize, getth
 plt.style.use('plot_style/wrf')
 Prediction_JACCARD_LABEL = 'Prediction(Jaccard)'
 Prediction_RMSE_LABEL = 'Prediction(RMSE)'

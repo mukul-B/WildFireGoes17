@@ -21,7 +21,7 @@ from pandas.io.common import file_exists
 from pyproj import Transformer
 
 from AutoEncoderEvaluation import supr_resolution
-from EvaluationMetrics import getth
+from EvaluationOperation import getth
 from GlobalValues import RealTimeIncoming_files, RealTimeIncoming_results, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL, \
     PREDICTION_UNITS, GOES_UNITS,Results,goes_folder
 from LossFunctionConfig import use_config

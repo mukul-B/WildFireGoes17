@@ -13,7 +13,7 @@ import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
-from EvaluationOperations import IOU_numpy, PSNR_intersection, PSNR_union, best_threshold_iteration, denoralize, getth, noralize_goes_to_radiance, noralize_viirs_to_radiance
+from EvaluationMetricsAndUtilities import IOU_numpy, PSNR_intersection, PSNR_union, best_threshold_iteration, denoralize, getth, noralize_goes_to_radiance, noralize_viirs_to_radiance
 from PlotInputandResults import ImagePlot, plot_from_ImagePlot
 
 
@@ -38,7 +38,7 @@ class EvaluationVariables:
         self.imagesize = 0
         self.dis = None
 
-def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, gf_min, gf_max, vf_max, LOSS_NAME):
+def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, gf_min, gf_max, vf_max, LOSS_NAME):
 
     pl = path.split('/')
     filename = pl[-1].split('.')
@@ -70,7 +70,7 @@ def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
                 f'\nIOU : {str(inputEV.iou)}' \
                 f'\nPSNR_intersection : {str(round(inputEV.psnr_intersection, 4))}'
 
-    #  #  7)rmse prediction evaluation
+     #  7)rmse prediction evaluation
     # predRMSEEV = EvaluationVariables("prediction_Classification")
     # if prediction_rmse is not None:
     #     outmap_min = prediction_rmse.min()
@@ -144,7 +144,6 @@ def save_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, 
         # gf_min, gf_max = [210, 207, 205],[413,342, 342]
         cloud_mask_activeFire = denoralize(inp[2],gf_max, gf_min)
         cloud_mask_activeFire = active_fire * (cloud_mask_activeFire > 319)
-        print(cloud_mask_activeFire.max())
         g1 = ImagePlot(GOES_UNITS,gf_max, gf_min,
                        extract_img, 
                        GOES_input_LABEL)

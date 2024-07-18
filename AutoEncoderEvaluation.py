@@ -26,7 +26,7 @@ from GlobalValues import RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, L
     HC, HI, LI, LC
 from GlobalValues import training_dir, Results, random_state, project_name_template, test_split
 from LossFunctionConfig import use_config
-from EvaluationMetrics import save_results
+from EvaluationOperation import get_evaluation_results
 
 plt.style.use('plot_style/wrf')
 
@@ -126,7 +126,7 @@ def test(test_loader, encoder, decoder, npd):
                 path = f'{res}/{batch_idx}.png'
                 gf_min, gf_max, vf_max = gf_min[0][0][0][0].item(), gf_max[0][0][0][0].item(), vf_max[0][0][0][0].item()
                 maxdif, IOU_control, psnr_control_inter, psnr_control_union, IOU_predicted, psnr_predicted_inter, psnr_predicted_union, type = \
-                    save_results(output_rmse, output_jaccard, x, y, path, npd.array[batch_idx], gf_min, gf_max, vf_max,
+                    get_evaluation_results(output_rmse, output_jaccard, x, y, path, npd.array[batch_idx], gf_min, gf_max, vf_max,
                                  LOSS_NAME)
                 # avg_IOU_control[type] = avg_IOU_control.get(type, 0.0) + IOU_control
                 # avg_psnr_control_inter[type] = avg_psnr_control_inter.get(type, 0.0) + psnr_control_inter
