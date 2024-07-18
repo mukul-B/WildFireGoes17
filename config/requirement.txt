@@ -18,3 +18,4 @@ conda install -c conda-forge cartopy
 conda install pyyaml
 
 conda install -c conda-forge opencv
+conda install conda-forge::torchinfo
