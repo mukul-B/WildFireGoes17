@@ -253,7 +253,7 @@ class VIIRSProcessing:
     def create_raster_array(self, fire_data_filter_on_timestamp):
         b1_pixels = np.zeros(self.image_size, dtype=float)
         b2_pixels = np.zeros(self.image_size, dtype=float)
-        for k in range(1, fire_data_filter_on_timestamp.shape[0]):
+        for k in range(fire_data_filter_on_timestamp.shape[0]):
             record = fire_data_filter_on_timestamp[k]
             # transforming lon lat to utm
             lon_point = self.transformer.transform(record[0], record[1])[0]

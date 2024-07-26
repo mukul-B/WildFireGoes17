@@ -7,9 +7,9 @@ Created on Sun nov 23 11:17:09 2022
 """
 
 from GlobalValues import BATCH_SIZE, EPOCHS, LEARNING_RATE, BETA, LOSS_FUNCTION
-from LossFunctions import GMSE, LRMSE, jaccard_loss, two_branch_loss, GLMSE
+from LossFunctions import GMSE, LRMSE, Classification_loss, jaccard_loss, two_branch_loss, GLMSE
 
-selected_case = 1
+selected_case = 6
 loss_cases = [
     # case 1 : GMSE
      {
@@ -50,22 +50,30 @@ loss_cases = [
         BATCH_SIZE: 16,
         LOSS_FUNCTION: LRMSE
     }
+    ,
+    # case 6: Classification_loss
+     {
+        LEARNING_RATE: 9e-3,
+        EPOCHS: 150,
+        BATCH_SIZE: 64,
+        LOSS_FUNCTION: Classification_loss
+    }
 ]
 use_config = loss_cases[selected_case - 1]
 
 # ----------------------------------------------------------------------------------------------
 # run multiple runs
 SWEEP_OPERATION = False
-sweep_loss_funtion = two_branch_loss
+sweep_loss_funtion = GMSE
 sweep_configuration_IOU_LRMSE = {
     'method': 'random',
     'name': 'sweep',
     'metric': {'goal': 'minimize', 'name': 'val_loss'},
     'parameters':
         {
-            BATCH_SIZE: {'values': [16]},
+            BATCH_SIZE: {'values': [16,32]},
             EPOCHS: {'values': [150]},
-            LEARNING_RATE: {'max': 0.0003, 'min': 0.00003},
+            LEARNING_RATE: {'max': 0.00009, 'min': 0.00001},
             BETA: {'values': [0.8]}
         }
 }

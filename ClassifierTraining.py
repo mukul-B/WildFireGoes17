@@ -1,16 +1,20 @@
+import atexit
 import os
 from datetime import datetime
 
 import torch
+
+from TransferLearning import get_pre_model
 torch.cuda.empty_cache()
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 import logging
+import signal
 
 import wandb
-from Autoencoder import Autoencoder, Encoder, Decoder
+from Classifier import Encoder
 from AutoencoderDataset import npDataset
 from GlobalValues import GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
     LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template, validation_split, test_split
@@ -19,13 +23,26 @@ from LossFunctionConfig import SWEEP_OPERATION, use_config,sweep_loss_funtion
 im_dir = training_dir
 log_interval = 10
 
+def log_termination():
+    logging.info('Script terminated')
 
-def test_accuracy(test_loader, autoencoder, criteria, epoch):
+# Register the function to be called on script termination
+atexit.register(log_termination)
+
+def handle_sigterm(signum, frame):
+    logging.info('Received SIGTERM signal')
+    logging.info("Script terminated at {}".format(datetime.datetime.now()))
+    exit(0)
+
+# Register the SIGTERM handler
+signal.signal(signal.SIGINT, handle_sigterm)
+signal.signal(signal.SIGTERM, handle_sigterm)
+
+
+def test_accuracy(test_loader, encoder, criteria, epoch):
     # evaluate model
-    # encoder.eval()
+    encoder.eval()
     # decoder.eval()
-
-    autoencoder.eval()
     validation_loss = 0
     vloss2 = 0
     vloss1 = 0
@@ -33,13 +50,11 @@ def test_accuracy(test_loader, autoencoder, criteria, epoch):
         for x, y in test_loader:
             x, y = x.cuda(), y.cuda()
             x, y = torch.squeeze(x, dim=0), torch.squeeze(y, dim=0)
-            # encoder_output = encoder(x)
+            encoder_output = encoder(x)
             # decoder_output = decoder(encoder_output)
-
-            decoder_output = autoencoder(x)
             target = y
             # if epoch > 100 else x
-            val_loss = criteria(decoder_output, target)
+            val_loss = criteria(encoder_output, target)
             if type(val_loss) == tuple and len(val_loss) == 3:
                 loss1, loss2,val_loss = val_loss[0], val_loss[1],val_loss[2]
                 vloss2 += loss2
@@ -52,7 +67,7 @@ def test_accuracy(test_loader, autoencoder, criteria, epoch):
     return validation_loss, vloss1, vloss2
 
 
-def train(train_loader, test_loader, autoencoder, optimizer, n_epochs, criteria):
+def train(train_loader, test_loader, encoder, optimizer, n_epochs, criteria):
     batch_size = len(train_loader)
     # wandb.watch(decoder, log_freq=10)
     #  training for each epoch
@@ -61,9 +76,8 @@ def train(train_loader, test_loader, autoencoder, optimizer, n_epochs, criteria)
     scheduler = ReduceLROnPlateau(optimizer, 'min',threshold=1e-5)
     for epoch in range(n_epochs + 1):
         #  tells your model that you are training the model
-        # encoder.train()
+        encoder.train()
         # decoder.train()
-        autoencoder.train()
         # per epoch training loss
         training_loss = 0
         tloss_loss2 = 0
@@ -77,19 +91,18 @@ def train(train_loader, test_loader, autoencoder, optimizer, n_epochs, criteria)
             optimizer.zero_grad()
             # forward + backward + optimize
             # output of encoder
-            # encoder_output = encoder(x)
-            # # output of decoder
+            encoder_output = encoder(x)
+            # output of decoder
             # decoder_output = decoder(encoder_output)
 
-            decoder_output = autoencoder(x)
 
 
 
-
-            wandb.log({"output": torch.sum(decoder_output[0]), "epoch": epoch})
+            wandb.log({"output": torch.sum(encoder_output), "epoch": epoch})
             target = y
-            # if epoch >100 else x
-            loss = criteria(decoder_output, target)
+            
+            loss = criteria(encoder_output, target)
+
             if loses_count == 0:
                 loses_count = len(loss) if type(loss) == tuple else 1
             if loses_count == 3:
@@ -124,7 +137,7 @@ def train(train_loader, test_loader, autoencoder, optimizer, n_epochs, criteria)
             break
 
         # Validation loss
-        validation_loss, vloss1, vloss2 = test_accuracy(test_loader, autoencoder, criteria, epoch)
+        validation_loss, vloss1, vloss2 = test_accuracy(test_loader, encoder, criteria, epoch)
         wandb.log({"val_loss": validation_loss, "epoch": epoch})
         if(len(optimizer.param_groups)>1):
             print("this")
@@ -177,8 +190,23 @@ def main(config=None):
     batch_size=batch_size,
     learning_rate=learning_rate
 )
-    # project_name = f"wildfire_{loss_function_name}_{n_epochs}epochs_{batch_size}batchsize_{learning_rate}lr"
     print(project_name)
+
+
+    # Creating logging
+    mp = model_path  + project_name
+    if not os.path.exists(mp):
+        os.mkdir(mp)
+    file_handler = logging.FileHandler(f"{mp}/training.log")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[
+            file_handler,
+            logging.StreamHandler()
+        ]
+    )
+
     if config:
         run = wandb.init(project=project_name, name="run_" + current_time)
     else:
@@ -193,40 +221,31 @@ def main(config=None):
     OUTPUT_ACTIVATION = criteria.last_activation if criteria.last_activation else "relu"
     # Set up the encoder, decoder. and optimizer
     # encoder = Encoder(GOES_Bands)
+    encoder = get_pre_model(GOES_Bands)
     # decoder = Decoder(256, OUTPUT_ACTIVATION)
-    # encoder.cuda()
+    encoder.cuda()
     # decoder.cuda()
-    # optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=learning_rate)
+    optimizer = optim.Adam(list(encoder.parameters()), lr=learning_rate)
 
-    autoencoder = Autoencoder(GOES_Bands,OUTPUT_ACTIVATION)
-    autoencoder.cuda()
-    optimizer = optim.Adam(list(autoencoder.parameters()), lr=learning_rate)
-    
     # Get List of downloaded files and set up reference_data loader
     file_list = os.listdir(im_dir)
-    print(f'{len(file_list)} reference_data samples found')
+    logging.info(f'{len(file_list)} reference_data samples found')
+    file_list_neg = os.listdir(im_dir.replace('classifier','classifier_neg'))
+    file_list_pos = os.listdir(im_dir.replace('classifier','classifier_pos'))
+    print(f'{len(file_list_pos)} reference_data samples found pos')
+    print(f'{len(file_list_neg)} reference_data samples found neg')
+    file_list_total = file_list_pos + file_list_neg
+    print(f'{len(file_list_total)} reference_data samples found')
     train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
     train_files, validation_files = train_test_split(train_files, test_size=validation_split, random_state=random_state)
 
     train_loader = DataLoader(npDataset(train_files, batch_size, im_dir,True,False), shuffle=True)
     validation_loader = DataLoader(npDataset(validation_files, batch_size, im_dir,True,False), shuffle=False)
     # test_loader = DataLoader(npDataset(test_files, batch_size, im_dir))
-    print(
+    logging.info(
         f'Training sample : {len(train_files)} , validation samples : {len(validation_files)} , testing samples : {len(test_files)}')
 
-    # Train and save the model components
-    mp = model_path  + project_name
-    if not os.path.exists(mp):
-        os.mkdir(mp)
-    file_handler = logging.FileHandler(f"{mp}/training.log")
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(message)s",
-        handlers=[
-            file_handler,
-            logging.StreamHandler()
-        ]
-    )
+    
 
     
 
@@ -234,7 +253,7 @@ def main(config=None):
     logging.info(f'Starting training at {current_time} \n\t Url : {run_url}')
 
     #starting training
-    train(train_loader, validation_loader, autoencoder, optimizer, n_epochs, criteria)
+    train(train_loader, validation_loader, encoder, optimizer, n_epochs, criteria)
     
     end =  datetime.now()
     duration = end - now
@@ -244,14 +263,11 @@ def main(config=None):
     seconds = seconds % 60
 
     logging.info(f'\tTime Taken : {hours} hours {minutes} minutes {seconds} seconds')
-    
-    save_model_autoencoder(autoencoder, mp)
+    # Train and save the model components
+    torch.save(encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
+    # torch.save(decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
     torch.save(optimizer.state_dict(), mp + "/" + RES_OPT_PTH)
     reset_logging()
-
-def save_model_autoencoder(autoencoder, mp):
-    torch.save(autoencoder.encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
-    torch.save(autoencoder.decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
 
 
 if __name__ == "__main__":

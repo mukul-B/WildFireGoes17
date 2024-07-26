@@ -13,7 +13,7 @@ import os
 import numpy as np
 from PIL import Image
 
-from GlobalValues import GOES_Bands, GOES_product_size, viirs_dir, goes_dir, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL, training_data_field_names
+from GlobalValues import GOES_Bands, GOES_product_size, viirs_dir, goes_dir, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL, training_data_field_names, COLOR_NORMAL_VALUE
 import xarray as xr
 
 
@@ -27,14 +27,14 @@ def sliding_window(image, stepSize, windowSize):
 
 
 def viirs_radiance_normaization(vf, vf_max):
-    color_normal_value = 255
+    color_normal_value = COLOR_NORMAL_VALUE
     if vf_max > 1:
         return color_normal_value * (vf / vf_max)
     return vf
 
 
 def goes_radiance_normaization(gf, gf_max, gf_min):
-    color_normal_value = 255
+    color_normal_value = COLOR_NORMAL_VALUE
 
     # if(goes_scene[layer].values.max()>=413 or  goes_scene[layer].values.min()<210):
     #     print(goes_scene[layer].values.max(), goes_scene[layer].values.min())
@@ -73,14 +73,37 @@ def goes_img_pkg(GOES_data):
 
 def goes_img_to_channels(gf):
     gf_channels = [None] * GOES_Bands
+    gf_min, gf_max = [210, 207, 205],[413,342, 342]
     for i in range(GOES_Bands):
-        gf_channels[i] = Normalize_img(gf[i])
+        # gf_min, gf_max = np.min(gf[i]), np.max(gf[i])
+        # gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
+        
+        
+        # non_zero = gf[i][gf[i] !=0]
+        # if non_zero.size > 0:
+        #     if np.min(gf[i]) < global_min[i]:
+        #         global_min[i] = np.min(gf[i][gf[i] !=0])
+             
+        # if np.max(gf[i]) > global_max[i]:
+        #     global_max[i] = np.max(gf[i])
+
+        # if(non_zero.size == 0 and np.max(gf[i]) > 0 ):
+        #     print("Issue-----------------------------------------------------")
+        #[210.16818, 207.01837, 205.42421] [412.24646, 341.23163, 341.24542]
+
+        gf_channels[i] = Normalize_img(gf[i],gf_min[i], gf_max[i])
+    
     return gf_channels
 
 def Normalize_img(img,gf_min = GOES_MIN_VAL, gf_max = GOES_MAX_VAL):
-    img = goes_radiance_normaization(img, gf_max, gf_min)
-    img = np.nan_to_num(img)
-    img = img.astype(int)
+    img2 = goes_radiance_normaization(img, gf_max, gf_min)
+    img = np.nan_to_num(img2)
+    # img = img.astype(int)
+    img = np.round(img,5)
+    # diff = np.max(img2-img)
+    # actual = diff * (gf_max - gf_min)
+    # if(actual > 0.002):
+    #     print(actual)
     return img
 
 
@@ -88,6 +111,8 @@ def Normalize_img(img,gf_min = GOES_MIN_VAL, gf_max = GOES_MAX_VAL):
 # whole image is croped in window of size 128
 def create_training_dataset(v_file, g_file, date, out_dir, location):
     td = {}
+    out_dir_neg = out_dir.replace('classifier','classifier_neg')
+    out_dir_pos = out_dir.replace('classifier','classifier_pos')
     # vf = Image.open(v_file)
     VIIRS_data = xr.open_rasterio(v_file)
     vf = VIIRS_data.variable.data[0]
@@ -108,14 +133,15 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
 
     # gf_min, gf_max = np.min(gf), np.max(gf)
     gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
-    gf = goes_radiance_normaization(gf, gf_max, gf_min)
-    gf = np.nan_to_num(gf)
-    gf = gf.astype(int)
+    # gf = goes_radiance_normaization(gf, gf_max, gf_min)
+    # gf = np.nan_to_num(gf)
+    # gf = gf.astype(int)
 
     # vf_max = np.max(vf)
     vf_max = VIIRS_MAX_VAL
     vf = viirs_radiance_normaization(vf, vf_max)
-    vf = vf.astype(int)
+    # vf = vf.astype(int)
+    vf = np.round(vf,5)
 
     gf_min = np.full(gf.shape, gf_min)
     gf_max = np.full(gf.shape, gf_max)
@@ -147,10 +173,18 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
         vf_win = window[:, :, 2]
         #  only those windows are considered where it is not mostly empty
         if np.count_nonzero(v_win) == 0 or np.count_nonzero(g_win) == 0:
+            # if np.count_nonzero(v_win) == 0:
+                # pass
+                # np.save(os.path.join(out_dir_neg, 'comb.' + location + '_' + date
+                #                  + '.' + str(x) + '.' + str(y) + '.npy'), window)
+
             continue
         else:
-            np.save(os.path.join(out_dir, 'comb.' + location + '_' + date
+            # print(location + '_' + date,g_win.sum()/float(255),v_win.sum()/float(255))
+            np.save(os.path.join(out_dir_pos, 'comb.' + location + '_' + date
                                  + '.' + str(x) + '.' + str(y) + '.npy'), window)
+        # np.save(os.path.join(out_dir, 'comb.' + location + '_' + date
+        #                         + '.' + str(x) + '.' + str(y) + '.npy'), window)      
 
 
 def writeDataset(location, product, train_test):
@@ -161,7 +195,13 @@ def writeDataset(location, product, train_test):
     goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD_BAND', product_band)
     # goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product['product_name']).replace('$BAND', format(product['band'],'02d'))
     viirs_list = os.listdir(viirs_tif_dir)
+    # global global_max, global_min
+    # global_max = [0] * GOES_Bands
+    # global_min = [500] * GOES_Bands
+    
     for v_file in viirs_list:
         g_file = "GOES" + v_file[10:]
         create_training_dataset(viirs_tif_dir + v_file, goes_tif_dir + g_file, v_file[11:-4],
                                 out_dir=train_test, location=location)
+    
+    # return global_min, global_max

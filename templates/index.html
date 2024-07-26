@@ -20,9 +20,11 @@
 <body>
     <h1>Image Gallery</h1>
     <div>
-        {% for image_file in image_files %}
+        {% for index, image_file in enumerated_images %}
             <div class="image-container">
+                <p>Result sample: {{ index }}</p>
                 <img src="{{ url_for('static', filename=image_file) }}" alt="{{ image_file }}" class="image">
+                <hr>
             </div>
         {% endfor %}
     </div>

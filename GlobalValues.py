@@ -15,6 +15,7 @@ LC = 'LC'
 HC = 'HC'
 LI = 'LI'
 HI = 'HI'
+COLOR_NORMAL_VALUE = 1
 GOES_MIN_VAL, GOES_MAX_VAL = 210 , 413
 VIIRS_MIN_VAL,VIIRS_MAX_VAL = 0 , 367
 VIIRS_UNITS ='Brightness Temperature'
@@ -33,10 +34,15 @@ _1channel_postfix = '_1channel'
 _2channel_postfix = '_activeFire_2branch'
 _1channel_norm_postfix = '_1channel_perimageNormalized'
 _3channel_classifier_postfix = '_3channel_classifier'
+_3channel_precision_postfix = '_3channel_precision'
+_3channel_precision_classifier_postfix = '_3channel_precision_classifier'
+_3channel_resnet_postfix = '_3channel_resnet'
+_1channel_precision_postfix = '_1channel_precision'
 
-trainingDir_speficic_Postfix = _3channel_classifier_postfix
-model_specific_postfix = _3channel_classifier_postfix
-result_specific_postfix = _3channel_classifier_postfix
+
+trainingDir_speficic_Postfix = _3channel_precision_postfix
+model_specific_postfix = _3channel_resnet_postfix
+result_specific_postfix = _3channel_resnet_postfix
 
 gf_c_fields = [f'gf_c{i+1}' for i in range(GOES_Bands)]
 training_data_field_names = ['vf'] + gf_c_fields + ['vf_FRP', 'gf_min', 'gf_max', 'vf_max']
@@ -103,9 +109,9 @@ realtimeSiteList = "config/blind_testing_sites"
 
 paper_results = ['713','122','956','728','118','553','408','387','849','104','663','609']
 NO_SAMPLES = []
-RANDOM_SAMPLES = [str(i) for i in range(5000) if i % 100 == 0]
+RANDOM_SAMPLES = [str(i) for i in range(5000) if i % 70 == 0]
 ALL_SAMPLES = 0
-SELECTED_SAMPLES = paper_results
+SELECTED_SAMPLES = NO_SAMPLES
 
 
 # if filename[0] in ['79', '126', '199', '729', '183', '992', '140', '189', '1159', '190', '26', '188']:

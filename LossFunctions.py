@@ -8,6 +8,7 @@ Created on Sun nov 23 11:17:09 2022
 
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 SMOOTH = 1e-6
 ACTIVATION_RELU = "relu"
@@ -26,6 +27,22 @@ class GMSE(nn.Module):
         rmse = torch.sqrt(torch.mean((targets - pred) ** 2))
         return rmse
 
+#classification
+class Classification_loss(nn.Module):
+    def __init__(self, beta):
+        self.last_activation = ACTIVATION_RELU
+        super(Classification_loss, self).__init__()
+
+    def forward(self, pred, target):
+        target2 = torch.sum(target, (2, 3))
+        target2[target2 > 0] = 1
+        binary_targets = target2.view(-1).long()
+        # one_hot_targets = F.one_hot(binary_targets, num_classes=2)
+        loss =nn.CrossEntropyLoss()
+        rmse = loss(pred,binary_targets)
+
+        # rmse = torch.sqrt(torch.mean((one_hot_targets - pred) ** 2))
+        return rmse
 
 # Global plus local MSE
 class GLMSE(nn.Module):

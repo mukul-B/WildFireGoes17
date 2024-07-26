@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
-from GlobalValues import GOES_Bands, training_data_field_names, gf_c_fields
+from GlobalValues import GOES_Bands, training_data_field_names, gf_c_fields, COLOR_NORMAL_VALUE
 
 
 class npDataset(Dataset):
@@ -49,8 +49,9 @@ class npDataset(Dataset):
                 a.append(training_data['gf_min'])
                 b.append(training_data['gf_max'])
                 c.append(training_data['vf_max'])
-        x, y = np.array(x) / 255., np.array(y) / 255.
+        x, y = np.array(x) / float(COLOR_NORMAL_VALUE), np.array(y) / float(COLOR_NORMAL_VALUE)
         y =  np.expand_dims(y, 1)
+        # print(i,x.sum(),y.sum())
         # x, y = np.expand_dims(x, 1) if GOES_Bands == 1 else x, np.expand_dims(y, 1)
         x,y = torch.Tensor(x), torch.Tensor(y)
         if(self.augment):

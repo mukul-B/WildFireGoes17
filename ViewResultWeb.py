@@ -1,7 +1,7 @@
 from flask import Flask, render_template
 import os
 
-folder = 'DataRepository/results_fc_dropdown/wildfire_GMSE_150epochs_16batchsize_3e-05lr'
+folder = 'DataRepository/results_3channel_resnet/wildfire_Classification_loss_150epochs_64batchsize_0.009lr_3channel_resnet/LCLI'
 # app = Flask(__name__,static_folder='DataRepository/reference_data/Dixie/compare')
 app = Flask(__name__,static_folder=folder)
 
@@ -18,7 +18,12 @@ def index():
     image_files = [file for file in image_files if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))]
     image_files.sort()
     # Render the HTML template and pass the list of image files to it
-    return render_template('index.html', image_files=image_files)
+    enumerated_images = list(enumerate(image_files, start=1))
+    return render_template('index.html', enumerated_images=enumerated_images)
 
 if __name__ == '__main__':
     app.run(debug=True, port=8080)
+
+
+
+

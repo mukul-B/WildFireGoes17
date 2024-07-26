@@ -123,3 +123,37 @@ class Decoder(nn.Module):
             # x1 = F.relu(self.conv4(x1))
 
             return x_sup, x_seg
+
+
+class Autoencoder(nn.Module):
+    def __init__(self, in_features, outtype='relu'):
+        super(Autoencoder, self).__init__()
+        self.encoder = Encoder(in_features)
+        self.decoder = Decoder(256, outtype)
+
+    def forward(self, x):
+        x = self.encoder.forward(x)
+        x = self.decoder.forward(x)
+        return x
+    
+    # def save_weights(self, path):
+    #     """
+    #     Save the weights of the autoencoder to the specified path.
+    #     """
+    #     RES_DECODER_PTH = 'SuperRes_Decoder.pth'
+    #     RES_ENCODER_PTH = 'SuperRes_Encoder.pth'
+    #     torch.save(self.encoder.state_dict(), path + "/" + RES_ENCODER_PTH)
+    #     torch.save(self.decoder.state_dict(), path + "/" + RES_DECODER_PTH)
+    #     print(f'Weights saved to {path}')
+
+    # def load_weights(self, path):
+    #     """
+    #     Load the weights of the autoencoder from the specified path.
+    #     """
+    #     RES_DECODER_PTH = 'SuperRes_Decoder.pth'
+    #     RES_ENCODER_PTH = 'SuperRes_Encoder.pth'
+    #     encoder_path = path + "/" + RES_ENCODER_PTH
+    #     decoder_path = path + "/" + RES_DECODER_PTH
+    #     self.encoder.load_state_dict(torch.load(encoder_path))
+    #     self.decoder.load_state_dict(torch.load(decoder_path))
+    #     print(f'Weights loaded from {path}')
