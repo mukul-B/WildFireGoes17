@@ -1,14 +1,14 @@
-#fonts settings
-#font.family: Arial
-#font.size: 16
+# Font settings
+# font.family: Arial
+# font.size: 16
 font.style: italic
 
-#axes properties
+# Axes properties
 axes.labelpad: 10
 axes.titlesize: 16
 axes.labelsize: 14
 
-#ticks properties
+# Ticks properties
 xtick.top: False
 xtick.direction: in
 ytick.right: True
@@ -16,15 +16,15 @@ ytick.direction: in
 xtick.labelsize: 13
 ytick.labelsize: 13
 
-#line properties
+# Line properties
 lines.linewidth: 2
-#axes.prop_cycle: cycler('color',)
+# axes.prop_cycle: cycler('color',)
 
-#grid properties
-#axes.grid: False
-#grid.alpha: 0.5
-#grid.linestyle: --
-#grid.linewidth: 0.6
+# Grid properties
+# axes.grid: False
+# grid.alpha: 0.5
+# grid.linestyle: --
+# grid.linewidth: 0.6
 
-#title
-title.pad: 20
+# Title
+# title.pad: 20  # Commented out to avoid compatibility issues

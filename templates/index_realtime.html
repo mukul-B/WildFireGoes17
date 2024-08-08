@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Gallery</title>
+    <style>
+        .gallery-container {
+            display: flex;
+            align-items: center;
+            position: relative; /* Added to position Live button within this container */
+        }
+        .image-container {
+            display: none; /* Hide all images initially */
+        }
+        .image {
+            width: 900px;
+            height: auto;
+        }
+        .active {
+            display: block; /* Show the active image */
+        }
+        .button {
+            cursor: pointer;
+            padding: 10px 20px;
+            margin: 0 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .live-button {
+            position: absolute; /* Position the Live button absolutely */
+            top: 10px;
+            right: 10px;
+            background-color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Gallery</h1>
+    <div class="gallery-container">
+        <button class="button" id="prevButton">Previous</button>
+        {% for index, image_file in enumerated_images %}
+            <div class="image-container" id="image-{{ index }}">
+                <p>Result sample: {{ index }}</p>
+                <img src="{{ url_for('static', filename=image_file) }}" alt="{{ image_file }}" class="image">
+            </div>
+        {% endfor %}
+        <button class="button" id="nextButton">Next</button>
+        <button class="button live-button" id="liveButton">Live</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            let currentIndex = 0;
+            const images = document.querySelectorAll('.image-container');
+            images[currentIndex].classList.add('active');
+
+            document.getElementById('prevButton').addEventListener('click', () => {
+                images[currentIndex].classList.remove('active');
+                currentIndex = (currentIndex < images.length - 1) ? currentIndex + 1 : 0;
+                
+                images[currentIndex].classList.add('active');
+            });
+
+            document.getElementById('nextButton').addEventListener('click', () => {
+                images[currentIndex].classList.remove('active');
+                currentIndex = (currentIndex > 0) ? currentIndex - 1 : images.length - 1;
+                images[currentIndex].classList.add('active');
+            });
+
+            document.getElementById('liveButton').addEventListener('click', () => {
+                location.reload();
+                images[currentIndex].classList.remove('active');
+                currentIndex = 0; // Jump to the first image
+                images[currentIndex].classList.add('active');
+                
+            });
+        });
+    </script>
+</body>
+</html>
