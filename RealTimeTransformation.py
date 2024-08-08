@@ -7,6 +7,8 @@ Created on  sep 15 11:17:09 2022
 @author: mukul
 """
 
+import json
+import math
 import multiprocessing as mp
 import os
 from math import ceil
@@ -20,16 +22,17 @@ from matplotlib import pyplot as plt
 from pandas.io.common import file_exists
 from pyproj import Transformer
 
-from AutoEncoderEvaluation import supr_resolution
+from AutoEncoderEvaluation import RuntimeDLTransformation
 from EvaluationOperation import getth
-from GlobalValues import RealTimeIncoming_files, RealTimeIncoming_results, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL, \
+from GlobalValues import GOES_product_size, RealTimeIncoming_files, RealTimeIncoming_results, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL, \
     PREDICTION_UNITS, GOES_UNITS,Results,goes_folder
 from LossFunctionConfig import use_config
 from RadarProcessing import RadarProcessing
 from SiteInfo import SiteInfo
-from WriteDataset import goes_radiance_normaization
+from WriteDataset import goes_img_pkg, goes_img_to_channels, goes_radiance_normaization
 import pandas as pd
 from datetime import datetime
+import xarray as xr
 
 
 
@@ -120,40 +123,47 @@ def plot_improvement(path='reference_data/Dixie/GOES/ABI-L1b-RadC/tif/GOES-2021-
     plt.savefig('result_for_video' + '/FRP_' + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
 
 
-def plot_prediction(gpath,output_path,epsg, prediction=True):
-    # return 0
+def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
+    
     d = gpath.split('/')[-1].split('.')[0][5:].split('_')
     date_radar = ''.join(d).replace('-', '')
-    gfI = Image.open(gpath)
-    gfin = np.array(gfI)[:, :]
-    # gfin = np.array(gfI)[:, :, 0]
+    GOES_data = xr.open_rasterio(gpath)
+    gfin = goes_img_pkg(GOES_data)
 
     if prediction:
-        # gfin_min , gfin_max = np.min(gfin) , np.max(gfin)
-        gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
-        gfin = goes_radiance_normaization(gfin, gf_max, gf_min)
-        gfin = np.nan_to_num(gfin)
-        gfin = gfin.astype(int)
-        res = image2windows(gfin)
-        pred = windows2image(res)
-        # modelPrediction = ModelPrediction4singleEvent(use_config)
-        # pred = modelPrediction.prediction(gfin)
-        ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, on=100)
+        gf_channels = goes_img_to_channels(gfin)
+        # Dimensions of the original arrays
+        height, width = gfin[0].shape
+        # image to model specific window
+        window_size = (128,128)
+        step_size = 128
+        out_channel = 1
+
+        #partion images to  DL model specific window
+        partioned_image = partion_image_to_windows(gf_channels,window_size,step_size)
+        #applu DL model to windows
+        res_image = apply_DLmodel(supr_resolution,partioned_image, window_size)
+        #create back image from window output
+        reconstructed_gf = reconstruct_from_windows(height, width, res_image, window_size, out_channel)
+
+        pred = reconstructed_gf[0]
+        ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, on=50)
         pred = th1 * pred
-        # pred[pred == 0] = None
-        # pred = VIIRS_MAX_VAL * pred
-        
+        outmap_min = pred.min()
+        outmap_max = pred.max()
+        pred = (pred - outmap_min) / (outmap_max - outmap_min)
+        # pred = retain_adjacent_nonzero(pred)
+        pred[pred == 0] = None
+        pred = VIIRS_MAX_VAL * pred
 
     else:
         # gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
         # gfin = goes_radiance_normaization(gfin, gf_max, gf_min)
-        pred = gfin
+        pred = gfin[0]
         # ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, on=0)
         # pred = th1 * pred
         # pred[pred == 0] = None
         # pred = VIIRS_MAX_VAL * pred
-        
-        
 
     bbox, lat, lon = get_lon_lat(gpath,epsg)
     proj = ccrs.PlateCarree()
@@ -171,6 +181,8 @@ def plot_prediction(gpath,output_path,epsg, prediction=True):
                     #   # vmax=34,
                     #   vmax=VIIRS_MAX_VAL if prediction else GOES_MAX_VAL,
                       cmap=cmap)
+    
+    # geojson_str = latlongTojson(lat,lon,pred)
 
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=1, alpha=0.5)
     cb = plt.colorbar(p, pad=0.01)
@@ -183,16 +195,103 @@ def plot_prediction(gpath,output_path,epsg, prediction=True):
     gl.xlabel_style = {'size': 9, 'rotation': 30}
     gl.ylabel_style = {'size': 9}
     plt.tight_layout()
-    returnval = radarprocessing.plot_radar_json(date_radar, ax)
+    validate_with_radar = False
+    if(validate_with_radar):
+        returnval = radarprocessing.plot_radar_json(date_radar, ax)
     # plt.show()
-    if returnval:
+    if (not validate_with_radar) or (returnval):
         # print('/FRP_' + str(d[0] + '_' + d[1]) + '.png')
         result_file =output_path  + str(d[0] + '_' + d[1]) + '.png'
         print(result_file)
-        plt.savefig(result_file, bbox_inches='tight', dpi=240)
+        plt.savefig(result_file, bbox_inches='tight', dpi=360)
+        # with open(result_file.replace('png','geojson'), "w") as f:
+        #     f.write(geojson_str)
     # plt.show()
     plt.close()
 
+def partion_image_to_windows(gf_channels,window_size,step_size):
+    partioned_image = {}
+    stack = np.stack(gf_channels, axis=2)
+    for x, y, window in sliding_window(stack, step_size, window_size):
+        partioned_image[(y, x)] = [window[:, :, i] for i in range(stack.shape[2])]
+    return partioned_image
+
+def apply_DLmodel(supr_resolution,partioned_image, window_size):
+    res_image = {}
+    for (x, y), windows in partioned_image.items():
+        df = []
+        df.append(np.stack(windows, axis=0))
+        if(windows[0].shape == window_size):
+            
+            res_image[(x, y)]  = supr_resolution.Transform(df).numpy()
+        else:
+            res_image[(x, y)] = windows[0] * 0
+    return res_image
+
+def reconstruct_from_windows(height, width, res_image, window_size, out_channel):
+
+    # Initialize empty arrays
+    reconstructed_gf = [np.zeros((height, width), dtype=np.float32) for _ in range(out_channel)]
+    for (x, y), windows in res_image.items():
+            x_end = min(x + window_size[0], reconstructed_gf[0].shape[0])
+            y_end = min(y + window_size[1], reconstructed_gf[0].shape[1])
+            window_height = x_end - x
+            window_width = y_end - y
+            reconstructed_gf[0][x:x_end, y:y_end] = windows[:window_height, :window_width]
+    return reconstructed_gf
+
+def prePros_ROI(gfin):
+    gf_min, gf_max = GOES_MIN_VAL[0], GOES_MAX_VAL[0]
+    gfin = goes_radiance_normaization(gfin, gf_max, gf_min)
+    gfin = np.nan_to_num(gfin)
+    # gfin = gfin.astype(int)
+    img = np.round(gfin,5)
+    res = image2windows(gfin)
+    return res
+
+def retain_adjacent_nonzero(array):
+    rows, cols = array.shape
+    new_array = np.zeros((rows, cols), dtype=array.dtype)
+
+    for i in range(rows):
+        for j in range(cols):
+            if array[i, j] != 0:
+                # Check if it is an edge
+                if i == 0 or i == rows-1 or j == 0 or j == cols-1:
+                    new_array[i, j] = array[i, j]
+                # Check for adjacent non-zero values
+                elif array[i-1, j] != 0 and array[i+1, j] != 0 and array[i, j-1] != 0 and array[i, j+1] != 0 and array[i-1, j-1] != 0 and array[i+1, j+1] != 0 and array[i+1, j-1] != 0 and array[i-1, j+1] != 0:
+                    new_array[i, j] = 0
+                else:
+                    new_array[i, j] = array[i, j]
+
+    return new_array
+
+def latlongTojson(lat,lon,pred):
+    features = []
+    for i in range(lat.shape[0]):
+        for j in range(lat.shape[1]):
+            if not math.isnan(pred[i, j]):  # Only include points where pred is not NaN
+                feature = {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [lat[i, j], lon[i, j]]
+                    },
+                    "properties": {
+                        "pred": float(pred[i, j])  # Ensure pred is a float
+                    }
+                }
+                features.append(feature)
+
+    geojson = {
+        "type": "FeatureCollection",
+        "features": features
+    }
+
+        # Serialize to JSON
+    geojson_str = json.dumps(geojson, indent=2)
+    return geojson_str
 
 def get_lon_lat(path,epsg):
     # caldor 32611
@@ -214,21 +313,31 @@ def prepareDir():
         os.mkdir(RealTimeIncoming_files)
     if not os.path.exists(RealTimeIncoming_results):
         os.mkdir(RealTimeIncoming_results)
+
 def prepareSiteDir(location):
     if not os.path.exists(RealTimeIncoming_results+"/"+location):
         os.mkdir(RealTimeIncoming_results+"/"+location)
     if not os.path.exists(RealTimeIncoming_results+"/"+location+"/"+ goes_folder):
         os.mkdir(RealTimeIncoming_results+"/"+location+"/"+goes_folder)
-    if not os.path.exists(RealTimeIncoming_results+"/"+location+"/"+Results):
-        os.mkdir(RealTimeIncoming_results+"/"+location+"/"+Results)
+    if not os.path.exists(RealTimeIncoming_results+"/"+location+"/"+"results"):
+        os.mkdir(RealTimeIncoming_results+"/"+location+"/"+"results")
 
+def on_success(output_path):
+    print(f" processed successfully {output_path}")
+
+def on_error(e):
+    print(f"Error: {e}")
 
 if __name__ == '__main__':
     
     data = pd.read_csv(realtimeSiteList)
     locations = data["Sites"]
-    plotPredition = False
-    #pool = mp.Pool(1)
+    plotPredition = True
+
+    supr_resolution = RuntimeDLTransformation(use_config) if plotPredition == True else None
+    # mp.set_start_method('spawn', force=True)
+    pool = mp.Pool(1)
+    
     # pipeline run for sites mentioned in toExecuteSiteList
     prepareDir()
     # implemented only to handle one wildfire event
@@ -242,13 +351,14 @@ if __name__ == '__main__':
         dir = RealTimeIncoming_files+"/"+location+"/"
         GOES_list = os.listdir(dir)
         # pool = mp.Pool(3)
-        pathC = RealTimeIncoming_results +"/"+location + "/"+( Results if plotPredition else goes_folder) + '/FRP_'
+        pathC = RealTimeIncoming_results +"/"+location + "/"+( "results" if plotPredition else goes_folder) + '/FRP_'
         for gfile in GOES_list:
             
             if not file_exists(pathC + gfile[5:-3] + "png"):
                 print(dir + gfile)
-                # pool.apply_async(plot_prediction, args=(dir + gfile,pathC,epsg,plotPredition,))
+                # pool.apply_async(plot_prediction, args=(dir + gfile,pathC,epsg,plotPredition,supr_resolution,), 
+                #                       callback=on_success, error_callback=on_error)
                 # print(res.get())
-                plot_prediction(dir + gfile,pathC,epsg,plotPredition)
+                plot_prediction(dir + gfile,pathC,epsg,plotPredition,supr_resolution)
         # pool.close()
         # pool.join()

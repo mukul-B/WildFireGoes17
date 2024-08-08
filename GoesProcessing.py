@@ -60,6 +60,17 @@ class GoesProcessing:
 
         # extract date parameter of AWS request from given date and time
         sDATE = dt.datetime.strptime(fire_date + "_" + ac_time.zfill(4), '%Y-%m-%d_%H%M')
+        # 2022-09-01
+        comparison_date = dt.datetime(2022, 9, 1)
+
+        # Compare the dates
+        if sDATE > comparison_date:
+            bucket_name='noaa-goes18'
+            setelite_file_prefix = 'G18'
+        else:
+            bucket_name='noaa-goes17'
+            setelite_file_prefix = 'G17'
+
         day_of_year = sDATE.timetuple().tm_yday
         year = sDATE.year
         hour = sDATE.hour
@@ -73,7 +84,7 @@ class GoesProcessing:
         band = "" if (self.product_name == FDC) else band
         # Write prefix for the files of inteest, and list all files beginning with this prefix.
         prefix = f'{bucket_name}/{product_name}/{year}/{day_of_year:03.0f}/{hour:02.0f}/'
-        file_prefix = f'OR_{product_name}-{mode}{band}_G17_s{year}{day_of_year:03.0f}{hour:02.0f}'
+        file_prefix = f'OR_{product_name}-{mode}{band}_{setelite_file_prefix}_s{year}{day_of_year:03.0f}{hour:02.0f}'
 
         # print(prefix,file_prefix)
         # listing all files for product date for perticular hour
@@ -192,7 +203,7 @@ class GoesProcessing:
         goes_scene = goes_scene.resample(area_def)
 
         out_val = [np.nan_to_num(goes_scene[band].values) for band in layer]
-
+        # layer = layer[0]
         # goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)
         # goes_scene[layer].values = 255 * (goes_scene[layer].values - goes_scene[layer].values.min()) / (
         #         goes_scene[layer].values.max() - goes_scene[layer].values.min())
@@ -214,8 +225,8 @@ class GoesProcessing:
             gdal.GDT_Float32)
         # transforms between pixel raster space to projection coordinate space.
         # new_raster.SetGeoTransform((x_min, pixel_size, 0, y_min, 0, pixel_size))
-        # geotransform = (self.xmin, self.res, 0, self.ymax, 0, -self.res)
-        # dst_ds.SetGeoTransform(geotransform)  # specify coords
+        geotransform = (self.xmin, 375, 0, self.ymax, 0, -375)
+        dst_ds.SetGeoTransform(geotransform)  # specify coords
         srs = osr.SpatialReference()  # establish encoding
         srs.ImportFromEPSG(crs)  # WGS84 lat/long
         dst_ds.SetProjection(srs.ExportToWkt())  # export coords to file
@@ -236,6 +247,12 @@ class GoesProcessing:
                            int(transformer.transform(bottom_left[0], bottom_left[1])[1])]
         top_right_utm = [int(transformer.transform(top_right[0], top_right[1])[0]),
                          int(transformer.transform(top_right[0], top_right[1])[1])]
+        
+        lon = [bottom_left_utm[0], top_right_utm[0]]
+        lat = [bottom_left_utm[1], top_right_utm[1]]
+
+        # setting image parameters
+        self.xmin, self.ymin, self.xmax, self.ymax = [min(lon), min(lat), max(lon), max(lat)]
 
         # defining area definition with image size , projection and extend
         area_id = 'given'

@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 import wandb
 from Autoencoder import Autoencoder, Encoder, Decoder
 from AutoencoderDataset import npDataset
-from GlobalValues import RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
+from GlobalValues import COLOR_NORMAL_VALUE, RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
     HC, HI, LI, LC
 from GlobalValues import training_dir, Results, random_state, project_name_template, test_split
 from LossFunctionConfig import use_config
@@ -39,7 +39,7 @@ random_seed = 1
 torch.manual_seed(random_seed)
 SMOOTH = 1e-6
 
-class Evaluations:
+class EvaluateDataset:
     def __init__(self):
         self.evals = {
             'control': {
@@ -137,13 +137,13 @@ class Evaluations:
         logging.info(st)
 
 
-def test(test_loader, autoencoder, npd):
+def test(test_loader, selected_model, npd):
     avg_elapsed_time = 0.0
     avg_IOU_control, avg_psnr_control_inter, avg_psnr_control_union, avg_IOU_predicted, avg_psnr_predicted_inter, avg_psnr_predicted_union = {}, {}, {}, {}, {}, {}
     typecount = {}
     count = 0.0
     dir = {}
-    evals = Evaluations()
+    evals = EvaluateDataset()
     # maxdif = 0
     iou_plot_control = []
     iou_plot_prediction = []
@@ -168,7 +168,7 @@ def test(test_loader, autoencoder, npd):
             
             # encoder_output = encoder(x)
             # decoder_output = decoder(encoder_output)
-            decoder_output = autoencoder (x)
+            decoder_output = selected_model(x)
             if len(decoder_output) == 1:
                 output_rmse, output_jaccard = None, None
                 if LOSS_NAME == 'jaccard_loss':
@@ -256,7 +256,7 @@ def plot_result_histogram(count, iou_plot_prediction):
     # plt.show()
     plt.close()
 
-def test_runner(npd):
+def test_runner(selected_model,npd):
     test_loader = DataLoader(npd)
 
     # Set up the encoder, decoder. and optimizer
@@ -268,63 +268,71 @@ def test_runner(npd):
     # decoder.cuda()
 
 
-    autoencoder = Autoencoder(GOES_Bands, OUTPUT_ACTIVATION)
-    get_model_weight_autoencoder(autoencoder,path)
+    
+    get_selected_model_weight(selected_model,path)
     # encoder.cuda()
-    autoencoder.cuda()
+    selected_model.cuda()
 
     # test the model components
-    test(test_loader, autoencoder, npd)
+    test(test_loader, selected_model, npd)
 
-def get_model_weight_autoencoder(autoencoder,model_project_path):
+def get_selected_model_weight(selected_model,model_project_path):
     encoder_path = model_project_path + "/" + RES_ENCODER_PTH
     decoder_path = model_project_path + "/" + RES_DECODER_PTH
-    autoencoder.encoder.load_state_dict(torch.load(encoder_path))
-    autoencoder.decoder.load_state_dict(torch.load(decoder_path))
+    selected_model.encoder.load_state_dict(torch.load(encoder_path))
+    selected_model.decoder.load_state_dict(torch.load(decoder_path))
 
 
-def supr_resolution(conf, x):
-    loss_function = conf.get(LOSS_FUNCTION)
-    loss_function_name = str(loss_function).split("'")[1].split(".")[1]
-    project_name = project_name_template.format(
-    loss_function_name=loss_function_name,
-    n_epochs=conf.get(EPOCHS),
-    batch_size=conf.get(BATCH_SIZE),
-    learning_rate=conf.get(LEARNING_RATE)
-)
-    # project_name = f"wildfire_{loss_function_name}_{conf.get(EPOCHS)}epochs_{conf.get(BATCH_SIZE)}batchsize_{conf.get(LEARNING_RATE)}lr"
-    path = model_path + project_name
-    LOSS_NAME = loss_function_name
-    OUTPUT_ACTIVATION = loss_function(1).last_activation
-    encoder_path = path + "/" + RES_ENCODER_PTH
-    decoder_path = path + "/" + RES_DECODER_PTH
-    encoder = Encoder(GOES_Bands)
-    decoder = Decoder(256, OUTPUT_ACTIVATION)
-    encoder.load_state_dict(torch.load(encoder_path))
-    decoder.load_state_dict(torch.load(decoder_path))
-    encoder.cuda()
-    decoder.cuda()
+class RuntimeDLTransformation:
+    def __init__(self,conf):
+        loss_function = conf.get(LOSS_FUNCTION)
+        loss_function_name = str(loss_function).split("'")[1].split(".")[1]
+        
+        self.LOSS_NAME = loss_function_name
+        OUTPUT_ACTIVATION = loss_function(1).last_activation
+        self.selected_model = Autoencoder(GOES_Bands, OUTPUT_ACTIVATION)
+        model_name = type(self.selected_model).__name__
 
-    x = np.array(x) / 255.
-    x = np.expand_dims(x, 1)
-    x = torch.Tensor(x)
-    with torch.no_grad():
-        x = x.cuda()
-        encoder_output = encoder(x)
-        decoder_output = decoder(encoder_output)
-        if len(decoder_output) == 1:
-            output_rmse, output_jaccard = None, None
-            if LOSS_NAME == 'jaccard_loss':
-                output_jaccard = decoder_output
+        project_name = project_name_template.format(
+        model_name = model_name,
+        loss_function_name=loss_function_name,
+        n_epochs=conf.get(EPOCHS),
+        batch_size=conf.get(BATCH_SIZE),
+        learning_rate=conf.get(LEARNING_RATE)
+    )
+        path = model_path + project_name
+        get_selected_model_weight(self.selected_model,path)
+        self.selected_model.cuda()
+
+    def Transform(self, x):
+        
+        x = single_dataload(x)
+        with torch.no_grad():
+            x = x.cuda()
+            # encoder_output = encoder(x)
+            # decoder_output = decoder(encoder_output)
+            decoder_output = self.selected_model(x)
+            if len(decoder_output) == 1:
+                output_rmse, output_jaccard = None, None
+                if self.LOSS_NAME == 'jaccard_loss':
+                    output_jaccard = decoder_output
+                else:
+                    output_rmse = decoder_output
             else:
-                output_rmse = decoder_output
-        else:
-            output_rmse = decoder_output[0]
-        output_rmse = output_rmse.cpu()
-        x = x.cpu()
-        x = np.squeeze(x)
-        output = np.squeeze(output_rmse)
-        return output
+                output_rmse = decoder_output[0]
+            output_rmse = output_rmse.cpu()
+            # x = x.cpu()
+            # x = np.squeeze(x)
+            output = np.squeeze(output_rmse)
+            return output
+        
+
+
+def single_dataload(x):
+    x = np.array(x) / float(COLOR_NORMAL_VALUE)
+    # x = np.expand_dims(x, 1)
+    x = torch.Tensor(x)
+    return x
 
 
 def prepare_dir(res):
@@ -351,25 +359,31 @@ def main(config=None):
     loss_function_name = str(loss_function).split("'")[1].split(".")[1]
     # config.py
 
-    
-    project_name = project_name_template.format(
-    loss_function_name=loss_function_name,
-    n_epochs=wandb.config.get(EPOCHS),
-    batch_size=wandb.config.get(BATCH_SIZE),
-    learning_rate=wandb.config.get(LEARNING_RATE)
-)
-    # project_name = f"wildfire_{loss_function_name}_{wandb.config.get(EPOCHS)}epochs_{wandb.config.get(BATCH_SIZE)}batchsize_{wandb.config.get(LEARNING_RATE)}lr"
-    print(project_name)
-
     # global encoder_path, decoder_path, res, OUTPUT_ACTIVATION, LOSS_NAME
     global path, res, OUTPUT_ACTIVATION, LOSS_NAME
-    path = model_path + project_name
+    
     LOSS_NAME = loss_function_name
     # logging.info(f'LOSS_NAME : {LOSS_NAME}')
     # path = "Model_2b5S1rm"
     # encoder_path = path + "/" + RES_ENCODER_PTH
     # decoder_path = path + "/" + RES_DECODER_PTH
     OUTPUT_ACTIVATION = loss_function(1).last_activation
+    
+
+    selected_model = Autoencoder(GOES_Bands, OUTPUT_ACTIVATION)
+    model_name = type(selected_model).__name__
+    
+    project_name = project_name_template.format(
+    model_name = model_name,
+    loss_function_name=loss_function_name,
+    n_epochs=wandb.config.get(EPOCHS),
+    batch_size=wandb.config.get(BATCH_SIZE),
+    learning_rate=wandb.config.get(LEARNING_RATE)
+)
+    path = model_path + project_name
+    # project_name = f"wildfire_{loss_function_name}_{wandb.config.get(EPOCHS)}epochs_{wandb.config.get(BATCH_SIZE)}batchsize_{wandb.config.get(LEARNING_RATE)}lr"
+    print(project_name)
+
     res = Results + project_name
     prepare_dir(res)
     logging.basicConfig(
@@ -387,7 +401,7 @@ def main(config=None):
     # test_files = os.listdir(im_dir)
     logging.info(f'{len(test_files)} test_data samples found')
     npd = npDataset(test_files, batch_size, im_dir, augment=False, evaluate=True)
-    test_runner(npd)
+    test_runner(selected_model,npd)
     print(f'{res}/evaluation.log')
 
 

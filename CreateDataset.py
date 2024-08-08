@@ -30,6 +30,7 @@ def createDataset(location, product):
     goes = GoesProcessing(log_path,list(map(lambda item: item['product_name'], product)),list(map(lambda item: item['band'], product)))
     # initialize VIIRS object , this will create firefixel for particular site and define image parameters
     v2r_viirs = VIIRSProcessing(year=str(start_time.year), satellite="viirs-snpp", site=site)
+    v2r_viirs.extract_hotspots()
 
     # running for each date
     for i in range(time_dif.days):

@@ -20,12 +20,12 @@ im_dir = training_dir
 log_interval = 10
 
 
-def test_accuracy(test_loader, autoencoder, criteria, epoch):
+def test_accuracy(test_loader, selected_model, criteria, epoch):
     # evaluate model
     # encoder.eval()
     # decoder.eval()
 
-    autoencoder.eval()
+    selected_model.eval()
     validation_loss = 0
     vloss2 = 0
     vloss1 = 0
@@ -36,7 +36,7 @@ def test_accuracy(test_loader, autoencoder, criteria, epoch):
             # encoder_output = encoder(x)
             # decoder_output = decoder(encoder_output)
 
-            decoder_output = autoencoder(x)
+            decoder_output = selected_model(x)
             target = y
             # if epoch > 100 else x
             val_loss = criteria(decoder_output, target)
@@ -52,7 +52,7 @@ def test_accuracy(test_loader, autoencoder, criteria, epoch):
     return validation_loss, vloss1, vloss2
 
 
-def train(train_loader, test_loader, autoencoder, optimizer, n_epochs, criteria):
+def train(train_loader, test_loader, selected_model, optimizer, n_epochs, criteria):
     batch_size = len(train_loader)
     # wandb.watch(decoder, log_freq=10)
     #  training for each epoch
@@ -63,7 +63,7 @@ def train(train_loader, test_loader, autoencoder, optimizer, n_epochs, criteria)
         #  tells your model that you are training the model
         # encoder.train()
         # decoder.train()
-        autoencoder.train()
+        selected_model.train()
         # per epoch training loss
         training_loss = 0
         tloss_loss2 = 0
@@ -81,7 +81,7 @@ def train(train_loader, test_loader, autoencoder, optimizer, n_epochs, criteria)
             # # output of decoder
             # decoder_output = decoder(encoder_output)
 
-            decoder_output = autoencoder(x)
+            decoder_output = selected_model(x)
 
 
 
@@ -124,7 +124,7 @@ def train(train_loader, test_loader, autoencoder, optimizer, n_epochs, criteria)
             break
 
         # Validation loss
-        validation_loss, vloss1, vloss2 = test_accuracy(test_loader, autoencoder, criteria, epoch)
+        validation_loss, vloss1, vloss2 = test_accuracy(test_loader, selected_model, criteria, epoch)
         wandb.log({"val_loss": validation_loss, "epoch": epoch})
         if(len(optimizer.param_groups)>1):
             print("this")
@@ -171,7 +171,23 @@ def main(config=None):
     loss_function = sweep_loss_funtion if loss_function is None else loss_function
     loss_function_name = str(loss_function).split("'")[1].split(".")[1]
     
+
+    # loss Function
+    criteria = loss_function(beta)
+    # criteria = two_branch_loss(beta)
+    OUTPUT_ACTIVATION = criteria.last_activation if criteria.last_activation else "relu"
+    # Set up the encoder, decoder. and optimizer
+    # encoder = Encoder(GOES_Bands)
+    # decoder = Decoder(256, OUTPUT_ACTIVATION)
+    # encoder.cuda()
+    # decoder.cuda()
+    # optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=learning_rate)
+
+    selected_model = Autoencoder(GOES_Bands,OUTPUT_ACTIVATION)
+    model_name = type(selected_model).__name__
+
     project_name = project_name_template.format(
+    model_name = model_name,
     loss_function_name=loss_function_name,
     n_epochs=n_epochs,
     batch_size=batch_size,
@@ -187,20 +203,9 @@ def main(config=None):
        
     print(f'Train with n_epochs : {n_epochs} , batch_size : {batch_size} , learning_rate : {learning_rate}')
     print(f'beta : {beta}, loss function :{loss_function}')
-    # loss Function
-    criteria = loss_function(beta)
-    # criteria = two_branch_loss(beta)
-    OUTPUT_ACTIVATION = criteria.last_activation if criteria.last_activation else "relu"
-    # Set up the encoder, decoder. and optimizer
-    # encoder = Encoder(GOES_Bands)
-    # decoder = Decoder(256, OUTPUT_ACTIVATION)
-    # encoder.cuda()
-    # decoder.cuda()
-    # optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=learning_rate)
-
-    autoencoder = Autoencoder(GOES_Bands,OUTPUT_ACTIVATION)
-    autoencoder.cuda()
-    optimizer = optim.Adam(list(autoencoder.parameters()), lr=learning_rate)
+    
+    selected_model.cuda()
+    optimizer = optim.Adam(list(selected_model.parameters()), lr=learning_rate)
     
     # Get List of downloaded files and set up reference_data loader
     file_list = os.listdir(im_dir)
@@ -234,7 +239,7 @@ def main(config=None):
     logging.info(f'Starting training at {current_time} \n\t Url : {run_url}')
 
     #starting training
-    train(train_loader, validation_loader, autoencoder, optimizer, n_epochs, criteria)
+    train(train_loader, validation_loader, selected_model, optimizer, n_epochs, criteria)
     
     end =  datetime.now()
     duration = end - now
@@ -245,13 +250,13 @@ def main(config=None):
 
     logging.info(f'\tTime Taken : {hours} hours {minutes} minutes {seconds} seconds')
     
-    save_model_autoencoder(autoencoder, mp)
+    save_selected_model(selected_model, mp)
     torch.save(optimizer.state_dict(), mp + "/" + RES_OPT_PTH)
     reset_logging()
 
-def save_model_autoencoder(autoencoder, mp):
-    torch.save(autoencoder.encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
-    torch.save(autoencoder.decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
+def save_selected_model(selected_model, mp):
+    torch.save(selected_model.encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
+    torch.save(selected_model.decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
 
 
 if __name__ == "__main__":

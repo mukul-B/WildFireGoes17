@@ -24,36 +24,21 @@ from os.path import exists as file_exists
 class VIIRSProcessing:
     def __init__(self, year="2021", satellite="viirs-snpp", site=None, res=375):
 
-        country = 'United_States'
-        Sdirectory = "VIIRS_Source/" + satellite + "_" + year + "_" + country + ".csv"
-        VIIRS_pixel= pd.read_csv(Sdirectory)
-        # Sdirectory3 = f'VIIRS_Source_new/fire_archive_SV-C2_{year}.csv'
-        # Sdirectory2 = f'VIIRS_Source_new/fire_nrt_J1V-C2_{year}.csv'
-        # snpp_pixels = pd.read_csv(Sdirectory3)
-        # NOAA_pixels = pd.read_csv(Sdirectory2)
-        # NOAA_pixels.rename(columns={'brightness':'bright_ti4'}, inplace=True)
-        # NOAA_pixels.rename(columns={'bright_t31':'bright_ti5'}, inplace=True)
-        # VIIRS_pixel = pd.concat([snpp_pixels, NOAA_pixels], ignore_index=True)
-        # VIIRS_pixel = NOAA_pixels
 
         self.location = site.location
-        self.fire_pixels = VIIRS_pixel
         self.satellite = satellite
         self.crs = site.EPSG
         self.res = res
+        self.year = year
 
         # defining extend of site in lat and lon
         latitude, longitude = site.latitude, site.longitude
         rectangular_size = site.rectangular_size
-        bottom_left = [latitude - rectangular_size, longitude - rectangular_size]
-        top_right = [latitude + rectangular_size, longitude + rectangular_size]
+        self.bottom_left = [latitude - rectangular_size, longitude - rectangular_size]
+        self.top_right = [latitude + rectangular_size, longitude + rectangular_size]
         # print(bottom_left, top_right)
 
         # filtering in fire pixel inside the bounding box of the given site
-        self.fire_pixels = self.fire_pixels[self.fire_pixels.latitude.gt(bottom_left[0])
-                                            & self.fire_pixels.latitude.lt(top_right[0])
-                                            & self.fire_pixels.longitude.gt(bottom_left[1])
-                                            & self.fire_pixels.longitude.lt(top_right[1])]
 
         # transforming lon lat to utm
         # UTM, Universal Transverse Mercator ( northing and easting)
@@ -63,10 +48,10 @@ class VIIRSProcessing:
         # 32610 (126 to 120) ;32611 (120 to 114) ;32612 (114 to 108)
 
         self.transformer = Transformer.from_crs(4326, self.crs)
-        bottom_left_utm = [int(self.transformer.transform(bottom_left[0], bottom_left[1])[0]),
-                           int(self.transformer.transform(bottom_left[0], bottom_left[1])[1])]
-        top_right_utm = [int(self.transformer.transform(top_right[0], top_right[1])[0]),
-                         int(self.transformer.transform(top_right[0], top_right[1])[1])]
+        bottom_left_utm = [int(self.transformer.transform(self.bottom_left[0], self.bottom_left[1])[0]),
+                           int(self.transformer.transform(self.bottom_left[0], self.bottom_left[1])[1])]
+        top_right_utm = [int(self.transformer.transform(self.top_right[0], self.top_right[1])[0]),
+                         int(self.transformer.transform(self.top_right[0], self.top_right[1])[1])]
 
         top_right_utm = [top_right_utm[0] - (top_right_utm[0] - bottom_left_utm[0]) % self.res,
                          top_right_utm[1] - (top_right_utm[1] - bottom_left_utm[1]) % self.res]
@@ -86,6 +71,26 @@ class VIIRSProcessing:
         self.nx = round((self.xmax - self.xmin) / self.res)
         self.ny = round((self.ymax - self.ymin) / self.res)
         self.image_size = (self.ny, self.nx)
+
+    def extract_hotspots(self):
+        country = 'United_States'
+        Sdirectory = "VIIRS_Source/" + self.satellite + "_" + self.year + "_" + country + ".csv"
+        VIIRS_pixel= pd.read_csv(Sdirectory)
+        # Sdirectory3 = f'VIIRS_Source_new/fire_archive_SV-C2_{year}.csv'
+        # Sdirectory2 = f'VIIRS_Source_new/fire_nrt_J1V-C2_{year}.csv'
+        # snpp_pixels = pd.read_csv(Sdirectory3)
+        # NOAA_pixels = pd.read_csv(Sdirectory2)
+        # NOAA_pixels.rename(columns={'brightness':'bright_ti4'}, inplace=True)
+        # NOAA_pixels.rename(columns={'bright_t31':'bright_ti5'}, inplace=True)
+        # VIIRS_pixel = pd.concat([snpp_pixels, NOAA_pixels], ignore_index=True)
+        # VIIRS_pixel = NOAA_pixels
+
+        self.fire_pixels = VIIRS_pixel
+
+        self.fire_pixels = self.fire_pixels[self.fire_pixels.latitude.gt(self.bottom_left[0])
+                                            & self.fire_pixels.latitude.lt(self.top_right[0])
+                                            & self.fire_pixels.longitude.gt(self.bottom_left[1])
+                                            & self.fire_pixels.longitude.lt(self.top_right[1])]
 
     def make_tiff(self,  fire_date,ac_time, fire_data_filter_on_date_and_bbox):
 

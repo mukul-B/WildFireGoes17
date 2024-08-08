@@ -70,27 +70,46 @@ def goes_img_pkg(GOES_data):
 #     cloud_remove = (cloud_remove * GOES_MAX_VAL)  / cloud_remove.max()
 #     gf_channels[1] = Normalize_img(cloud_remove,gf_min = 0, gf_max = GOES_MAX_VAL)
 #     return gf_channels
+def update_global_max_min(new_value, filename='global_max_min.txt'):
+    try:
+        # Read existing max and min from the file
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+            global_max = float(lines[0].strip())
+            global_min = float(lines[1].strip())
+    except FileNotFoundError:
+        # If the file does not exist, initialize max and min
+        global_max = float('-inf')
+        global_min = float('inf')
+    except (IndexError, ValueError):
+        # If file is empty or contains invalid values, initialize max and min
+        global_max = float('-inf')
+        global_min = float('inf')
+
+    non_zero = new_value[new_value > 0]
+    if non_zero.size > 0:
+        min_value = np.min(new_value[new_value > 0])
+        # Update global max and min with the new value
+        if new_value.max() > global_max:
+            global_max = new_value.max()
+        if min_value < global_min:
+            global_min = min_value
+
+    # Write the updated max and min back to the file
+    with open(filename, 'w') as file:
+        file.write(f"{global_max}\n")
+        file.write(f"{global_min}\n")
+
+    return global_max, global_min
+
 
 def goes_img_to_channels(gf):
     gf_channels = [None] * GOES_Bands
-    gf_min, gf_max = [210, 207, 205],[413,342, 342]
+    # gf_min, gf_max = [210, 207, 205],[413,342, 342]
+    gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
+    # gf_min, gf_max = [0,0,0,210, 207],[120,126,126,413,342]
     for i in range(GOES_Bands):
-        # gf_min, gf_max = np.min(gf[i]), np.max(gf[i])
-        # gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
-        
-        
-        # non_zero = gf[i][gf[i] !=0]
-        # if non_zero.size > 0:
-        #     if np.min(gf[i]) < global_min[i]:
-        #         global_min[i] = np.min(gf[i][gf[i] !=0])
-             
-        # if np.max(gf[i]) > global_max[i]:
-        #     global_max[i] = np.max(gf[i])
-
-        # if(non_zero.size == 0 and np.max(gf[i]) > 0 ):
-        #     print("Issue-----------------------------------------------------")
-        #[210.16818, 207.01837, 205.42421] [412.24646, 341.23163, 341.24542]
-
+        # update_global_max_min(gf[i],'GOESBAND'+str(i)+'.txt')
         gf_channels[i] = Normalize_img(gf[i],gf_min[i], gf_max[i])
     
     return gf_channels
@@ -132,7 +151,7 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
     vf_FRP = np.array(vf_FRP)[:, :]
 
     # gf_min, gf_max = np.min(gf), np.max(gf)
-    gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
+    gf_min, gf_max = GOES_MIN_VAL[0], GOES_MAX_VAL[0]
     # gf = goes_radiance_normaization(gf, gf_max, gf_min)
     # gf = np.nan_to_num(gf)
     # gf = gf.astype(int)

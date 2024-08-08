@@ -16,11 +16,18 @@ HC = 'HC'
 LI = 'LI'
 HI = 'HI'
 COLOR_NORMAL_VALUE = 1
-GOES_MIN_VAL, GOES_MAX_VAL = 210 , 413
+
+GOES_MIN_VAL, GOES_MAX_VAL = [210, 207, 205],[413,342, 342]
+# GOES_MIN_VAL, GOES_MAX_VAL = 210 , 413
 VIIRS_MIN_VAL,VIIRS_MAX_VAL = 0 , 367
 VIIRS_UNITS ='Brightness Temperature'
 
 # GOES_product = RAD
+# GOES_product = [{'product_name': RAD, 'band': 1},
+#                 {'product_name': RAD, 'band': 2},
+#                 {'product_name': RAD, 'band': 3},
+#                 {'product_name': RAD, 'band': 7},
+#                  {'product_name': RAD, 'band': 14}]
 GOES_product = [{'product_name': RAD, 'band': 7},
            {'product_name': RAD, 'band': 14},
            {'product_name': RAD, 'band': 15}]
@@ -36,13 +43,16 @@ _1channel_norm_postfix = '_1channel_perimageNormalized'
 _3channel_classifier_postfix = '_3channel_classifier'
 _3channel_precision_postfix = '_3channel_precision'
 _3channel_precision_classifier_postfix = '_3channel_precision_classifier'
+_3channel_precision_thres_classifier_postfix = '_3channel_precision_thres_classifier'
 _3channel_resnet_postfix = '_3channel_resnet'
 _1channel_precision_postfix = '_1channel_precision'
-
+_5channel_precision_classifier_postfix = '_5channel_precision_classifier'
+_5channel_resnet_postfix = '_5channel_resnet'
+_3channel_precision_seg_postfix = '_3channel_precision_seg'
 
 trainingDir_speficic_Postfix = _3channel_precision_postfix
-model_specific_postfix = _3channel_resnet_postfix
-result_specific_postfix = _3channel_resnet_postfix
+model_specific_postfix = _3channel_precision_postfix
+result_specific_postfix = _3channel_precision_postfix
 
 gf_c_fields = [f'gf_c{i+1}' for i in range(GOES_Bands)]
 training_data_field_names = ['vf'] + gf_c_fields + ['vf_FRP', 'gf_min', 'gf_max', 'vf_max']
@@ -83,12 +93,12 @@ goes_dir = f'{reference_data}/$LOC/GOES/$PROD_BAND/tif/'
 training_dir = f'DataRepository/training_data{trainingDir_speficic_Postfix}/'
 # training_dir = 'training_data_working/'
 GOES_OVERWRITE = False
-VIIRS_OVERWRITE = True
+VIIRS_OVERWRITE = False
 
 # Autoencoder training and testing
 # model_path = 'Model_BEFORE_MOVING_NORMALIZATION/'
 model_path = 'Model/'
-project_name_template = "wildfire_{loss_function_name}_{n_epochs}epochs_{batch_size}batchsize_{learning_rate}lr" + model_specific_postfix
+project_name_template = "{model_name}_{loss_function_name}_{n_epochs}epochs_{batch_size}batchsize_{learning_rate}lr" + model_specific_postfix
 test_split = 0.2
 validation_split = 0.2
 Results = f'DataRepository/results{result_specific_postfix}/'
@@ -111,7 +121,7 @@ paper_results = ['713','122','956','728','118','553','408','387','849','104','66
 NO_SAMPLES = []
 RANDOM_SAMPLES = [str(i) for i in range(5000) if i % 70 == 0]
 ALL_SAMPLES = 0
-SELECTED_SAMPLES = NO_SAMPLES
+SELECTED_SAMPLES = RANDOM_SAMPLES
 
 
 # if filename[0] in ['79', '126', '199', '729', '183', '992', '140', '189', '1159', '190', '26', '188']:
