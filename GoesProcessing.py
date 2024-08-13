@@ -28,7 +28,7 @@ warnings.filterwarnings('ignore')
 
 
 class GoesProcessing:
-    def __init__(self, log_path, product_name, bands):
+    def __init__(self, log_path, product_name, bands, site):
         # failure log ex missing files logged in file
         self.product_name = None
         self.band = None
@@ -37,6 +37,7 @@ class GoesProcessing:
         # self.band = band
         self.band = [('C' + str(band).zfill(2) if band else "") for band in bands]
         self.product_name = product_name
+        self.site = site
 
         # product to g_reader for Satpy
         self.g_reader = []
@@ -70,6 +71,10 @@ class GoesProcessing:
         else:
             bucket_name='noaa-goes17'
             setelite_file_prefix = 'G17'
+
+        if(self.site.longitude > -109):
+            bucket_name='noaa-goes16'
+            setelite_file_prefix = 'G16'
 
         day_of_year = sDATE.timetuple().tm_yday
         year = sDATE.year

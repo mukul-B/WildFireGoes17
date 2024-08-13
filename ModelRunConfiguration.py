@@ -7,9 +7,13 @@ Created on Sun nov 23 11:17:09 2022
 """
 
 from GlobalValues import BATCH_SIZE, EPOCHS, LEARNING_RATE, BETA, LOSS_FUNCTION
-from LossFunctions import GMSE, LRMSE, Classification_loss, jaccard_loss, two_branch_loss, GLMSE
+from LossFunctions import GMSE, LRMSE, Classification_loss, Segmentation_loss, jaccard_loss, two_branch_loss, GLMSE
+from Unet import UNET
 
-selected_case = 6
+model_list = [UNET]
+Selected_model = model_list[0]
+
+selected_case = 1
 loss_cases = [
     # case 1 : GMSE
      {
@@ -53,11 +57,25 @@ loss_cases = [
     ,
     # case 6: Classification_loss
      {
-        LEARNING_RATE: 9e-3,
+        LEARNING_RATE: 5e-3,
         EPOCHS: 150,
         BATCH_SIZE: 64,
         LOSS_FUNCTION: Classification_loss
+    },
+    # {
+    #     LEARNING_RATE: 3e-5,
+    #     EPOCHS: 150,
+    #     BATCH_SIZE: 16,
+    #     LOSS_FUNCTION: Classification_loss
+    # },
+    # case 7: Segmentation_loss
+     {
+        LEARNING_RATE: 8e-5,
+        EPOCHS: 150,
+        BATCH_SIZE: 32,
+        LOSS_FUNCTION: Segmentation_loss
     }
+    
 ]
 use_config = loss_cases[selected_case - 1]
 

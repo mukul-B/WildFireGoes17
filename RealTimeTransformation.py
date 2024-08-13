@@ -25,8 +25,8 @@ from pyproj import Transformer
 from AutoEncoderEvaluation import RuntimeDLTransformation
 from EvaluationOperation import getth
 from GlobalValues import GOES_product_size, RealTimeIncoming_files, RealTimeIncoming_results, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL, \
-    PREDICTION_UNITS, GOES_UNITS,Results,goes_folder
-from LossFunctionConfig import use_config
+    PREDICTION_UNITS, GOES_UNITS,Results,goes_folder,validate_with_radar
+from ModelRunConfiguration import use_config
 from RadarProcessing import RadarProcessing
 from SiteInfo import SiteInfo
 from WriteDataset import goes_img_pkg, goes_img_to_channels, goes_radiance_normaization
@@ -122,6 +122,40 @@ def plot_improvement(path='reference_data/Dixie/GOES/ABI-L1b-RadC/tif/GOES-2021-
 
     plt.savefig('result_for_video' + '/FRP_' + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
 
+def zoom_bbox(bbox, margin):
+    """
+    Zooms into the bounding box by reducing its size by a given margin.
+    
+    Parameters:
+    bbox (list): The original bounding box as [min_lon, max_lon, min_lat, max_lat].
+    margin (float): The percentage margin to zoom in. For example, 0.1 for 10%.
+    
+    Returns:
+    list: The new bounding box after zooming in.
+    """
+    min_lon, max_lon, min_lat, max_lat = bbox
+    
+    # Calculate the current width and height
+    width = max_lon - min_lon
+    height = max_lat - min_lat
+    
+    # Calculate the new width and height after applying the margin
+    new_width = width * (1 - margin)
+    new_height = height * (1 - margin)
+    
+    # Calculate the amount to shift the coordinates to zoom in
+    lon_shift = (width - new_width) / 2
+    lat_shift = (height - new_height) / 2
+    
+    # Adjust the bounding box coordinates
+    new_min_lon = min_lon + lon_shift
+    new_max_lon = max_lon - lon_shift
+    new_min_lat = min_lat + lat_shift
+    new_max_lat = max_lat - lat_shift
+    
+    return [new_min_lon, new_max_lon, new_min_lat, new_max_lat]
+
+
 
 def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
     
@@ -141,7 +175,7 @@ def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
 
         #partion images to  DL model specific window
         partioned_image = partion_image_to_windows(gf_channels,window_size,step_size)
-        #applu DL model to windows
+        #apply DL model to windows
         res_image = apply_DLmodel(supr_resolution,partioned_image, window_size)
         #create back image from window output
         reconstructed_gf = reconstruct_from_windows(height, width, res_image, window_size, out_channel)
@@ -171,7 +205,9 @@ def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
     # plt.figure(figsize=(6, 3))
     ax = plt.axes(projection=proj)
     ax.add_image(StreetmapESRI(), 10)
-    # ax.set_extent(bbox)
+    zoom_margin = 0.6
+    new_bbox = zoom_bbox(bbox, zoom_margin)
+    ax.set_extent(new_bbox)
     cmap = 'YlOrRd'
     # plt.suptitle('Mosquito Fire on {0} at {1} UTC'.format(d[0], d[1]))
     plt.suptitle('{0} at {1}:{2} UTC'.format((datetime.strptime(d[0], '%Y-%m-%d')).strftime('%d %B %Y'), d[1][:2], d[1][2:]))
@@ -195,7 +231,7 @@ def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
     gl.xlabel_style = {'size': 9, 'rotation': 30}
     gl.ylabel_style = {'size': 9}
     plt.tight_layout()
-    validate_with_radar = False
+    # validate_with_radar = False
     if(validate_with_radar):
         returnval = radarprocessing.plot_radar_json(date_radar, ax)
     # plt.show()

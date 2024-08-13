@@ -162,26 +162,12 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
     # if condition in (LC+HI, LC+LI ) :
     # if 0:
 
-        active_fire = 100 *( (inp[0]-inp[1])/(inp[0]+inp[1]) )
-        # gf_min, gf_max = [210, 207, 205],[413,342, 342]
-        cloud_mask_activeFire = denoralize(inp[2],342, 205)
-        cloud_mask_activeFire = cloud_mask_activeFire * (cloud_mask_activeFire > 280)
+        
         g1 = ImagePlot(GOES_UNITS,gf_max, gf_min,
                        extract_img, 
                        GOES_input_LABEL)
         
         
-        g8 = ImagePlot(GOES_UNITS,342, 205,
-                       cloud_mask_activeFire, 
-                       GOES_input_LABEL)
-        
-        g7 = ImagePlot(GOES_UNITS,np.max(active_fire), np.min(active_fire),
-                       active_fire, 
-                       GOES_input_LABEL)
-        
-        g9 = ImagePlot(GOES_UNITS,np.max(active_fire), np.min(active_fire),
-                       active_fire * (cloud_mask_activeFire > 280), 
-                       GOES_input_LABEL)
 
         # g2 = ImagePlot(GOES_UNITS,gf_max, gf_min,
         #                inputEV.th_l1 * inp,
@@ -224,8 +210,28 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
         # g6 = ImagePlot(VIIRS_UNITS if prediction_IOU is not None else None,vf_max,VIIRS_MIN_VAL,
         #                th3_img if prediction_IOU is not None else None,
         #                'OTSU thresholding on Prediction(IOU)' + ret3_dis)
-        # img_seq = ((g1,g7,g8),(g3,g4,g9))
         img_seq = ((g1,g3,g4),)
+        if(len(inp) > 1):
+            active_fire = 100 *( (inp[0]-inp[1])/(inp[0]+inp[1]) )
+            # gf_min, gf_max = [210, 207, 205],[413,342, 342]
+            cloud_mask_activeFire = denoralize(inp[2],342, 205)
+            cloud_mask_activeFire = cloud_mask_activeFire * (cloud_mask_activeFire > 280)
+            
+           
+            
+            g7 = ImagePlot(GOES_UNITS,np.max(active_fire), np.min(active_fire),
+                        active_fire, 
+                        "Active fire: normalized diff band7 ,band 14")
+            
+            g8 = ImagePlot(GOES_UNITS,342, 205,
+                        cloud_mask_activeFire, 
+                        "Band15 > 280")
+            
+            g9 = ImagePlot(GOES_UNITS,np.max(active_fire), np.min(active_fire),
+                        active_fire * (cloud_mask_activeFire > 280), 
+                        "Cloud mask Active fire: band15 > 280")
+            img_seq = ((g1,g7,g8),(g3,g4,g9))
+        
         # img_seq = ((g1,g3,g4,g5,g6),)
         # img_seq = ((g1,g3),)
         # path ='/'.join(pl[:-1]+[f'{str(round(iou_p,4))}_{str(round(inputEV.coverage,4))}_{str(round(inputEV.iou,4))}_{pl[-1]}']) 

@@ -14,7 +14,7 @@ from Autoencoder import Autoencoder, Encoder, Decoder
 from AutoencoderDataset import npDataset
 from GlobalValues import GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
     LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template, validation_split, test_split
-from LossFunctionConfig import SWEEP_OPERATION, use_config,sweep_loss_funtion
+from ModelRunConfiguration import SWEEP_OPERATION, use_config,sweep_loss_funtion
 
 im_dir = training_dir
 log_interval = 10
@@ -151,8 +151,8 @@ def reset_logging():
     root_logger.handlers = []
 
 def main(config=None):
-    now = datetime.now()
-    current_time = now.strftime("%Y-%m-%d_%H:%M:%S")
+    start_time = datetime.now()
+    current_time = start_time.strftime("%Y-%m-%d_%H:%M:%S")
     print("Current Time =", current_time)
 
     if config:
@@ -207,19 +207,6 @@ def main(config=None):
     selected_model.cuda()
     optimizer = optim.Adam(list(selected_model.parameters()), lr=learning_rate)
     
-    # Get List of downloaded files and set up reference_data loader
-    file_list = os.listdir(im_dir)
-    print(f'{len(file_list)} reference_data samples found')
-    train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
-    train_files, validation_files = train_test_split(train_files, test_size=validation_split, random_state=random_state)
-
-    train_loader = DataLoader(npDataset(train_files, batch_size, im_dir,True,False), shuffle=True)
-    validation_loader = DataLoader(npDataset(validation_files, batch_size, im_dir,True,False), shuffle=False)
-    # test_loader = DataLoader(npDataset(test_files, batch_size, im_dir))
-    print(
-        f'Training sample : {len(train_files)} , validation samples : {len(validation_files)} , testing samples : {len(test_files)}')
-
-    # Train and save the model components
     mp = model_path  + project_name
     if not os.path.exists(mp):
         os.mkdir(mp)
@@ -233,26 +220,43 @@ def main(config=None):
         ]
     )
 
-    
-
     print(f"The log file path is: {file_handler.baseFilename}")
+
+    # Get List of downloaded files and set up reference_data loader
     logging.info(f'Starting training at {current_time} \n\t Url : {run_url}')
 
-    #starting training
-    train(train_loader, validation_loader, selected_model, optimizer, n_epochs, criteria)
+    # Train and save the model components
+    train_runner(selected_model, n_epochs, batch_size, criteria, optimizer)
     
+    log_end_process(start_time)
+    
+    save_selected_model(selected_model, mp)
+    torch.save(optimizer.state_dict(), mp + "/" + RES_OPT_PTH)
+    reset_logging()
+
+def log_end_process(start_time):
     end =  datetime.now()
-    duration = end - now
+    duration = end - start_time
     seconds = duration.total_seconds()
     hours = seconds // 3600
     minutes = (seconds % 3600) // 60
     seconds = seconds % 60
 
     logging.info(f'\tTime Taken : {hours} hours {minutes} minutes {seconds} seconds')
-    
-    save_selected_model(selected_model, mp)
-    torch.save(optimizer.state_dict(), mp + "/" + RES_OPT_PTH)
-    reset_logging()
+
+def train_runner( selected_model, n_epochs, batch_size, criteria, optimizer):
+    file_list = os.listdir(im_dir)
+    print(f'{len(file_list)} reference_data samples found')
+    train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
+    train_files, validation_files = train_test_split(train_files, test_size=validation_split, random_state=random_state)
+
+    train_loader = DataLoader(npDataset(train_files, batch_size, im_dir,True,False), shuffle=True)
+    validation_loader = DataLoader(npDataset(validation_files, batch_size, im_dir,True,False), shuffle=False)
+    # test_loader = DataLoader(npDataset(test_files, batch_size, im_dir))
+    print(
+        f'Training sample : {len(train_files)} , validation samples : {len(validation_files)} , testing samples : {len(test_files)}')
+    #starting training
+    train(train_loader, validation_loader, selected_model, optimizer, n_epochs, criteria)
 
 def save_selected_model(selected_model, mp):
     torch.save(selected_model.encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
@@ -265,7 +269,7 @@ if __name__ == "__main__":
     if SWEEP_OPERATION:
         # Initialize sweep by passing in config. (Optional) Provide a name of the project.
         # # wandb.login()
-        from LossFunctionConfig import sweep_configuration_IOU_LRMSE
+        from ModelRunConfiguration import sweep_configuration_IOU_LRMSE
         sweep_configuration = sweep_configuration_IOU_LRMSE
         sweep_id = wandb.sweep(sweep=sweep_configuration, project='sweep_config')
         wandb.agent(sweep_id, function=main, count=14)

@@ -7,6 +7,7 @@ Created on Sun Jul 23 11:17:09 2022
 
 @author: mukul
 """
+import os
 import numpy
 import numpy as np
 import pandas as pd
@@ -74,15 +75,35 @@ class VIIRSProcessing:
 
     def extract_hotspots(self):
         country = 'United_States'
+
+        source_list = []
         Sdirectory = "VIIRS_Source/" + self.satellite + "_" + self.year + "_" + country + ".csv"
-        VIIRS_pixel= pd.read_csv(Sdirectory)
-        # Sdirectory3 = f'VIIRS_Source_new/fire_archive_SV-C2_{year}.csv'
-        # Sdirectory2 = f'VIIRS_Source_new/fire_nrt_J1V-C2_{year}.csv'
-        # snpp_pixels = pd.read_csv(Sdirectory3)
-        # NOAA_pixels = pd.read_csv(Sdirectory2)
-        # NOAA_pixels.rename(columns={'brightness':'bright_ti4'}, inplace=True)
-        # NOAA_pixels.rename(columns={'bright_t31':'bright_ti5'}, inplace=True)
-        # VIIRS_pixel = pd.concat([snpp_pixels, NOAA_pixels], ignore_index=True)
+        if os.path.exists(Sdirectory):
+            snn_yearly= pd.read_csv(Sdirectory)
+            source_list.append(snn_yearly)
+
+        Sdirectory3 = f'VIIRS_Source_new/fire_archive_SV-C2_{self.year}.csv'
+        if os.path.exists(Sdirectory3):
+            snpp_pixels = pd.read_csv(Sdirectory3)
+            snpp_pixels.rename(columns={'brightness':'bright_ti4'}, inplace=True)
+            snpp_pixels.rename(columns={'bright_t31':'bright_ti5'}, inplace=True)
+            source_list.append(snpp_pixels)
+
+        Sdirectory2 = f'VIIRS_Source_new/fire_nrt_J1V-C2_{self.year}.csv'
+        if os.path.exists(Sdirectory2):
+            NOAA_pixels = pd.read_csv(Sdirectory2)
+            NOAA_pixels.rename(columns={'brightness':'bright_ti4'}, inplace=True)
+            NOAA_pixels.rename(columns={'bright_t31':'bright_ti5'}, inplace=True)
+            source_list.append(NOAA_pixels)
+
+        Sdirectory4 = f'VIIRS_Source_new/fire_nrt_SV-C2_{self.year}.csv'
+        if os.path.exists(Sdirectory4):
+            snpp_nrt_pixels = pd.read_csv(Sdirectory4)
+            snpp_nrt_pixels.rename(columns={'brightness':'bright_ti4'}, inplace=True)
+            snpp_nrt_pixels.rename(columns={'bright_t31':'bright_ti5'}, inplace=True)
+            source_list.append(snpp_nrt_pixels)
+         
+        VIIRS_pixel = pd.concat(source_list, ignore_index=True)
         # VIIRS_pixel = NOAA_pixels
 
         self.fire_pixels = VIIRS_pixel
@@ -91,8 +112,14 @@ class VIIRSProcessing:
                                             & self.fire_pixels.latitude.lt(self.top_right[0])
                                             & self.fire_pixels.longitude.gt(self.bottom_left[1])
                                             & self.fire_pixels.longitude.lt(self.top_right[1])]
+        
+    def get_unique_dateTime(self, fire_date):
+        self.fire_data_filter_on_date_and_bbox = self.fire_pixels[self.fire_pixels.acq_date.eq(fire_date)]
+        unique_time = self.fire_data_filter_on_date_and_bbox.acq_time.unique()
+        return unique_time
 
-    def make_tiff(self,  fire_date,ac_time, fire_data_filter_on_date_and_bbox):
+
+    def make_tiff(self, fire_date,ac_time):
 
         # output file name
         viirs_tif_dir = viirs_dir.replace('$LOC', self.location)
@@ -101,8 +128,8 @@ class VIIRSProcessing:
         if ((not VIIRS_OVERWRITE) and file_exists(out_file)):
             return
         # filter firepixel for time of date
-        fire_data_filter_on_time = fire_data_filter_on_date_and_bbox[
-            fire_data_filter_on_date_and_bbox.acq_time.eq(ac_time)]
+        fire_data_filter_on_time = self.fire_data_filter_on_date_and_bbox[
+            self.fire_data_filter_on_date_and_bbox.acq_time.eq(ac_time)]
         fire_data_filter_on_timestamp = np.array(fire_data_filter_on_time)
 
         # b1_pixels = self.inverse_mapping(fire_data_filter_on_timestamp)

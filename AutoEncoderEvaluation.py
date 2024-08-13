@@ -25,7 +25,7 @@ from AutoencoderDataset import npDataset
 from GlobalValues import COLOR_NORMAL_VALUE, RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
     HC, HI, LI, LC
 from GlobalValues import training_dir, Results, random_state, project_name_template, test_split
-from LossFunctionConfig import use_config
+from ModelRunConfiguration import use_config
 from EvaluationOperation import get_evaluation_results
 
 plt.style.use('plot_style/wrf')
@@ -256,18 +256,18 @@ def plot_result_histogram(count, iou_plot_prediction):
     # plt.show()
     plt.close()
 
-def test_runner(selected_model,npd):
+def test_runner(selected_model):
+
+    file_list = os.listdir(im_dir)
+    
+    logging.info(f'{len(file_list)} reference_data samples found')
+    train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
+    # test_files = os.listdir(im_dir)
+    logging.info(f'{len(test_files)} test_data samples found')
+    npd = npDataset(test_files, batch_size, im_dir, augment=False, evaluate=True)
+
+
     test_loader = DataLoader(npd)
-
-    # Set up the encoder, decoder. and optimizer
-    # encoder = Encoder(GOES_Bands)
-    # decoder = Decoder(256, OUTPUT_ACTIVATION)
-    # encoder.load_state_dict(torch.load(encoder_path))
-    # decoder.load_state_dict(torch.load(decoder_path))
-    # encoder.cuda()
-    # decoder.cuda()
-
-
     
     get_selected_model_weight(selected_model,path)
     # encoder.cuda()
@@ -363,10 +363,6 @@ def main(config=None):
     global path, res, OUTPUT_ACTIVATION, LOSS_NAME
     
     LOSS_NAME = loss_function_name
-    # logging.info(f'LOSS_NAME : {LOSS_NAME}')
-    # path = "Model_2b5S1rm"
-    # encoder_path = path + "/" + RES_ENCODER_PTH
-    # decoder_path = path + "/" + RES_DECODER_PTH
     OUTPUT_ACTIVATION = loss_function(1).last_activation
     
 
@@ -381,7 +377,6 @@ def main(config=None):
     learning_rate=wandb.config.get(LEARNING_RATE)
 )
     path = model_path + project_name
-    # project_name = f"wildfire_{loss_function_name}_{wandb.config.get(EPOCHS)}epochs_{wandb.config.get(BATCH_SIZE)}batchsize_{wandb.config.get(LEARNING_RATE)}lr"
     print(project_name)
 
     res = Results + project_name
@@ -394,14 +389,8 @@ def main(config=None):
             logging.StreamHandler()
         ]
     )
-    file_list = os.listdir(im_dir)
     logging.info(f'Evaluating Model : {project_name} at {path}')
-    logging.info(f'{len(file_list)} reference_data samples found')
-    train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
-    # test_files = os.listdir(im_dir)
-    logging.info(f'{len(test_files)} test_data samples found')
-    npd = npDataset(test_files, batch_size, im_dir, augment=False, evaluate=True)
-    test_runner(selected_model,npd)
+    test_runner(selected_model)
     print(f'{res}/evaluation.log')
 
 

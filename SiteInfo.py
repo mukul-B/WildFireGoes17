@@ -21,13 +21,21 @@ class SiteInfo():
         self.start_time, self.end_time = config.get(location).get('start') , config.get(location).get('end')
         self.latitude , self.longitude = config.get(location).get('latitude') , config.get(location).get('longitude')
         self.rectangular_size = config.get('rectangular_size')
-        self.EPSG = config.get(location).get('EPSG')
-        # self.EPSG = self.coordinate2EPSG(self.latitude, self.longitude)
+        self.EPSG_formula  = config.get(location).get('EPSG')
+        self.EPSG= self.coordinate2EPSG(self.latitude, self.longitude)
 
     def coordinate2EPSG(self,lat,lon):
-        if -126.0 < lon <= -120.0:
-            return 32610
-        if -120.0 < lon <= -114.0:
-            return 32611
-        if -114.0 < lon <= -108.0:
-            return 32612
+        start_lon = -126
+        end_lon = -60
+        start_zone = 32610
+        # lon_min, lon_max = -125.0, -66.93457 for united states
+        for i in range(start_lon, end_lon, 6):
+            if i < lon <= i + 6:
+                return start_zone
+            start_zone +=1
+        # if -126.0 < lon <= -120.0:
+        #     return 32610
+        # if -120.0 < lon <= -114.0:
+        #     return 32611
+        # if -114.0 < lon <= -108.0:
+        #     return 32612

@@ -4,7 +4,7 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 
-from GlobalValues import compare_dir,goes_dir,viirs_dir,data_dir, goes_folder, viirs_folder, compare, logs, testing_dir, training_dir, GOES_ndf
+from GlobalValues import compare_dir,goes_dir,viirs_dir,logs, testing_dir, training_dir, GOES_ndf
 
 
 def prepareDir(location, product):
@@ -21,24 +21,6 @@ def prepareDir(location, product):
     os.makedirs(viirs_tif_dir, exist_ok=True)
 
     os.makedirs(comp_dir, exist_ok=True)
-
-
-    # if not os.path.exists(data_dir):
-    #     os.mkdir(data_dir)
-    # if not os.path.exists(data_dir + '/' + site_dir):
-    #     os.mkdir(data_dir + '/' + site_dir)
-    # if not os.path.exists(data_dir + '/' + site_dir + '/' + goes_folder):
-    #     os.mkdir(data_dir + '/' + site_dir + '/' + goes_folder)
-    # if not os.path.exists(data_dir + '/' + site_dir + '/' + goes_folder + '/' + product_dir):
-    #     os.mkdir(data_dir + '/' + site_dir + '/' + goes_folder + '/' + product_dir)
-    # if not os.path.exists(data_dir + '/' + site_dir + '/' + goes_folder + '/' + product_dir + '/tif'):
-    #     os.mkdir(data_dir + '/' + site_dir + '/' + goes_folder + '/' + product_dir + '/tif')
-
-    # if not os.path.exists(data_dir + '/' + site_dir + '/' + viirs_folder):
-    #     os.mkdir(data_dir + '/' + site_dir + '/' + viirs_folder)
-
-    # if not os.path.exists(data_dir + '/' + site_dir + '/' + compare):
-    #     os.mkdir(data_dir + '/' + site_dir + '/' + compare)
 
     if not os.path.exists(logs):
         os.mkdir(logs)

@@ -6,6 +6,7 @@ Created on Sun june 23 11:17:09 2023
 @author: mukul
 """
 import json
+import os
 import warnings
 
 import numpy as np
@@ -17,11 +18,25 @@ warnings.filterwarnings('ignore')
 class RadarProcessing:
     def __init__(self,location):
         self.d = 1
-        
+        self.dir = f'radar_data/{location}'
         if(location=='Bear'):
             self.file_r = 'radar_data/Bear/bear_{date_radar}_smooth_perim.geojson'
         if(location=='Caldor'):
             self.file_r = 'radar_data/Caldor/Caldor_{date_radar}_smooth_perim_new.geojson'
+    
+    def get_unique_dateTime(self,date):
+        radar_list = os.listdir(self.dir)
+        date_list = []
+        for v_file in sorted(radar_list):
+            if not v_file.startswith('._'):
+                try:
+                    if v_file.split("_")[1][:8] == date:
+                        date_list.append(v_file.split("_")[1][-4:])
+                except:
+                    continue
+
+        return date_list
+
     def plot_radar_csv(self, file_r, ax):
         listx = []
         listy = []

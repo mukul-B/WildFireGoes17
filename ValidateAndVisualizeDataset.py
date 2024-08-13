@@ -68,25 +68,29 @@ def viewtiff(location,v_file, g_file, date, save=True, compare_dir=None):
     # if in GOES and VIIRS , the values are normalized, using this flag to visualize result
     normalized = False
     vmin,vmax = (0, 250) if normalized else (200,420)
-    # Active_fire = (gd[0]-gd[1])/(gd[0]+gd[1])
-    # cloud_remove_280 = Active_fire * (gd[2]> 280) * 1000
-    # # ret1, th1, hist1, bins1, index_of_max_val1 = getth(cloud_remove_280, on=0)
-    # # print(cloud_remove_280.min(),cloud_remove_280.max(),ret1)
-    # # cloud_remove = Active_fire * (cloud_remove_280 > ret1) * 1000
-    # cloud_remove = cloud_remove_280 * (cloud_remove_280 > 0) 
-    # cloud_remove = (cloud_remove * GOES_MAX_VAL)  / cloud_remove.max()
-    # gd[0] = Normalize_img(gd[0])
-    # cloud_remove = Normalize_img(cloud_remove,gf_min = 0, gf_max = GOES_MAX_VAL)
-    # to_plot = [gd[0],Active_fire,cloud_remove_280,cloud_remove,vd]
-    # lables = ["GOES","Active_fire","cloud_remove_280","cloud_remove","VIIRS"]
-    
-    # to_plot = [gd[0],Active_fire,cloud_remove_280,vd]
-    # lables = ["GOES","Active_fire","Active_fire with Cloud Mask","VIIRS"]
+    # to_plot, lables = multi_spectral_plots(vd, gd)
     to_plot = [gd[0],vd,(gd[0] - vd)]
     lables = ["GOES","VIIRS","VIIRS On GOES"]
     
     save_path = f'{compare_dir}{date}.png' if save else None
     Plot_list(f'{location} at {date}',  to_plot, lables, vd.shape, None, None, save_path)
+
+def multi_spectral_plots(vd, gd):
+    Active_fire = (gd[0]-gd[1])/(gd[0]+gd[1])
+    cloud_remove_280 = Active_fire * (gd[2]> 280) * 1000
+    # ret1, th1, hist1, bins1, index_of_max_val1 = getth(cloud_remove_280, on=0)
+    # print(cloud_remove_280.min(),cloud_remove_280.max(),ret1)
+    # cloud_remove = Active_fire * (cloud_remove_280 > ret1) * 1000
+    cloud_remove = cloud_remove_280 * (cloud_remove_280 > 0) 
+    cloud_remove = (cloud_remove * GOES_MAX_VAL)  / cloud_remove.max()
+    gd[0] = Normalize_img(gd[0])
+    cloud_remove = Normalize_img(cloud_remove,gf_min = 0, gf_max = GOES_MAX_VAL)
+    to_plot = [gd[0],Active_fire,cloud_remove_280,cloud_remove,vd]
+    lables = ["GOES","Active_fire","cloud_remove_280","cloud_remove","VIIRS"]
+    
+    # to_plot = [gd[0],Active_fire,cloud_remove_280,vd]
+    # lables = ["GOES","Active_fire","Active_fire with Cloud Mask","VIIRS"]
+    return to_plot,lables
 
 def Plot_list( title, to_plot, lables, shape, vmin=None, vmax=None, save_path=None):
 
@@ -164,6 +168,5 @@ def validateAndVisualizeDataset(location, product):
     viirs_list = os.listdir(viirs_tif_dir)
     for v_file in viirs_list:
         g_file = "GOES" + v_file[10:]
-        # print(g_file)
         # shape_check(viirs_tif_dir + v_file, goes_tif_dir + g_file)
         viewtiff(location,viirs_tif_dir + v_file, goes_tif_dir + g_file, v_file[11:-4], compare_dir=comp_dir, save=True)

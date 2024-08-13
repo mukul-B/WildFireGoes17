@@ -42,6 +42,9 @@ _2channel_postfix = '_activeFire_2branch'
 _1channel_norm_postfix = '_1channel_perimageNormalized'
 _3channel_classifier_postfix = '_3channel_classifier'
 _3channel_precision_postfix = '_3channel_precision'
+_3channel_precision_ESPG_postfix = '_3channel_precision_ESPG'
+_3channel_precision_ESPG_old_postfix = '_3channel_precision_ESPG_old'
+_1channel_precision_ESPG_postfix = '_1channel_precision_ESPG'
 _3channel_precision_classifier_postfix = '_3channel_precision_classifier'
 _3channel_precision_thres_classifier_postfix = '_3channel_precision_thres_classifier'
 _3channel_resnet_postfix = '_3channel_resnet'
@@ -49,10 +52,14 @@ _1channel_precision_postfix = '_1channel_precision'
 _5channel_precision_classifier_postfix = '_5channel_precision_classifier'
 _5channel_resnet_postfix = '_5channel_resnet'
 _3channel_precision_seg_postfix = '_3channel_precision_seg'
+_new_2022_postfix = '_new_2022'
+_new_2023_postfix = '_new_2023'
+_3channel_precision_ESPG_viirsChanges_postfix = '_3channel_precision_ESPG_viirsChanges'
 
-trainingDir_speficic_Postfix = _3channel_precision_postfix
-model_specific_postfix = _3channel_precision_postfix
-result_specific_postfix = _3channel_precision_postfix
+referenceDir_speficic_Postfix = _3channel_precision_ESPG_viirsChanges_postfix
+trainingDir_speficic_Postfix = _3channel_precision_ESPG_viirsChanges_postfix
+model_specific_postfix = _3channel_precision_ESPG_postfix
+result_specific_postfix = _3channel_precision_ESPG_postfix
 
 gf_c_fields = [f'gf_c{i+1}' for i in range(GOES_Bands)]
 training_data_field_names = ['vf'] + gf_c_fields + ['vf_FRP', 'gf_min', 'gf_max', 'vf_max']
@@ -74,7 +81,7 @@ GOES_ndf = 'GOES_netcdfs'
 goes_folder = "GOES"
 viirs_folder = "VIIRS"
 logs = 'logs'
-data_dir = "DataRepository/reference_data"
+# data_dir = "DataRepository/reference_data"
 compare = 'compare'
 
 # data loading and preprocessing
@@ -85,7 +92,7 @@ toExecuteSiteList = "config/training_sites"
 # toExecuteSiteList = "config/testing_sites"
 # training = 'training'
 # reference_data = "reference_data_working"
-reference_data = "DataRepository/reference_data"
+reference_data = f"DataRepository/reference_data{referenceDir_speficic_Postfix}"
 compare_dir = f'{reference_data}/$LOC/compare/'
 # compare_dir = f'{reference_data}/compare_all/'
 viirs_dir = f'{reference_data}/$LOC/VIIRS/'
@@ -112,6 +119,7 @@ testing_dir = 'DataRepository/testing_dir/'
 # realtimeSiteList = "config/realtime_sites"
 RealTimeIncoming_files = 'DataRepository/RealTimeIncoming_files/'
 RealTimeIncoming_results = 'DataRepository/RealTimeIncoming_results/'
+validate_with_radar = False
 videos = 'DataRepository/Videos/'
 
 # blind testing
@@ -121,7 +129,7 @@ paper_results = ['713','122','956','728','118','553','408','387','849','104','66
 NO_SAMPLES = []
 RANDOM_SAMPLES = [str(i) for i in range(5000) if i % 70 == 0]
 ALL_SAMPLES = 0
-SELECTED_SAMPLES = RANDOM_SAMPLES
+SELECTED_SAMPLES = NO_SAMPLES
 
 
 # if filename[0] in ['79', '126', '199', '729', '183', '992', '140', '189', '1159', '190', '26', '188']:
