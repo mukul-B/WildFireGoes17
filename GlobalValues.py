@@ -56,10 +56,34 @@ _new_2022_postfix = '_new_2022'
 _new_2023_postfix = '_new_2023'
 _3channel_precision_ESPG_viirsChanges_postfix = '_3channel_precision_ESPG_viirsChanges'
 
-referenceDir_speficic_Postfix = _3channel_precision_ESPG_viirsChanges_postfix
-trainingDir_speficic_Postfix = _3channel_precision_ESPG_viirsChanges_postfix
-model_specific_postfix = _3channel_precision_ESPG_postfix
-result_specific_postfix = _3channel_precision_ESPG_postfix
+_3channel_precision_ESPG_viirsExtended_postfix = '_3channel_precision_ESPG_viirsExtended'
+
+_new_west_postfix = '_new_west'
+_new_east_postfix = '_new_east'
+_everything_postfix = '_everything'
+_th_neg_WITHOUTNEG_regression_postfix = '_th_neg_WITHOUTNEG_regression'
+_everything_classifier_postfix = '_everything_classifier'
+
+_workingSet_postfix = '_workingSet'
+
+_pos_TH_classifier_postfix = '_pos_TH_classifier'
+_pos_TH_neg_classifier_postfix = '_pos_TH_neg_classifier'
+_pos_neg_balanced_classifier_postfix = '_pos_neg_balanced_classifier'
+
+_paper_results_postfix= '_paper_results'
+
+
+site_Postfix = no_postfix
+referenceDir_speficic_Postfix = _workingSet_postfix
+trainingDir_speficic_Postfix = _workingSet_postfix
+model_specific_postfix = _workingSet_postfix
+result_specific_postfix = _workingSet_postfix
+
+# site_Postfix = _new_east_postfix
+# referenceDir_speficic_Postfix = _new_east_postfix
+# trainingDir_speficic_Postfix = _new_east_postfix
+# model_specific_postfix = _new_east_postfix
+# result_specific_postfix = _3channel_precision_ESPG_postfix
 
 gf_c_fields = [f'gf_c{i+1}' for i in range(GOES_Bands)]
 training_data_field_names = ['vf'] + gf_c_fields + ['vf_FRP', 'gf_min', 'gf_max', 'vf_max']
@@ -70,6 +94,7 @@ PREDICTION_UNITS = 'Brightness Temperature'
 RES_OPT_PTH = 'SuperRes_Opt.pth'
 RES_DECODER_PTH = 'SuperRes_Decoder.pth'
 RES_ENCODER_PTH = 'SuperRes_Encoder.pth'
+RES_AUTOENCODER_PTH = 'SuperRes_AutoEncoder.pth'
 LEARNING_RATE = 'learning_rate'
 BATCH_SIZE = 'batch_size'
 LOSS_FUNCTION = 'loss_function'
@@ -88,7 +113,7 @@ compare = 'compare'
 # site_conf = 'config/configuration_2019.yml'
 # toExecuteSiteList = "config/training_sites_2019"
 site_conf = 'config/conf_sites.yml'
-toExecuteSiteList = "config/training_sites"
+toExecuteSiteList = f"config/training_sites{site_Postfix}"
 # toExecuteSiteList = "config/testing_sites"
 # training = 'training'
 # reference_data = "reference_data_working"
@@ -119,7 +144,7 @@ testing_dir = 'DataRepository/testing_dir/'
 # realtimeSiteList = "config/realtime_sites"
 RealTimeIncoming_files = 'DataRepository/RealTimeIncoming_files/'
 RealTimeIncoming_results = 'DataRepository/RealTimeIncoming_results/'
-validate_with_radar = False
+validate_with_radar = True
 videos = 'DataRepository/Videos/'
 
 # blind testing
@@ -127,7 +152,7 @@ realtimeSiteList = "config/blind_testing_sites"
 
 paper_results = ['713','122','956','728','118','553','408','387','849','104','663','609']
 NO_SAMPLES = []
-RANDOM_SAMPLES = [str(i) for i in range(5000) if i % 70 == 0]
+RANDOM_SAMPLES = [str(i) for i in range(7000) if i % 100 == 0]
 ALL_SAMPLES = 0
 SELECTED_SAMPLES = NO_SAMPLES
 

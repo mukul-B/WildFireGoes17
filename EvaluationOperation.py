@@ -50,7 +50,7 @@ class EvaluateSingle:
         
         self.type = type
 
-def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, gf_min, gf_max, vf_max, LOSS_NAME):
+def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, gf_min, gf_max, vf_max, LOSS_NAME, frp = None):
 
     pl = path.split('/')
     filename = pl[-1].split('.')
@@ -64,6 +64,7 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
 
     # 2)Ground truth
     groundTruth = groundTruth.numpy()
+    frp = frp.numpy()
 
     # 3)Evaluation on Input after OTSU thresholding
     inputEV = EvaluationVariables("input")
@@ -86,9 +87,9 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
     if(LOSS_NAME == 'Classification_loss'):
         predRMSEEV = EvaluationVariables("prediction_Classification")
         if prediction_rmse is not None:
-            outmap_min = prediction_rmse.min()
-            outmap_max = prediction_rmse.max()
-            prediction_rmse_normal = (prediction_rmse - outmap_min) / (outmap_max - outmap_min)
+            # outmap_min = prediction_rmse.min()
+            # outmap_max = prediction_rmse.max()
+            # prediction_rmse_normal = (prediction_rmse - outmap_min) / (outmap_max - outmap_min)
 
             # prediction_rmse = prediction_rmse.numpy()
             zx = 1 if np.sum(groundTruth) > 0 else 0
@@ -161,6 +162,7 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
     if ALL_SAMPLES or filename[0] in SELECTED_SAMPLES :
     # if condition in (LC+HI, LC+LI ) :
     # if 0:
+    # if np.count_nonzero(groundTruth) > 100:
 
         
         g1 = ImagePlot(GOES_UNITS,gf_max, gf_min,
@@ -175,7 +177,7 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
         # minmaxg3 = "\n second min: " + str(groundTruth_NZ_min) +"\n max: " + str(groundTruth_max)
         g3 = ImagePlot(VIIRS_UNITS,vf_max,VIIRS_MIN_VAL,
                        groundTruth ,
-                       VIIRS_GROUND_TRUTH_LABEL )
+                       VIIRS_GROUND_TRUTH_LABEL + str(np.count_nonzero(groundTruth)) + ' ' +str(np.sum(frp) ))
         # g6 = ImagePlot(GOES_UNITS,gf_max, gf_min,
         #                predIOUEV.th_img,
         #                VIIRS_GROUND_TRUTH_LABEL + minmaxg3)

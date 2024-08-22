@@ -122,13 +122,17 @@ def plot_improvement(path='reference_data/Dixie/GOES/ABI-L1b-RadC/tif/GOES-2021-
 
     plt.savefig('result_for_video' + '/FRP_' + str(d[0] + '_' + d[1]) + '.png', bbox_inches='tight', dpi=240)
 
-def zoom_bbox(bbox, margin):
+def zoom_bbox(bbox, margin, shift_fraction=(0.5, 0.5)):
     """
-    Zooms into the bounding box by reducing its size by a given margin.
+    Zooms into the bounding box by reducing its size by a given margin,
+    while keeping a specific edge or corner fixed based on shift_fraction.
     
     Parameters:
     bbox (list): The original bounding box as [min_lon, max_lon, min_lat, max_lat].
-    margin (float): The percentage margin to zoom in. For example, 0.1 for 10%.
+    margin (float): The percentage margin to zoom in. For example, 0.5 for 50%.
+    shift_fraction (tuple): A tuple (x_shift, y_shift) where x_shift and y_shift 
+                            are fractions that determine which corner or edge is fixed.
+                            (0, 0) for bottom-left, (1, 1) for top-right, etc.
     
     Returns:
     list: The new bounding box after zooming in.
@@ -143,15 +147,15 @@ def zoom_bbox(bbox, margin):
     new_width = width * (1 - margin)
     new_height = height * (1 - margin)
     
-    # Calculate the amount to shift the coordinates to zoom in
-    lon_shift = (width - new_width) / 2
-    lat_shift = (height - new_height) / 2
+    # Calculate the shifts based on shift_fraction
+    lon_shift = (width - new_width) * shift_fraction[0]
+    lat_shift = (height - new_height) * shift_fraction[1]
     
-    # Adjust the bounding box coordinates
+    # Adjust the bounding box coordinates based on the shift_fraction
     new_min_lon = min_lon + lon_shift
-    new_max_lon = max_lon - lon_shift
+    new_max_lon = new_min_lon + new_width
     new_min_lat = min_lat + lat_shift
-    new_max_lat = max_lat - lat_shift
+    new_max_lat = new_min_lat + new_height
     
     return [new_min_lon, new_max_lon, new_min_lat, new_max_lat]
 
@@ -205,8 +209,8 @@ def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
     # plt.figure(figsize=(6, 3))
     ax = plt.axes(projection=proj)
     ax.add_image(StreetmapESRI(), 10)
-    zoom_margin = 0.6
-    new_bbox = zoom_bbox(bbox, zoom_margin)
+    zoom_margin = 0.30
+    new_bbox = zoom_bbox(bbox, zoom_margin,(1, 1))
     ax.set_extent(new_bbox)
     cmap = 'YlOrRd'
     # plt.suptitle('Mosquito Fire on {0} at {1} UTC'.format(d[0], d[1]))

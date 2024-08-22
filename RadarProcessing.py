@@ -23,6 +23,9 @@ class RadarProcessing:
             self.file_r = 'radar_data/Bear/bear_{date_radar}_smooth_perim.geojson'
         if(location=='Caldor'):
             self.file_r = 'radar_data/Caldor/Caldor_{date_radar}_smooth_perim_new.geojson'
+        if(location=='ParkFire'):
+            self.file_r = 'radar_data/ParkFire/ParkFire_{date_radar}_smooth_perim.geojson'
+            
     
     def get_unique_dateTime(self,date):
         radar_list = os.listdir(self.dir)
@@ -48,11 +51,11 @@ class RadarProcessing:
 
     def read_json_perim(self, filename):
         fjson = filename
-
         try:
             with open(fjson) as f:
                 gj_f = json.load(f)['features']
-        except:
+        except Exception as e:
+            print(f"An error occurred: {e}")
             return None
         gj = [i for i in gj_f if i['geometry'] is not None]
         if len(gj) == 0:
@@ -63,7 +66,8 @@ class RadarProcessing:
             if len(mpoly) == 1:
                 mpoly = mpoly[0]
             for kk, ii in enumerate(mpoly):
-                perim.append(np.squeeze(np.array(ii)))
+                for kk2, ii2 in enumerate(ii):
+                    perim.append(np.squeeze(np.array(ii2)))
         else:
             perim = []
             for kk, ii in enumerate(gj):
@@ -83,5 +87,5 @@ class RadarProcessing:
                 for ind in range(peri_p.shape[0]):
                     listx.append(peri_p[ind][0])
                     listy.append(peri_p[ind][1])
-                ax.plot(listx, listy)
+                ax.plot(listx, listy, linewidth=0.6)
         return perim

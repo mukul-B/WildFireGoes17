@@ -8,6 +8,7 @@ Created on Sun Jul 23 11:17:09 2022
 @author: mukul
 """
 import datetime
+import os
 
 from GlobalValues import RAD, goes_dir
 from GoesProcessing import GoesProcessing
@@ -15,17 +16,20 @@ from SiteInfo import SiteInfo
 from VIIRSProcessing import VIIRSProcessing
 
 
+def count_training_set_created(dir):
+    files_and_dirs = os.listdir(dir)
+    # Count only the files (not directories)
+    file_count = sum(os.path.isfile(os.path.join(dir, item)) for item in files_and_dirs)
+
+    return file_count
+
 def createDataset(location, product):
-#     product_name = product['product_name']
-#     band = product['band']
     site = SiteInfo(location)
     start_time, end_time = site.start_time, site.end_time
     time_dif = end_time - start_time
     log_path = 'logs/failures_' + location + '_' + str(site.start_time) + '_' + str(site.end_time) + '.txt'
     product_band = ''.join(map(lambda item: f"{item['product_name']}{format(item['band'],'02d')}", product))
     goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD_BAND', product_band)
-    # goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product['product_name']).replace('$BAND', format(product['band'],'02d'))
-                
     # initialize Goes object and prvide file for log
     goes = GoesProcessing(log_path,list(map(lambda item: item['product_name'], product)),list(map(lambda item: item['band'],product))
                                     ,site=site)
@@ -41,10 +45,10 @@ def createDataset(location, product):
         unique_time = v2r_viirs.get_unique_dateTime(fire_date)
         # running for ever hhmm for perticular date
         for ac_time in unique_time:
-            # print(fire_date, ac_time)
-            # path = goes.download_goes(fire_date, str(ac_time), product_name=product_name,band=band) 
             paths = goes.download_goes(fire_date, str(ac_time))
             if -1 not in paths:
                 v2r_viirs.make_tiff(fire_date, ac_time)
                 goes.nc2tiff(fire_date, ac_time, paths, site, v2r_viirs.image_size, goes_tif_dir)
+    # print(location,count_training_set_created(goes_tif_dir))
+
 

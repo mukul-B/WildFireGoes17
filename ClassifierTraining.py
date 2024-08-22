@@ -1,48 +1,31 @@
-import atexit
 import os
 from datetime import datetime
 
 import torch
 
-from TransferLearning import get_pre_model
 torch.cuda.empty_cache()
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 import logging
-import signal
 
 import wandb
 from Classifier import Encoder
+from TransferLearning import get_pre_model
 from AutoencoderDataset import npDataset
 from GlobalValues import GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
     LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template, validation_split, test_split
-from LossFunctionConfig import SWEEP_OPERATION, use_config,sweep_loss_funtion
+from ModelRunConfiguration import SWEEP_OPERATION, Selected_model, use_config,sweep_loss_funtion
 
 im_dir = training_dir
 log_interval = 10
 
-def log_termination():
-    logging.info('Script terminated')
 
-# Register the function to be called on script termination
-atexit.register(log_termination)
-
-def handle_sigterm(signum, frame):
-    logging.info('Received SIGTERM signal')
-    logging.info("Script terminated at {}".format(datetime.datetime.now()))
-    exit(0)
-
-# Register the SIGTERM handler
-signal.signal(signal.SIGINT, handle_sigterm)
-signal.signal(signal.SIGTERM, handle_sigterm)
-
-
-def test_accuracy(test_loader, encoder, criteria, epoch):
+def test_accuracy(test_loader, selected_model, criteria, epoch):
     # evaluate model
-    encoder.eval()
-    # decoder.eval()
+
+    selected_model.eval()
     validation_loss = 0
     vloss2 = 0
     vloss1 = 0
@@ -50,11 +33,11 @@ def test_accuracy(test_loader, encoder, criteria, epoch):
         for x, y in test_loader:
             x, y = x.cuda(), y.cuda()
             x, y = torch.squeeze(x, dim=0), torch.squeeze(y, dim=0)
-            encoder_output = encoder(x)
-            # decoder_output = decoder(encoder_output)
+
+            decoder_output = selected_model(x)
             target = y
             # if epoch > 100 else x
-            val_loss = criteria(encoder_output, target)
+            val_loss = criteria(decoder_output, target)
             if type(val_loss) == tuple and len(val_loss) == 3:
                 loss1, loss2,val_loss = val_loss[0], val_loss[1],val_loss[2]
                 vloss2 += loss2
@@ -67,7 +50,7 @@ def test_accuracy(test_loader, encoder, criteria, epoch):
     return validation_loss, vloss1, vloss2
 
 
-def train(train_loader, test_loader, encoder, optimizer, n_epochs, criteria):
+def train(train_loader, test_loader, selected_model, optimizer, n_epochs, criteria):
     batch_size = len(train_loader)
     # wandb.watch(decoder, log_freq=10)
     #  training for each epoch
@@ -76,8 +59,7 @@ def train(train_loader, test_loader, encoder, optimizer, n_epochs, criteria):
     scheduler = ReduceLROnPlateau(optimizer, 'min',threshold=1e-5)
     for epoch in range(n_epochs + 1):
         #  tells your model that you are training the model
-        encoder.train()
-        # decoder.train()
+        selected_model.train()
         # per epoch training loss
         training_loss = 0
         tloss_loss2 = 0
@@ -90,19 +72,11 @@ def train(train_loader, test_loader, encoder, optimizer, n_epochs, criteria):
             # zero the parameter gradients
             optimizer.zero_grad()
             # forward + backward + optimize
-            # output of encoder
-            encoder_output = encoder(x)
-            # output of decoder
-            # decoder_output = decoder(encoder_output)
 
-
-
-
-            wandb.log({"output": torch.sum(encoder_output), "epoch": epoch})
+            decoder_output = selected_model(x)
+            wandb.log({"output": torch.sum(decoder_output[0]), "epoch": epoch})
             target = y
-            
-            loss = criteria(encoder_output, target)
-
+            loss = criteria(decoder_output, target)
             if loses_count == 0:
                 loses_count = len(loss) if type(loss) == tuple else 1
             if loses_count == 3:
@@ -137,7 +111,7 @@ def train(train_loader, test_loader, encoder, optimizer, n_epochs, criteria):
             break
 
         # Validation loss
-        validation_loss, vloss1, vloss2 = test_accuracy(test_loader, encoder, criteria, epoch)
+        validation_loss, vloss1, vloss2 = test_accuracy(test_loader, selected_model, criteria, epoch)
         wandb.log({"val_loss": validation_loss, "epoch": epoch})
         if(len(optimizer.param_groups)>1):
             print("this")
@@ -152,20 +126,64 @@ def train(train_loader, test_loader, encoder, optimizer, n_epochs, criteria):
         print(f'validation Loss: ({validation_loss})]')
     print(f"Finished Training")
 
-def reset_logging():
-    # Get the root logger
-    root_logger = logging.getLogger()
+def train_runner( selected_model, n_epochs, batch_size, criteria, optimizer):
+    # Get List of downloaded files and set up reference_data loader
+    file_list = os.listdir(im_dir)
+    logging.info(f'{len(file_list)} reference_data samples found')
     
-    # Remove all handlers associated with the root logger
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-    
-    # Clear existing handlers
-    root_logger.handlers = []
+    # positive_scoop , th_scoop , negitive_scoop  = 1,0.91,0.95
+    # positive_scoop , th_scoop , negitive_scoop  = 0.6,0.9,0.9
+    # positive_scoop , th_scoop , negitive_scoop  = 0,1,0.45
+    # positive_scoop , th_scoop , negitive_scoop  = 1,1,0.35
+    # positive_scoop , th_scoop , negitive_scoop  = 1,0,0.85
+    positive_scoop , th_scoop , negitive_scoop  = 1,0.73,0
+
+
+    file_list_pos = os.listdir(im_dir.replace('classifier','classifier_pos'))
+    file_list_neg = os.listdir(im_dir.replace('classifier','classifier_neg'))
+    file_list_TH = os.listdir(im_dir.replace('classifier','classifier_TH_neg'))
+
+
+    file_list_pos, reject_pos = train_test_split(file_list_pos, test_size=positive_scoop, random_state=random_state) if(positive_scoop != 0) else [[],[]]
+    file_list_neg, reject_neg = train_test_split(file_list_neg, test_size=negitive_scoop, random_state=random_state) if(negitive_scoop != 0) else [[],[]]
+    file_list_TH, reject_TH = train_test_split(file_list_TH, test_size=th_scoop, random_state=random_state) if(th_scoop != 0) else [[],[]]
+
+
+
+    print(f'{len(file_list_pos)} reference_data samples found pos')
+    print(f'{len(file_list_neg)} reference_data samples found neg')
+    print(f'{len(file_list_TH)} reference_data samples found TH')
+    file_list_total = file_list_pos + file_list_neg + file_list_TH
+    print(f'{len(file_list_total)} reference_data samples found')
+
+    # train_files, test_files = train_test_split(file_list_total, test_size=test_split, random_state=random_state)
+    # train_files, validation_files = train_test_split(train_files, test_size=validation_split, random_state=random_state)
+
+    train_pos, test_pos = train_test_split(file_list_pos, test_size=test_split, random_state=random_state) if(len(file_list_pos)>0) else [[],[]]
+    train_neg, test_neg = train_test_split(file_list_neg, test_size=test_split, random_state=random_state) if(len(file_list_neg)>0) else [[],[]]
+    train_TH, test_TH = train_test_split(file_list_TH, test_size=test_split, random_state=random_state) if(len(file_list_TH)>0) else [[],[]]
+
+    train_pos, val_pos = train_test_split(train_pos, test_size=validation_split, random_state=random_state) if(len(train_pos)>0) else [[],[]]
+    train_neg, val_neg = train_test_split(train_neg, test_size=validation_split, random_state=random_state) if(len(train_neg)>0) else [[],[]]
+    train_TH, val_TH = train_test_split(train_TH, test_size=validation_split, random_state=random_state) if(len(train_TH)>0) else [[],[]]
+
+    # Combine the splits
+    train_files = train_pos + train_neg + train_TH
+    test_files = test_pos + test_neg + test_TH
+    validation_files = val_pos + val_neg + val_TH 
+
+    train_loader = DataLoader(npDataset(train_files, batch_size, im_dir,True,False), shuffle=True)
+    validation_loader = DataLoader(npDataset(validation_files, batch_size, im_dir,True,False), shuffle=False)
+    # test_loader = DataLoader(npDataset(test_files, batch_size, im_dir))
+    logging.info(
+        f'Training sample : {len(train_files)} , validation samples : {len(validation_files)} , testing samples : {len(test_files)}')
+    #starting training
+    selected_model.cuda()
+    train(train_loader, validation_loader, selected_model, optimizer, n_epochs, criteria)
 
 def main(config=None):
-    now = datetime.now()
-    current_time = now.strftime("%Y-%m-%d_%H:%M:%S")
+    start_time = datetime.now()
+    current_time = start_time.strftime("%Y-%m-%d_%H:%M:%S")
     print("Current Time =", current_time)
 
     if config:
@@ -183,8 +201,18 @@ def main(config=None):
 
     loss_function = sweep_loss_funtion if loss_function is None else loss_function
     loss_function_name = str(loss_function).split("'")[1].split(".")[1]
-    
+
+    # loss Function
+    criteria = loss_function(beta)
+    # criteria = two_branch_loss(beta)
+    OUTPUT_ACTIVATION = criteria.last_activation if criteria.last_activation else "relu"
+    # Set up the model. and optimizer
+    selected_model = get_pre_model(GOES_Bands)
+    model_name = type(selected_model).__name__
+    optimizer = optim.Adam(list(selected_model.parameters()), lr=learning_rate)
+
     project_name = project_name_template.format(
+    model_name = model_name,
     loss_function_name=loss_function_name,
     n_epochs=n_epochs,
     batch_size=batch_size,
@@ -192,11 +220,11 @@ def main(config=None):
 )
     print(project_name)
 
-
-    # Creating logging
     mp = model_path  + project_name
     if not os.path.exists(mp):
         os.mkdir(mp)
+
+    # Creating logging
     file_handler = logging.FileHandler(f"{mp}/training.log")
     logging.basicConfig(
         level=logging.INFO,
@@ -211,63 +239,47 @@ def main(config=None):
         run = wandb.init(project=project_name, name="run_" + current_time)
     else:
         run.name = project_name
-    run_url = run.get_url() 
-       
-    print(f'Train with n_epochs : {n_epochs} , batch_size : {batch_size} , learning_rate : {learning_rate}')
-    print(f'beta : {beta}, loss function :{loss_function}')
-    # loss Function
-    criteria = loss_function(beta)
-    # criteria = two_branch_loss(beta)
-    OUTPUT_ACTIVATION = criteria.last_activation if criteria.last_activation else "relu"
-    # Set up the encoder, decoder. and optimizer
-    # encoder = Encoder(GOES_Bands)
-    encoder = get_pre_model(GOES_Bands)
-    # decoder = Decoder(256, OUTPUT_ACTIVATION)
-    encoder.cuda()
-    # decoder.cuda()
-    optimizer = optim.Adam(list(encoder.parameters()), lr=learning_rate)
-
-    # Get List of downloaded files and set up reference_data loader
-    file_list = os.listdir(im_dir)
-    logging.info(f'{len(file_list)} reference_data samples found')
-    file_list_neg = os.listdir(im_dir.replace('classifier','classifier_neg'))
-    file_list_pos = os.listdir(im_dir.replace('classifier','classifier_pos'))
-    print(f'{len(file_list_pos)} reference_data samples found pos')
-    print(f'{len(file_list_neg)} reference_data samples found neg')
-    file_list_total = file_list_pos + file_list_neg
-    print(f'{len(file_list_total)} reference_data samples found')
-    train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
-    train_files, validation_files = train_test_split(train_files, test_size=validation_split, random_state=random_state)
-
-    train_loader = DataLoader(npDataset(train_files, batch_size, im_dir,True,False), shuffle=True)
-    validation_loader = DataLoader(npDataset(validation_files, batch_size, im_dir,True,False), shuffle=False)
-    # test_loader = DataLoader(npDataset(test_files, batch_size, im_dir))
-    logging.info(
-        f'Training sample : {len(train_files)} , validation samples : {len(validation_files)} , testing samples : {len(test_files)}')
-
-    
-
-    
+    run_url = run.get_url()
 
     print(f"The log file path is: {file_handler.baseFilename}")
     logging.info(f'Starting training at {current_time} \n\t Url : {run_url}')
 
-    #starting training
-    train(train_loader, validation_loader, encoder, optimizer, n_epochs, criteria)
-    
+    print(f'Train with n_epochs : {n_epochs} , batch_size : {batch_size} , learning_rate : {learning_rate}')
+    print(f'beta : {beta}, loss function :{loss_function}')
+    # Train and save the model components
+    train_runner(selected_model, n_epochs, batch_size, criteria, optimizer)
+
+    log_end_process(start_time)
+    print(f"The log file path is: {file_handler.baseFilename}")
+    save_selected_model(selected_model, mp)
+    torch.save(optimizer.state_dict(), mp + "/" + RES_OPT_PTH)
+    reset_logging()
+
+def save_selected_model(selected_model, mp):
+    torch.save(selected_model.state_dict(), mp + "/" + RES_ENCODER_PTH)
+    # torch.save(selected_model.encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
+    # torch.save(selected_model.decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
+
+def log_end_process(start_time):
     end =  datetime.now()
-    duration = end - now
+    duration = end - start_time
     seconds = duration.total_seconds()
     hours = seconds // 3600
     minutes = (seconds % 3600) // 60
     seconds = seconds % 60
 
     logging.info(f'\tTime Taken : {hours} hours {minutes} minutes {seconds} seconds')
-    # Train and save the model components
-    torch.save(encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
-    # torch.save(decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
-    torch.save(optimizer.state_dict(), mp + "/" + RES_OPT_PTH)
-    reset_logging()
+
+def reset_logging():
+    # Get the root logger
+    root_logger = logging.getLogger()
+    
+    # Remove all handlers associated with the root logger
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Clear existing handlers
+    root_logger.handlers = []
 
 
 if __name__ == "__main__":
@@ -276,7 +288,7 @@ if __name__ == "__main__":
     if SWEEP_OPERATION:
         # Initialize sweep by passing in config. (Optional) Provide a name of the project.
         # # wandb.login()
-        from LossFunctionConfig import sweep_configuration_IOU_LRMSE
+        from ModelRunConfiguration import sweep_configuration_IOU_LRMSE
         sweep_configuration = sweep_configuration_IOU_LRMSE
         sweep_id = wandb.sweep(sweep=sweep_configuration, project='sweep_config')
         wandb.agent(sweep_id, function=main, count=14)

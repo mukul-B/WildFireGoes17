@@ -7,10 +7,11 @@ Created on Sun Jul 23 11:17:09 2022
 @author: mukul
 """
 
+import os
 import pandas as pd
 
 from CommonFunctions import prepareDir
-from CreateDataset import createDataset
+from CreateTrainingDataset import createDataset
 from ValidateAndVisualizeDataset import validateAndVisualizeDataset
 from WriteDataset import writeDataset
 from GlobalValues import RAD, GOES_product, toExecuteSiteList, training_dir,testing_dir, realtimeSiteList
@@ -33,8 +34,14 @@ def CreateDatasetPipeline(location, product, train_test):
     print(location)
     return location
 
-if __name__ == '__main__':
+def count_training_set_created(dir):
+    files_and_dirs = os.listdir(dir)
+    # Count only the files (not directories)
+    file_count = sum(os.path.isfile(os.path.join(dir, item)) for item in files_and_dirs)
 
+    print(f'{file_count} records writtenin {dir}')
+
+if __name__ == '__main__':
     data = pd.read_csv(toExecuteSiteList)
     locations = data["Sites"][:]
     train_test = training_dir
@@ -50,10 +57,12 @@ if __name__ == '__main__':
                                       callback=on_success, error_callback=on_error)
             # print(results.get())
             # result = CreateDatasetPipeline(location, GOES_product, train_test)
-            results.append(result)
+            # results.append(result)
         pool.close()
         pool.join()
         # Print the last location processed
-        if results:
-            last_processed = results[-1].get()  # Get the result of the last task
-            print(f"Last location processed: {last_processed} at {time.time() - start_time:.2f} seconds")
+        # if results:
+        #     last_processed = results[-1].get()  # Get the result of the last task
+        #     print(f"Last location processed: {last_processed} at {time.time() - start_time:.2f} seconds")
+    count_training_set_created(train_test)
+    

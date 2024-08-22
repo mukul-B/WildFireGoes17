@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 import wandb
 from Autoencoder import Autoencoder, Encoder, Decoder
 from AutoencoderDataset import npDataset
-from GlobalValues import COLOR_NORMAL_VALUE, RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
+from GlobalValues import COLOR_NORMAL_VALUE, RES_AUTOENCODER_PTH, RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
     HC, HI, LI, LC
 from GlobalValues import training_dir, Results, random_state, project_name_template, test_split
 from ModelRunConfiguration import use_config
@@ -55,14 +55,6 @@ class EvaluateDataset:
             'typecount': {}
         }
 
-    # def update(self, type, IOU_control, psnr_control_inter, psnr_control_union, IOU_predicted, psnr_predicted_inter, psnr_predicted_union):
-    #     self.evals['control']['avg_IOU'][type] = self.evals['control']['avg_IOU'].get(type, 0.0) + IOU_control
-    #     self.evals['control']['avg_psnr_inter'][type] = self.evals['control']['avg_psnr_inter'].get(type, 0.0) + psnr_control_inter
-    #     self.evals['control']['avg_psnr_union'][type] = self.evals['control']['avg_psnr_union'].get(type, 0.0) + psnr_control_union
-    #     self.evals['predicted']['avg_IOU'][type] = self.evals['predicted']['avg_IOU'].get(type, 0.0) + IOU_predicted
-    #     self.evals['predicted']['avg_psnr_inter'][type] = self.evals['predicted']['avg_psnr_inter'].get(type, 0.0) + psnr_predicted_inter
-    #     self.evals['predicted']['avg_psnr_union'][type] = self.evals['predicted']['avg_psnr_union'].get(type, 0.0) + psnr_predicted_union
-    #     self.evals['typecount'][type] = self.evals['typecount'].get(type, 0) + 1
 
     def update(self, eval_single):
         
@@ -139,8 +131,6 @@ class EvaluateDataset:
 
 def test(test_loader, selected_model, npd):
     avg_elapsed_time = 0.0
-    avg_IOU_control, avg_psnr_control_inter, avg_psnr_control_union, avg_IOU_predicted, avg_psnr_predicted_inter, avg_psnr_predicted_union = {}, {}, {}, {}, {}, {}
-    typecount = {}
     count = 0.0
     dir = {}
     evals = EvaluateDataset()
@@ -152,22 +142,14 @@ def test(test_loader, selected_model, npd):
     for i in range(0, 11):
         dir[i / 10] = (0, 0)
     # logging.info(dir)
+    selected_model.eval()
     start_time = time.time()
     with torch.no_grad():
         # for batch_idx, (x, y) in enumerate(test_loader):
         for batch_idx, (x, y, z, gf_min, gf_max, vf_max) in enumerate(test_loader):
             count += 1
-            # psnr_control = PSNR(x, y)
-            # avg_psnr_control += psnr_control
             x, y = torch.squeeze(x, dim=0), torch.squeeze(y, dim=0)
-            # total_frp = torch.sum(z)
-            # if (total_frp < 0):
-            #     print("sgd")
-            # sum_fpr.append(total_frp)
             x = x.cuda()
-            
-            # encoder_output = encoder(x)
-            # decoder_output = decoder(encoder_output)
             decoder_output = selected_model(x)
             if len(decoder_output) == 1:
                 output_rmse, output_jaccard = None, None
@@ -194,24 +176,9 @@ def test(test_loader, selected_model, npd):
             if True:
                 path = f'{res}/{batch_idx}.png'
                 gf_min, gf_max, vf_max = gf_min[0][0][0][0].item(), gf_max[0][0][0][0].item(), vf_max[0][0][0][0].item()
-                # maxdif, IOU_control, psnr_control_inter, psnr_control_union, IOU_predicted, psnr_predicted_inter, psnr_predicted_union, type = \
-                #     get_evaluation_results(output_rmse, output_jaccard, x, y, path, npd.array[batch_idx], gf_min, gf_max, vf_max,
-                #                  LOSS_NAME)
-                # avg_IOU_control[type] = avg_IOU_control.get(type, 0.0) + IOU_control
-                # avg_psnr_control_inter[type] = avg_psnr_control_inter.get(type, 0.0) + psnr_control_inter
-                # avg_psnr_control_union[type] = avg_psnr_control_union.get(type, 0.0) + psnr_control_union
-                # avg_IOU_predicted[type] = avg_IOU_predicted.get(type, 0.0) + IOU_predicted
-                # avg_psnr_predicted_inter[type] = avg_psnr_predicted_inter.get(type, 0.0) + psnr_predicted_inter
-                # avg_psnr_predicted_union[type] = avg_psnr_predicted_union.get(type, 0.0) + psnr_predicted_union
-                # typecount[type] = typecount.get(type, 0) + 1
-
-                # evals.update(type, IOU_control, psnr_control_inter, psnr_control_union, IOU_predicted, psnr_predicted_inter, psnr_predicted_union)
-
-
                 eval_single = get_evaluation_results(output_rmse, output_jaccard, x, y, path, npd.array[batch_idx], gf_min, gf_max, vf_max,
-                                 LOSS_NAME)
+                                 LOSS_NAME,z)
                 evals.update(eval_single)
-
                 iou_plot_control.append(eval_single.IOU_control)
                 iou_plot_prediction.append(eval_single.IOU_predicted)
                 mc.append(eval_single.coverage_converage)
@@ -224,13 +191,11 @@ def test(test_loader, selected_model, npd):
         dir[i / 10] = (0 if incc == 0 else (incv / incc), incc)
     # logging.info(dir)
     plot_result_histogram(count, iou_plot_prediction)
-    # report_results(avg_IOU_control, avg_psnr_control_inter, avg_psnr_control_union, avg_IOU_predicted, avg_psnr_predicted_inter, avg_psnr_predicted_union, typecount, count)
     evals.report_results()
     elapsed_time = time.time() - start_time
     avg_elapsed_time += elapsed_time
     logging.info("It took  {}s for processing  {} records".format(avg_elapsed_time, count))
     # print(f'{res}/evaluation.log')
-    
 
 def plot_result_histogram(count, iou_plot_prediction):
     fig, axs = plt.subplots(1, 1, constrained_layout=True, figsize=(12, 8))
@@ -258,29 +223,24 @@ def plot_result_histogram(count, iou_plot_prediction):
 
 def test_runner(selected_model):
 
+    # Get List of downloaded files and set up reference_data loader
     file_list = os.listdir(im_dir)
-    
     logging.info(f'{len(file_list)} reference_data samples found')
     train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
     # test_files = os.listdir(im_dir)
     logging.info(f'{len(test_files)} test_data samples found')
     npd = npDataset(test_files, batch_size, im_dir, augment=False, evaluate=True)
-
-
     test_loader = DataLoader(npd)
     
-    get_selected_model_weight(selected_model,path)
-    # encoder.cuda()
     selected_model.cuda()
 
     # test the model components
     test(test_loader, selected_model, npd)
 
 def get_selected_model_weight(selected_model,model_project_path):
-    encoder_path = model_project_path + "/" + RES_ENCODER_PTH
-    decoder_path = model_project_path + "/" + RES_DECODER_PTH
-    selected_model.encoder.load_state_dict(torch.load(encoder_path))
-    selected_model.decoder.load_state_dict(torch.load(decoder_path))
+    selected_model.load_state_dict(torch.load(model_project_path + "/" + RES_AUTOENCODER_PTH))
+    # selected_model.encoder.load_state_dict(torch.load(model_project_path + "/" + RES_ENCODER_PTH))
+    # selected_model.decoder.load_state_dict(torch.load(model_project_path + "/" + RES_DECODER_PTH))
 
 
 class RuntimeDLTransformation:
@@ -351,34 +311,34 @@ def prepare_dir(res):
 
 
 def main(config=None):
-    # Get List of downloaded files and set up reference_data loader
+
     if config:
         wandb.config = config
-
+    
+    n_epochs=wandb.config.get(EPOCHS)
+    batch_size=wandb.config.get(BATCH_SIZE)
+    learning_rate=wandb.config.get(LEARNING_RATE)
     loss_function = wandb.config.get(LOSS_FUNCTION)
-    loss_function_name = str(loss_function).split("'")[1].split(".")[1]
-    # config.py
 
-    # global encoder_path, decoder_path, res, OUTPUT_ACTIVATION, LOSS_NAME
-    global path, res, OUTPUT_ACTIVATION, LOSS_NAME
+    loss_function_name = str(loss_function).split("'")[1].split(".")[1]
+
+    global res, LOSS_NAME
     
     LOSS_NAME = loss_function_name
     OUTPUT_ACTIVATION = loss_function(1).last_activation
     
-
     selected_model = Autoencoder(GOES_Bands, OUTPUT_ACTIVATION)
     model_name = type(selected_model).__name__
     
     project_name = project_name_template.format(
     model_name = model_name,
     loss_function_name=loss_function_name,
-    n_epochs=wandb.config.get(EPOCHS),
-    batch_size=wandb.config.get(BATCH_SIZE),
-    learning_rate=wandb.config.get(LEARNING_RATE)
+    n_epochs=n_epochs,
+    batch_size=batch_size,
+    learning_rate=learning_rate
 )
     path = model_path + project_name
     print(project_name)
-
     res = Results + project_name
     prepare_dir(res)
     logging.basicConfig(
@@ -389,7 +349,9 @@ def main(config=None):
             logging.StreamHandler()
         ]
     )
+
     logging.info(f'Evaluating Model : {project_name} at {path}')
+    get_selected_model_weight(selected_model,path)
     test_runner(selected_model)
     print(f'{res}/evaluation.log')
 

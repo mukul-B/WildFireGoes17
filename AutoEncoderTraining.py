@@ -12,7 +12,7 @@ import logging
 import wandb
 from Autoencoder import Autoencoder, Encoder, Decoder
 from AutoencoderDataset import npDataset
-from GlobalValues import GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
+from GlobalValues import RES_AUTOENCODER_PTH, GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
     LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template, validation_split, test_split
 from ModelRunConfiguration import SWEEP_OPERATION, use_config,sweep_loss_funtion
 
@@ -22,8 +22,6 @@ log_interval = 10
 
 def test_accuracy(test_loader, selected_model, criteria, epoch):
     # evaluate model
-    # encoder.eval()
-    # decoder.eval()
 
     selected_model.eval()
     validation_loss = 0
@@ -33,8 +31,6 @@ def test_accuracy(test_loader, selected_model, criteria, epoch):
         for x, y in test_loader:
             x, y = x.cuda(), y.cuda()
             x, y = torch.squeeze(x, dim=0), torch.squeeze(y, dim=0)
-            # encoder_output = encoder(x)
-            # decoder_output = decoder(encoder_output)
 
             decoder_output = selected_model(x)
             target = y
@@ -61,8 +57,6 @@ def train(train_loader, test_loader, selected_model, optimizer, n_epochs, criter
     scheduler = ReduceLROnPlateau(optimizer, 'min',threshold=1e-5)
     for epoch in range(n_epochs + 1):
         #  tells your model that you are training the model
-        # encoder.train()
-        # decoder.train()
         selected_model.train()
         # per epoch training loss
         training_loss = 0
@@ -76,19 +70,10 @@ def train(train_loader, test_loader, selected_model, optimizer, n_epochs, criter
             # zero the parameter gradients
             optimizer.zero_grad()
             # forward + backward + optimize
-            # output of encoder
-            # encoder_output = encoder(x)
-            # # output of decoder
-            # decoder_output = decoder(encoder_output)
 
             decoder_output = selected_model(x)
-
-
-
-
             wandb.log({"output": torch.sum(decoder_output[0]), "epoch": epoch})
             target = y
-            # if epoch >100 else x
             loss = criteria(decoder_output, target)
             if loses_count == 0:
                 loses_count = len(loss) if type(loss) == tuple else 1
@@ -139,16 +124,21 @@ def train(train_loader, test_loader, selected_model, optimizer, n_epochs, criter
         print(f'validation Loss: ({validation_loss})]')
     print(f"Finished Training")
 
-def reset_logging():
-    # Get the root logger
-    root_logger = logging.getLogger()
-    
-    # Remove all handlers associated with the root logger
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-    
-    # Clear existing handlers
-    root_logger.handlers = []
+def train_runner( selected_model, n_epochs, batch_size, criteria, optimizer):
+    # Get List of downloaded files and set up reference_data loader
+    file_list = os.listdir(im_dir)
+    print(f'{len(file_list)} reference_data samples found')
+    train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
+    train_files, validation_files = train_test_split(train_files, test_size=validation_split, random_state=random_state)
+
+    train_loader = DataLoader(npDataset(train_files, batch_size, im_dir,True,False), shuffle=True)
+    validation_loader = DataLoader(npDataset(validation_files, batch_size, im_dir,True,False), shuffle=False)
+    # test_loader = DataLoader(npDataset(test_files, batch_size, im_dir))
+    logging.info(
+        f'Training sample : {len(train_files)} , validation samples : {len(validation_files)} , testing samples : {len(test_files)}')
+    #starting training
+    selected_model.cuda()
+    train(train_loader, validation_loader, selected_model, optimizer, n_epochs, criteria)
 
 def main(config=None):
     start_time = datetime.now()
@@ -170,21 +160,15 @@ def main(config=None):
 
     loss_function = sweep_loss_funtion if loss_function is None else loss_function
     loss_function_name = str(loss_function).split("'")[1].split(".")[1]
-    
 
     # loss Function
     criteria = loss_function(beta)
     # criteria = two_branch_loss(beta)
     OUTPUT_ACTIVATION = criteria.last_activation if criteria.last_activation else "relu"
-    # Set up the encoder, decoder. and optimizer
-    # encoder = Encoder(GOES_Bands)
-    # decoder = Decoder(256, OUTPUT_ACTIVATION)
-    # encoder.cuda()
-    # decoder.cuda()
-    # optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=learning_rate)
-
+    # Set up the model. and optimizer
     selected_model = Autoencoder(GOES_Bands,OUTPUT_ACTIVATION)
     model_name = type(selected_model).__name__
+    optimizer = optim.Adam(list(selected_model.parameters()), lr=learning_rate)
 
     project_name = project_name_template.format(
     model_name = model_name,
@@ -193,23 +177,13 @@ def main(config=None):
     batch_size=batch_size,
     learning_rate=learning_rate
 )
-    # project_name = f"wildfire_{loss_function_name}_{n_epochs}epochs_{batch_size}batchsize_{learning_rate}lr"
     print(project_name)
-    if config:
-        run = wandb.init(project=project_name, name="run_" + current_time)
-    else:
-        run.name = project_name
-    run_url = run.get_url() 
-       
-    print(f'Train with n_epochs : {n_epochs} , batch_size : {batch_size} , learning_rate : {learning_rate}')
-    print(f'beta : {beta}, loss function :{loss_function}')
-    
-    selected_model.cuda()
-    optimizer = optim.Adam(list(selected_model.parameters()), lr=learning_rate)
-    
+
     mp = model_path  + project_name
     if not os.path.exists(mp):
         os.mkdir(mp)
+
+    # Creating logging
     file_handler = logging.FileHandler(f"{mp}/training.log")
     logging.basicConfig(
         level=logging.INFO,
@@ -220,19 +194,30 @@ def main(config=None):
         ]
     )
 
-    print(f"The log file path is: {file_handler.baseFilename}")
+    if config:
+        run = wandb.init(project=project_name, name="run_" + current_time)
+    else:
+        run.name = project_name
+    run_url = run.get_url()
 
-    # Get List of downloaded files and set up reference_data loader
+    print(f"The log file path is: {file_handler.baseFilename}")
     logging.info(f'Starting training at {current_time} \n\t Url : {run_url}')
 
+    print(f'Train with n_epochs : {n_epochs} , batch_size : {batch_size} , learning_rate : {learning_rate}')
+    print(f'beta : {beta}, loss function :{loss_function}')
     # Train and save the model components
     train_runner(selected_model, n_epochs, batch_size, criteria, optimizer)
-    
+
     log_end_process(start_time)
-    
+    print(f"The log file path is: {file_handler.baseFilename}")
     save_selected_model(selected_model, mp)
     torch.save(optimizer.state_dict(), mp + "/" + RES_OPT_PTH)
     reset_logging()
+
+def save_selected_model(selected_model, mp):
+    torch.save(selected_model.state_dict(), mp + "/" + RES_AUTOENCODER_PTH)
+    # torch.save(selected_model.encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
+    # torch.save(selected_model.decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
 
 def log_end_process(start_time):
     end =  datetime.now()
@@ -244,23 +229,16 @@ def log_end_process(start_time):
 
     logging.info(f'\tTime Taken : {hours} hours {minutes} minutes {seconds} seconds')
 
-def train_runner( selected_model, n_epochs, batch_size, criteria, optimizer):
-    file_list = os.listdir(im_dir)
-    print(f'{len(file_list)} reference_data samples found')
-    train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
-    train_files, validation_files = train_test_split(train_files, test_size=validation_split, random_state=random_state)
-
-    train_loader = DataLoader(npDataset(train_files, batch_size, im_dir,True,False), shuffle=True)
-    validation_loader = DataLoader(npDataset(validation_files, batch_size, im_dir,True,False), shuffle=False)
-    # test_loader = DataLoader(npDataset(test_files, batch_size, im_dir))
-    print(
-        f'Training sample : {len(train_files)} , validation samples : {len(validation_files)} , testing samples : {len(test_files)}')
-    #starting training
-    train(train_loader, validation_loader, selected_model, optimizer, n_epochs, criteria)
-
-def save_selected_model(selected_model, mp):
-    torch.save(selected_model.encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
-    torch.save(selected_model.decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
+def reset_logging():
+    # Get the root logger
+    root_logger = logging.getLogger()
+    
+    # Remove all handlers associated with the root logger
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Clear existing handlers
+    root_logger.handlers = []
 
 
 if __name__ == "__main__":
