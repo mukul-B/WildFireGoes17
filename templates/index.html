@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,25 +6,110 @@
     <title>Image Gallery</title>
     <style>
         .image-container {
-            display: block; /* Ensure each container occupies a new line */
-            margin-bottom: 10px; /* Optional: Add spacing between images */
+            display: block;
+            margin-bottom: 10px;
         }
         .image {
-            width: 900px; /* Set width to 300 pixels */
-            height: auto; /* Maintain aspect ratio */
+            width: 100%;
+            max-width: 900px;
+            height: auto;
+        }
+        .folder-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .folder-item {
+            margin-bottom: 15px;
+        }
+        .folder-item a {
+            text-decoration: none;
+            color: blue;
+            font-size: 1.2em;
+        }
+        .folder-item a:visited {
+            color: purple; /* Change this color to whatever you like */
+        }
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .pagination a {
+            margin: 0 5px;
+            text-decoration: none;
+            padding: 8px 16px;
+            color: white;
+            background-color: #007bff;
+            border-radius: 4px;
+        }
+        .pagination a.disabled {
+            background-color: #cccccc;
+            color: #666666;
+            cursor: not-allowed;
+        }
+        nav a {
+            margin-right: 10px;
+            text-decoration: none;
+            color: #007bff;
+        }
+        nav a:visited {
+            color: purple; /* Change this color to whatever you like */
         }
     </style>
 </head>
 <body>
     <h1>Image Gallery</h1>
+
+    {% if folder_name %}
+    <nav>
+        <a href="{{ url_for('index') }}">Home</a>
+        {% for part in folder_name.split('/') %}
+        /
+        <a href="{{ url_for('show_images', folder_name='/'.join(folder_name.split('/')[:loop.index])) }}">
+            {{ part }}
+        </a>
+        {% endfor %}
+    </nav>
+    {% endif %}
+
+    {% if subfolders %}
     <div>
+        <h2>Select a Folder</h2>
+        <ul class="folder-list">
+            {% for folder in subfolders %}
+            <li class="folder-item">
+                <a href="{{ url_for('show_images', folder_name=(folder_name + '/' + folder).strip('/')) }}">{{ folder }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    {% if enumerated_images %}
+    <div>
+        <h2>Images</h2>
         {% for index, image_file in enumerated_images %}
-            <div class="image-container">
-                <p>Result sample: {{ index }}</p>
-                <img src="{{ url_for('static', filename=image_file) }}" alt="{{ image_file }}" class="image">
-                <hr>
-            </div>
+        <div class="image-container">
+            <p>Result sample: {{ index }}</p>
+            <img src="{{ url_for('static', filename=(folder_name + '/' + image_file).strip('/')) }}" alt="{{ image_file }}" class="image">
+            <hr>
+        </div>
         {% endfor %}
     </div>
+
+    <div class="pagination">
+        {% if has_prev %}
+        <a href="{{ url_for(request.endpoint, folder_name=folder_name, page=page-1) }}">Previous</a>
+        {% else %}
+        <a class="disabled">Previous</a>
+        {% endif %}
+
+        {% if has_next %}
+        <a href="{{ url_for(request.endpoint, folder_name=folder_name, page=page+1) }}">Next</a>
+        {% else %}
+        <a class="disabled">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    
 </body>
 </html>
