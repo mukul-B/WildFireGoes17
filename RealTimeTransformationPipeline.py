@@ -11,41 +11,44 @@ Created on Sun Jul 23 11:17:09 2022
 import os
 
 import pandas as pd
-
+import multiprocessing as mp
 from CreateRealtimeDataset import create_realtime_dataset
 from GlobalValues import RAD, GOES_product, realtimeSiteList, RealTimeIncoming_files, RealTimeIncoming_results, videos, validate_with_radar
 
 
-def prepareDir():
-    if not os.path.exists(RealTimeIncoming_files):
-        os.mkdir(RealTimeIncoming_files)
-    if not os.path.exists(RealTimeIncoming_results):
-        os.mkdir(RealTimeIncoming_results)
-    if not os.path.exists(videos):
-        os.mkdir(videos)
+
 
 def prepareSiteDir(location):
-    if not os.path.exists(RealTimeIncoming_files+"/"+location):
-        os.mkdir(RealTimeIncoming_files+"/"+location)
-    if not os.path.exists(RealTimeIncoming_results+"/"+location):
-        os.mkdir(RealTimeIncoming_results+"/"+location)
+    goes_tif_dir = RealTimeIncoming_files.replace('$LOC', location)
+    os.makedirs(goes_tif_dir, exist_ok=True)
+
+
+def on_success(output_path):
+    print(f" processed successfully {output_path}")
+
+def on_error(e):
+    print(f"Error: {e}")
 
 if __name__ == '__main__':
 
-    print(realtimeSiteList)
     data = pd.read_csv(realtimeSiteList)
     locations = data["Sites"]
-    product = RAD
-    # pool = mp.Pool(8)
+    parallel = 0
+    if(parallel):
+        pool = mp.Pool(4)
     # pipeline run for sites mentioned in toExecuteSiteList
-    prepareDir()
+    # prepareDir()
     # implemented only to handle one wildfire event
     # change 1st wildfire location to run for that location
     for location in locations[:1]:
         print(location)
         prepareSiteDir(location)
-        # ret = pool.apply_async(create_realtime_dataset, args=(product,))
-        # print(ret.get())
-        create_realtime_dataset(location, product=GOES_product, verify=False)
-    # pool.close()
-    # pool.join()
+        if(parallel):
+            ret = pool.apply_async(create_realtime_dataset, args=(location, GOES_product, False, ))
+            # print(ret.get())
+        else:
+            create_realtime_dataset(location, product=GOES_product, verify=False)
+    
+    if(parallel):
+        pool.close()
+        pool.join()

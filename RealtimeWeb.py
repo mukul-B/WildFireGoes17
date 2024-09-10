@@ -1,7 +1,7 @@
 from flask import Flask, render_template
 import os
 
-folder = 'DataRepository/RealTimeIncoming_results//ParkFire/results'
+folder = 'DataRepository/RealTimeIncoming_results/DavisCreekFire/results'
 # app = Flask(__name__,static_folder='DataRepository/reference_data/Dixie/compare')
 app = Flask(__name__,static_folder=folder)
 
@@ -19,10 +19,10 @@ def index():
     image_files.sort(reverse=True)
     # Render the HTML template and pass the list of image files to it
     enumerated_images = list(enumerate(image_files, start=1))
-    return render_template('index_realtime.html', enumerated_images=enumerated_images)
+    return render_template('index_realtime.html', title="Davis Creek Fire", enumerated_images=enumerated_images)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8080)
+    app.run(debug=False,host='0.0.0.0', port=8085)
 
 
 

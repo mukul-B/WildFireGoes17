@@ -36,10 +36,19 @@
             right: 10px;
             background-color: #28a745;
         }
+        /* Style for the heading with a strip background */
+        h1 {
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+            background-color: #007BFF; /* Change this to your desired color */
+        }
     </style>
 </head>
 <body>
-    <h1>Image Gallery</h1>
+    <h1>{{ title }} Live Update</h1>
     <div class="gallery-container">
         <button class="button" id="prevButton">Previous</button>
         {% for index, image_file in enumerated_images %}

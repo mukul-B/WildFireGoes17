@@ -34,16 +34,19 @@ import pandas as pd
 from datetime import datetime
 import xarray as xr
 
+from pytz import timezone
+import pytz
+
 
 
 from GlobalValues import realtimeSiteList, RealTimeIncoming_files, RealTimeIncoming_results
 
 
-def pad_with(vector, pad_width, iaxis, kwargs):
-    pad_value = kwargs.get('padder', 0)
-    vector[:pad_width[0]] = pad_value
-    if pad_width[1] != 0:  # <-- the only change (0 indicates no padding)
-        vector[-pad_width[1]:] = pad_value
+# def pad_with(vector, pad_width, iaxis, kwargs):
+#     pad_value = kwargs.get('padder', 0)
+#     vector[:pad_width[0]] = pad_value
+#     if pad_width[1] != 0:  # <-- the only change (0 indicates no padding)
+#         vector[-pad_width[1]:] = pad_value
 
 
 def sliding_window(image, stepSize, windowSize):
@@ -64,36 +67,36 @@ def image2windows(gf):
     return result
 
 
-def padWindow(window):
-    sx, sy = window.shape
-    padx, pady = 128 - sx, 128 - sy
-    ro = window
-    # ro = np.pad(window, ((0, padx), (0, pady)), pad_with, padder=0)
-    if ro.shape != (128, 128):
-        ro = np.zeros(window.shape)
-    else:
-        ro = supr_resolution(use_config, [ro])
-        # ro = ro /255
-        # ro = ro 
-    ro = ro[0:sx, 0:sy]
-    return ro
+# def padWindow(window):
+#     sx, sy = window.shape
+#     padx, pady = 128 - sx, 128 - sy
+#     ro = window
+#     # ro = np.pad(window, ((0, padx), (0, pady)), pad_with, padder=0)
+#     if ro.shape != (128, 128):
+#         ro = np.zeros(window.shape)
+#     else:
+#         ro = supr_resolution(use_config, [ro])
+#         # ro = ro /255
+#         # ro = ro 
+#     ro = ro[0:sx, 0:sy]
+#     return ro
 
 
-def windows2image(windows):
-    full = np.empty((0, 0), int)
-    for i in range(len(windows)):
-        row = padWindow(windows[0][i])
-        for j in range(1, len(windows[0])):
-            ro = windows[j][i]
-            ro = padWindow(ro)
-            row = np.hstack((row, ro))
+# def windows2image(windows):
+#     full = np.empty((0, 0), int)
+#     for i in range(len(windows)):
+#         row = padWindow(windows[0][i])
+#         for j in range(1, len(windows[0])):
+#             ro = windows[j][i]
+#             ro = padWindow(ro)
+#             row = np.hstack((row, ro))
 
-        if full.shape == (0, 0):
-            full = row
-        else:
-            full = np.vstack((full, row))
+#         if full.shape == (0, 0):
+#             full = row
+#         else:
+#             full = np.vstack((full, row))
 
-    return full
+#     return full
 
 
 class StreetmapESRI(GoogleTiles):
@@ -164,12 +167,21 @@ def zoom_bbox(bbox, margin, shift_fraction=(0.5, 0.5)):
 def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
     
     d = gpath.split('/')[-1].split('.')[0][5:].split('_')
+    result_file =output_path+ '/FRP_'  + str(d[0] + '_' + d[1]) + '.png'
+    if  file_exists(result_file):
+        return
+
+    
     date_radar = ''.join(d).replace('-', '')
     GOES_data = xr.open_rasterio(gpath)
     gfin = goes_img_pkg(GOES_data)
 
     if prediction:
         gf_channels = goes_img_to_channels(gfin)
+        if(gf_channels == -1):
+            # print(gpath)
+            # print("this")
+            return
         # Dimensions of the original arrays
         height, width = gfin[0].shape
         # image to model specific window
@@ -185,7 +197,7 @@ def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
         reconstructed_gf = reconstruct_from_windows(height, width, res_image, window_size, out_channel)
 
         pred = reconstructed_gf[0]
-        ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, on=50)
+        ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, on=60)
         pred = th1 * pred
         outmap_min = pred.min()
         outmap_max = pred.max()
@@ -198,9 +210,9 @@ def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
         # gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
         # gfin = goes_radiance_normaization(gfin, gf_max, gf_min)
         pred = gfin[0]
-        # ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, on=0)
-        # pred = th1 * pred
-        # pred[pred == 0] = None
+        ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, on=200)
+        pred = th1 * pred
+        pred[pred == 0] = None
         # pred = VIIRS_MAX_VAL * pred
 
     bbox, lat, lon = get_lon_lat(gpath,epsg)
@@ -208,13 +220,30 @@ def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
     # plt.style.use('dark_background')
     # plt.figure(figsize=(6, 3))
     ax = plt.axes(projection=proj)
-    ax.add_image(StreetmapESRI(), 10)
-    zoom_margin = 0.30
-    new_bbox = zoom_bbox(bbox, zoom_margin,(1, 1))
+    ax.add_image(StreetmapESRI(), 12)
+    zoom_margin = 0.85
+    corner = (0.6,0.55)
+    # print(bbox)
+    new_bbox = zoom_bbox(bbox, zoom_margin,corner)
     ax.set_extent(new_bbox)
     cmap = 'YlOrRd'
     # plt.suptitle('Mosquito Fire on {0} at {1} UTC'.format(d[0], d[1]))
-    plt.suptitle('{0} at {1}:{2} UTC'.format((datetime.strptime(d[0], '%Y-%m-%d')).strftime('%d %B %Y'), d[1][:2], d[1][2:]))
+    plot_date = datetime.strptime(f'{d[0]} {d[1][:2]}:{d[1][2:]}', '%Y-%m-%d %H:%M')
+
+    utc_timezone = pytz.timezone('UTC')
+    plot_date_utc_time = utc_timezone.localize(plot_date)
+
+    pst_timezone = pytz.timezone('US/Pacific')
+    pst_time = plot_date_utc_time.astimezone(pst_timezone)
+
+    formatted_time = pst_time.strftime('%Y-%m-%d at %H:%M %Z')
+
+    plt.suptitle(formatted_time)
+
+    # plot_date_in_local = plot_date.astimezone(timezone('US/Pacific'))# Convert to Pacific Time
+    # plt.suptitle('{0} at {1}:{2} UTC'.format((plot_date).strftime('%d %B %Y'), d[1][:2], d[1][2:]))
+
+    
     p = ax.pcolormesh(lat, lon, pred,
                       transform=ccrs.PlateCarree(),
                     #   vmin=0 if prediction else GOES_MIN_VAL,
@@ -241,13 +270,14 @@ def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
     # plt.show()
     if (not validate_with_radar) or (returnval):
         # print('/FRP_' + str(d[0] + '_' + d[1]) + '.png')
-        result_file =output_path  + str(d[0] + '_' + d[1]) + '.png'
+        
         print(result_file)
-        plt.savefig(result_file, bbox_inches='tight', dpi=360)
+        plt.savefig(result_file, bbox_inches='tight', dpi=600)
         # with open(result_file.replace('png','geojson'), "w") as f:
         #     f.write(geojson_str)
     # plt.show()
     plt.close()
+    return result_file
 
 def partion_image_to_windows(gf_channels,window_size,step_size):
     partioned_image = {}
@@ -346,59 +376,3 @@ def get_lon_lat(path,epsg):
     lon = np.array([i[0] for i in data]).reshape(cfl.shape)
     lat = np.array([i[1] for i in data]).reshape(cfl.shape)
     return bbox, lat, lon
-
-
-def prepareDir():
-    if not os.path.exists(RealTimeIncoming_files):
-        os.mkdir(RealTimeIncoming_files)
-    if not os.path.exists(RealTimeIncoming_results):
-        os.mkdir(RealTimeIncoming_results)
-
-def prepareSiteDir(location):
-    if not os.path.exists(RealTimeIncoming_results+"/"+location):
-        os.mkdir(RealTimeIncoming_results+"/"+location)
-    if not os.path.exists(RealTimeIncoming_results+"/"+location+"/"+ goes_folder):
-        os.mkdir(RealTimeIncoming_results+"/"+location+"/"+goes_folder)
-    if not os.path.exists(RealTimeIncoming_results+"/"+location+"/"+"results"):
-        os.mkdir(RealTimeIncoming_results+"/"+location+"/"+"results")
-
-def on_success(output_path):
-    print(f" processed successfully {output_path}")
-
-def on_error(e):
-    print(f"Error: {e}")
-
-if __name__ == '__main__':
-    
-    data = pd.read_csv(realtimeSiteList)
-    locations = data["Sites"]
-    plotPredition = True
-
-    supr_resolution = RuntimeDLTransformation(use_config) if plotPredition == True else None
-    # mp.set_start_method('spawn', force=True)
-    pool = mp.Pool(1)
-    
-    # pipeline run for sites mentioned in toExecuteSiteList
-    prepareDir()
-    # implemented only to handle one wildfire event
-    # change 1st wildfire location to run for that location
-    for location in locations[:1]:
-        print(location)
-        prepareSiteDir(location)
-        site = SiteInfo(location)
-        radarprocessing = RadarProcessing(location)
-        epsg = site.EPSG
-        dir = RealTimeIncoming_files+"/"+location+"/"
-        GOES_list = os.listdir(dir)
-        # pool = mp.Pool(3)
-        pathC = RealTimeIncoming_results +"/"+location + "/"+( "results" if plotPredition else goes_folder) + '/FRP_'
-        for gfile in GOES_list:
-            
-            if not file_exists(pathC + gfile[5:-3] + "png"):
-                print(dir + gfile)
-                # pool.apply_async(plot_prediction, args=(dir + gfile,pathC,epsg,plotPredition,supr_resolution,), 
-                #                       callback=on_success, error_callback=on_error)
-                # print(res.get())
-                plot_prediction(dir + gfile,pathC,epsg,plotPredition,supr_resolution)
-        # pool.close()
-        # pool.join()
