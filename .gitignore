@@ -11,3 +11,5 @@ training_data/
 wandb/
 results/
 Model/
+secrets/FIRMS_API_MAP_KEY
+Exp_in_notebook
