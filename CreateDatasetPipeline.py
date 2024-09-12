@@ -36,6 +36,16 @@ def CreateDatasetPipeline(location, product, train_test):
 
 def count_training_set_created(dir):
     files_and_dirs = os.listdir(dir)
+
+    try:
+        file_list_pos = os.listdir(dir.replace('training_data','training_data_pos'))
+        print(f'file_list_pos: {len(file_list_pos)}')
+        file_list_neg = os.listdir(dir.replace('training_data','training_data_neg'))
+        print(f'file_list_neg: {len(file_list_neg)}')
+        file_list_TH = os.listdir(dir.replace('training_data','training_data_TH'))
+        print(f'file_list_TH: {len(file_list_TH)}')
+    except:
+        print("split_incomplete")
     # Count only the files (not directories)
     file_count = sum(os.path.isfile(os.path.join(dir, item)) for item in files_and_dirs)
 
@@ -48,18 +58,24 @@ if __name__ == '__main__':
     start_time = time.time()
     # train_test = testing_dir
     # pipeline run for sites mentioned in toExecuteSiteList
-    pool = mp.Pool(8)
+    
+    parallel = 1
+    if(parallel):
+        pool = mp.Pool(8)
     # Initialize tqdm progress bar
     with tqdm(total=len(locations)) as pbar:
         results = []
         for location in locations:
-            result = pool.apply_async(CreateDatasetPipeline, args=(location, GOES_product, train_test), 
+            if(parallel):
+                result = pool.apply_async(CreateDatasetPipeline, args=(location, GOES_product, train_test), 
                                       callback=on_success, error_callback=on_error)
-            # print(results.get())
-            # result = CreateDatasetPipeline(location, GOES_product, train_test)
+                # print(results.get())
+            else:
+                result = CreateDatasetPipeline(location, GOES_product, train_test)
             # results.append(result)
-        pool.close()
-        pool.join()
+        if(parallel):
+            pool.close()
+            pool.join()
         # Print the last location processed
         # if results:
         #     last_processed = results[-1].get()  # Get the result of the last task

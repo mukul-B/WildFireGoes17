@@ -4,7 +4,7 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 
-from GlobalValues import compare_dir,goes_dir,viirs_dir,logs, testing_dir, training_dir, GOES_ndf
+from GlobalValues import compare_dir,goes_dir,viirs_dir,logs, testing_dir, training_dir, GOES_ndf,seperate_th
 
 
 def prepareDir(location, product):
@@ -22,17 +22,25 @@ def prepareDir(location, product):
 
     os.makedirs(comp_dir, exist_ok=True)
 
-    if not os.path.exists(logs):
-        os.mkdir(logs)
-    if not os.path.exists(training_dir):
-        os.mkdir(training_dir)
+    os.makedirs(logs, exist_ok=True)
 
-    if not os.path.exists(testing_dir):
-        os.mkdir(testing_dir)
+    os.makedirs(training_dir, exist_ok=True)
 
-    if not os.path.exists(GOES_ndf):
-        os.mkdir(GOES_ndf)
+    os.makedirs(testing_dir, exist_ok=True)
 
+    os.makedirs(GOES_ndf, exist_ok=True)
+
+    if(seperate_th):
+        out_dir_neg = training_dir.replace('training_data','training_data_neg')
+        out_dir_TH = training_dir.replace('training_data','training_data_TH')
+        out_dir_pos = training_dir.replace('training_data','training_data_pos')
+
+        os.makedirs(out_dir_neg, exist_ok=True)
+        os.makedirs(out_dir_TH, exist_ok=True)
+        os.makedirs(out_dir_pos, exist_ok=True)
+
+def prepareDirectory(path):
+    os.makedirs(path, exist_ok=True)
 
 def plot_sample(col,titles,path=None):
     num = len(col)

@@ -94,7 +94,7 @@ class VIIRSProcessing:
         
 
     def set_FIRMS_MAP_KEY(self):
-        file_path = 'config/FIRMS_API_MAP_KEY'
+        file_path = 'secrets/FIRMS_API_MAP_KEY'
         key_map = {}
         with open(file_path, 'r') as file:
             for line in file:

@@ -13,17 +13,47 @@ import os
 import numpy as np
 from PIL import Image
 
-from GlobalValues import GOES_Bands, GOES_product_size, viirs_dir, goes_dir, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL, training_data_field_names, COLOR_NORMAL_VALUE
+from GlobalValues import GOES_Bands, GOES_product_size, viirs_dir, goes_dir, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL, training_data_field_names, COLOR_NORMAL_VALUE, seperate_th,th_neg 
 import xarray as xr
 
 
 # create training dataset
+# def sliding_window(image, stepSize, windowSize):
+#     # slide a window across the image
+#     for y in range(0, image.shape[0], stepSize):
+#         for x in range(0, image.shape[1], stepSize):
+#             # yield the current window
+#             yield x, y, image[y:y + windowSize[1], x:x + windowSize[0], :]
+
 def sliding_window(image, stepSize, windowSize):
-    # slide a window across the image
-    for y in range(0, image.shape[0], stepSize):
-        for x in range(0, image.shape[1], stepSize):
-            # yield the current window
-            yield x, y, image[y:y + windowSize[1], x:x + windowSize[0], :]
+    """
+    Slide a window across the image with full coverage, adjusting the window size at the borders
+    and ensuring no part of the image is left uncovered.
+    
+    Parameters:
+    image (ndarray): Input image array.
+    stepSize (int): Step size to move the window.
+    windowSize (tuple): The (width, height) of the window.
+    
+    Yields:
+    tuple: The top-left corner (x, y) of the window and the window itself.
+    """
+    img_height, img_width = image.shape[:2]
+    
+    # Calculate number of steps needed to fully cover the image
+    for y in range(0, img_height, stepSize):
+        for x in range(0, img_width, stepSize):
+            # Adjust the window size at the borders
+            x_end = min(x + windowSize[0], img_width)
+            y_end = min(y + windowSize[1], img_height)
+            
+            # Ensure the window covers the border
+            x_start = max(0, x_end - windowSize[0])
+            y_start = max(0, y_end - windowSize[1])
+            
+            adjusted_window = image[y_start:y_end, x_start:x_end, :]
+            
+            yield x_start, y_start, adjusted_window
 
 
 def viirs_radiance_normaization(vf, vf_max):
@@ -138,8 +168,10 @@ def Normalize_img(img,gf_min = GOES_MIN_VAL, gf_max = GOES_MAX_VAL):
 # whole image is croped in window of size 128
 def create_training_dataset(v_file, g_file, date, out_dir, location):
     td = {}
-    out_dir_neg = out_dir.replace('classifier','classifier_neg')
-    out_dir_pos = out_dir.replace('classifier','classifier_pos')
+    if(seperate_th):
+        out_dir_neg = out_dir.replace('training_data','training_data_neg')
+        out_dir_TH = out_dir.replace('training_data','training_data_TH')
+        out_dir_pos = out_dir.replace('training_data','training_data_pos')
     # vf = Image.open(v_file)
     VIIRS_data = xr.open_rasterio(v_file)
     vf = VIIRS_data.variable.data[0]
@@ -202,19 +234,29 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
         v_win = window[:, :, 0]
         vf_win = window[:, :, 2]
         #  only those windows are considered where it is not mostly empty
-        if np.count_nonzero(v_win) == 0 or np.count_nonzero(g_win) == 0:
-            # if np.count_nonzero(v_win) == 0:
-                # pass
-                # np.save(os.path.join(out_dir_neg, 'comb.' + location + '_' + date
-                #                  + '.' + str(x) + '.' + str(y) + '.npy'), window)
-
+        if np.count_nonzero(g_win==0) > 0:
             continue
-        else:
-            # print(location + '_' + date,g_win.sum()/float(255),v_win.sum()/float(255))
-            np.save(os.path.join(out_dir_pos, 'comb.' + location + '_' + date
-                                 + '.' + str(x) + '.' + str(y) + '.npy'), window)
-        # np.save(os.path.join(out_dir, 'comb.' + location + '_' + date
-        #                         + '.' + str(x) + '.' + str(y) + '.npy'), window)      
+
+        # based on flag , decide if want empty VIIRS or not
+        if(seperate_th):
+            frp_win = window[:, :, 4]
+            if np.count_nonzero(v_win) == 0:
+                np.save(os.path.join(out_dir_neg, 'comb.' + location + '_' + date + '.' + str(x) + '.' + str(y) + '.npy'), window)
+            elif np.count_nonzero(v_win) < 60 and np.sum(frp_win) < 600:
+                if(th_neg):
+                    window[:, :, 0] =0
+                np.save(os.path.join(out_dir_TH, 'comb.' + location + '_' + date
+                            + '.' + str(x) + '.' + str(y) + '.npy'), window)
+            else:
+                # with open('fire_frp.txt', 'a') as file:  
+                #     file.write(f"{np.count_nonzero(v_win)},{np.sum(frp_win)}\n")  
+                np.save(os.path.join(out_dir_pos, 'comb.' + location + '_' + date  + '.' + str(x) + '.' + str(y) + '.npy'), window)
+
+        elif np.count_nonzero(v_win) == 0:
+            continue
+   
+        np.save(os.path.join(out_dir, 'comb.' + location + '_' + date
+                        + '.' + str(x) + '.' + str(y) + '.npy'), window)
 
 
 def writeDataset(location, product, train_test):

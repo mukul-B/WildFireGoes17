@@ -1,0 +1,7 @@
+ crontab -e
+ */6 * * * * cd /home/mbadhan/WildFireGoes17 && /home/mbadhan/anaconda3/envs/wildfire/bin/python /home/mbadhan/WildFireGoes17/RealTimeTransformationPipeline2.py >> logs/script.log 2>&1
+
+
+ nohup /home/mbadhan/anaconda3/envs/wildfire/bin/python /home/mbadhan/WildFireGoes17/RealtimeWeb.py > logs/realtimeweblog.txt 2>&1 &
+ ps aux | grep RealtimeWeb
+ kill processid

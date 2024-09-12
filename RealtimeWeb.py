@@ -27,4 +27,5 @@ def viirs():
     return render_template('index_realtime.html', title="Davis Creek Fire - VIIRS", enumerated_images=enumerated_images, static_url=viirs_folder, viirs=True)
 
 if __name__ == '__main__':
-    app.run(debug=False,host='0.0.0.0', port=8085)
+    # app.run(debug=False,host='0.0.0.0', port=8085)
+    app.run(debug=True, port=8085) # for local only

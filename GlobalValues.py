@@ -17,7 +17,8 @@ LI = 'LI'
 HI = 'HI'
 COLOR_NORMAL_VALUE = 1
 
-GOES_MIN_VAL, GOES_MAX_VAL = [210, 207, 205],[413,342, 342]
+# GOES_MIN_VAL, GOES_MAX_VAL = [210, 207, 205],[413,342, 342]
+GOES_MIN_VAL, GOES_MAX_VAL = [209, 202, 198],[413,342, 342]
 # GOES_MIN_VAL, GOES_MAX_VAL = 210 , 413
 VIIRS_MIN_VAL,VIIRS_MAX_VAL = 0 , 367
 VIIRS_UNITS ='Brightness Temperature'
@@ -34,6 +35,7 @@ GOES_product = [{'product_name': RAD, 'band': 7},
 # GOES_product = [{'product_name': RAD, 'band': 7}]
 GOES_product_size = len(GOES_product)
 GOES_Bands = 3
+seperate_th,th_neg = 1,0
 
 no_postfix = ''
 _3channel_postfix = '_3channel'
@@ -63,27 +65,54 @@ _new_east_postfix = '_new_east'
 _everything_postfix = '_everything'
 _th_neg_WITHOUTNEG_regression_postfix = '_th_neg_WITHOUTNEG_regression'
 _everything_classifier_postfix = '_everything_classifier'
-
+_everything_THpOS_classifier_postfix = '_everything_THpOS_classifier'
 _workingSet_postfix = '_workingSet'
+_workingSet_newslidingWindow_postfix = '_workingSet_newslidingWindow'
+
+_workingSet_THNEG_regression_postfix = '_workingSet_THNEG_regression'
 
 _pos_TH_classifier_postfix = '_pos_TH_classifier'
 _pos_TH_neg_classifier_postfix = '_pos_TH_neg_classifier'
 _pos_neg_balanced_classifier_postfix = '_pos_neg_balanced_classifier'
-
+_TH_neg_balanced_classifier_postfix = '_TH_neg_balanced_classifier'
 _paper_results_postfix= '_paper_results'
+_temp_projection_check_postfix = '_temp_projection_check'
+_everything_THpOS_usingposonly_classifier_postfix = '_everything_THpOS_usingposonly_classifier'
+_everything_closeDate_postfix = '_everything_closeDate'
+# site_Postfix = no_postfix
+# referenceDir_speficic_Postfix = _temp_projection_check_postfix
+# _everything_closeDate_collapsed_postfix = '_everything_closeDate_collapsed'
+_everything_closeDate_correction_postfix = '_everything_closeDate_correction'
+_everything_closeDate_correction_th_postfix = '_everything_closeDate_correction_th'
+_everything_closeDate_correction_th_realtime_postfix = '_everything_closeDate_correction_th_realtime'
+
+_everything_closeDate_correction_full_postfix = '_everything_closeDate_correction_full'
+_everything_closeDate_correction_th_pos_postfix = '_everything_closeDate_correction_th_pos'
+_everything_closeDate_correction_th_40_300_pos_postfix = '_everything_closeDate_correction_th_40_300_pos'
+_everything_closeDate_correction_th_40_300_pos_small_postfix = '_everything_closeDate_correction_th_40_300_pos_small'
+_everything_parallex_correction_postfix = '_everything_parallex_correction'
+
+_everything_closeDate_correction_th_60_600_pos_postfix = '_everything_closeDate_correction_th_60_600_pos'
 
 
+_realtime_api_check_postfix = '_realtime_api_check'
+
+
+
+
+#training postfixs
 site_Postfix = no_postfix
-referenceDir_speficic_Postfix = _workingSet_postfix
-trainingDir_speficic_Postfix = _workingSet_postfix
-model_specific_postfix = _workingSet_postfix
-result_specific_postfix = _workingSet_postfix
+referenceDir_speficic_Postfix = _everything_closeDate_correction_postfix
 
-# site_Postfix = _new_east_postfix
-# referenceDir_speficic_Postfix = _new_east_postfix
-# trainingDir_speficic_Postfix = _new_east_postfix
-# model_specific_postfix = _new_east_postfix
-# result_specific_postfix = _3channel_precision_ESPG_postfix
+trainingDir_speficic_Postfix = _everything_closeDate_correction_th_60_600_pos_postfix
+model_specific_postfix = _everything_closeDate_correction_th_60_600_pos_postfix
+
+result_specific_postfix = _3channel_precision_ESPG_postfix
+
+
+# real time model
+realtime_model_specific_postfix = _everything_closeDate_correction_th_realtime_postfix
+
 
 gf_c_fields = [f'gf_c{i+1}' for i in range(GOES_Bands)]
 training_data_field_names = ['vf'] + gf_c_fields + ['vf_FRP', 'gf_min', 'gf_max', 'vf_max']
@@ -130,7 +159,7 @@ VIIRS_OVERWRITE = False
 # Autoencoder training and testing
 # model_path = 'Model_BEFORE_MOVING_NORMALIZATION/'
 model_path = 'Model/'
-project_name_template = "{model_name}_{loss_function_name}_{n_epochs}epochs_{batch_size}batchsize_{learning_rate}lr" + model_specific_postfix
+project_name_template = "{model_name}_{loss_function_name}_{n_epochs}epochs_{batch_size}batchsize_{learning_rate}lr{model_specific_postfix}"
 test_split = 0.2
 validation_split = 0.2
 Results = f'DataRepository/results{result_specific_postfix}/'
@@ -142,9 +171,9 @@ THRESHOLD_COVERAGE, THRESHOLD_IOU = 0.453186035,0.005117899
 # toExecuteSiteList = "config/testing_sites"
 testing_dir = 'DataRepository/testing_dir/'
 # realtimeSiteList = "config/realtime_sites"
-RealTimeIncoming_files = 'DataRepository/RealTimeIncoming_files/'
-RealTimeIncoming_results = 'DataRepository/RealTimeIncoming_results/'
-validate_with_radar = True
+RealTimeIncoming_files = 'DataRepository/RealTimeIncoming_files/$LOC/$RESULT_TYPE/'
+RealTimeIncoming_results = 'DataRepository/RealTimeIncoming_results/$LOC/$RESULT_TYPE/'
+validate_with_radar = False
 videos = 'DataRepository/Videos/'
 
 # blind testing
@@ -152,7 +181,7 @@ realtimeSiteList = "config/blind_testing_sites"
 
 paper_results = ['713','122','956','728','118','553','408','387','849','104','663','609']
 NO_SAMPLES = []
-RANDOM_SAMPLES = [str(i) for i in range(7000) if i % 100 == 0]
+RANDOM_SAMPLES = [str(i) for i in range(7000) if i % 50 == 0]
 ALL_SAMPLES = 0
 SELECTED_SAMPLES = NO_SAMPLES
 
