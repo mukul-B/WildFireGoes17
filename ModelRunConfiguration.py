@@ -13,7 +13,7 @@ from Unet import UNET
 model_list = [UNET]
 Selected_model = model_list[0]
 
-selected_case = 1
+selected_case = 8
 loss_cases = [
     # case 1 : GMSE
      {
@@ -65,7 +65,7 @@ loss_cases = [
     # {
     #     LEARNING_RATE: 3e-5,
     #     EPOCHS: 150,
-    #     BATCH_SIZE: 16,
+    #     BATCH_SIZE: 32,
     #     LOSS_FUNCTION: Classification_loss
     # },
     # case 7: Segmentation_loss
@@ -74,10 +74,24 @@ loss_cases = [
         EPOCHS: 150,
         BATCH_SIZE: 32,
         LOSS_FUNCTION: Segmentation_loss
-    }
+    },
+    # case 8 : GMSE small
+     {
+        LEARNING_RATE: 3e-6,
+        EPOCHS: 150,
+        BATCH_SIZE: 64,
+        LOSS_FUNCTION: GMSE
+    },
     
 ]
 use_config = loss_cases[selected_case - 1]
+
+real_time_config = {
+        LEARNING_RATE: 3e-5,
+        EPOCHS: 150,
+        BATCH_SIZE: 16,
+        LOSS_FUNCTION: GMSE
+    }
 
 # ----------------------------------------------------------------------------------------------
 # run multiple runs

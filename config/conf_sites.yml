@@ -1,5 +1,28 @@
 rectangular_size: 0.6
 
+
+# 39.3071252,-119.9171714
+
+
+DavisCreekFire:
+ longitude: -119.9171714
+ latitude: 39.3071252
+ start: 2024-09-08
+ end: 2024-09-13
+
+
+QuilicyFire:
+ longitude: -119.998
+ latitude: 39.499
+ start: 2024-08-12
+ end: 2024-08-13
+
+HTNF:
+ longitude: -119.43
+ latitude: 39.31
+ start: 2024-08-07
+ end: 2024-08-10
+
 #blind testinf sites
 Bear:
  longitude: -121.00
@@ -7,6 +30,14 @@ Bear:
  start: 2020-09-08
  end: 2020-09-10
  EPSG: 32610
+
+ParkFire:
+ longitude: -121.76168
+ latitude: 39.7789
+ start: 2024-07-28
+ end: 2024-08-09
+ EPSG: 32610
+
 
 #2019 forest sites
 Kincade:
@@ -314,7 +345,7 @@ Rafael Fire:
  end: 2021-07-15
  EPSG: 32612
 
-Telegraph fire :
+Telegraph fire:
  longitude: -111.092
  latitude: 33.209
  start: 2021-06-04
@@ -548,12 +579,627 @@ Lick Creek Fire:
 
 # 2022 forest sites
 
-#Mosquito_fire,-121,-120,38.5,39.5
-Mosquito_fire:
- longitude: -120.5
- latitude: 39
- start: 2022-09-13
- end: 2022-09-17
- EPSG: 32611
+Rum Creek:
+ longitude: -123.6314
+ latitude: 42.64042
+ start: 2022-08-19
+ end: 2022-09-30
+
+Campbell:
+ longitude: -123.5987
+ latitude: 40.90715
+ start: 2022-08-05
+ end: 2022-10-03
+
+MCKINNEY:
+ longitude: -122.895367
+ latitude: 41.8302
+ start: 2022-07-29
+ end: 2022-11-11
+
+MOUNTAIN:
+ longitude: -122.637483
+ latitude: 41.429267
+ start: 2022-09-02
+ end: 2022-10-03
+
+Cedar Creek:
+ longitude: -122.1672
+ latitude: 43.72636
+ start: 2022-08-02
+ end: 2022-11-22
+
+BOLT CREEK:
+ longitude: -121.3462
+ latitude: 47.72821
+ start: 2022-09-10
+ end: 2022-11-02
+
+MILLER ROAD:
+ longitude: -121.3409
+ latitude: 45.13188
+ start: 2022-08-02
+ end: 2022-08-31
+
+MOSQUITO:
+ longitude: -120.7447
+ latitude: 39.00591
+ start: 2022-09-07
+ end: 2022-10-22
+
+PARKS:
+ longitude: -120.7031
+ latitude: 48.97706
+ start: 2022-08-22
+ end: 2022-12-27
+
+VANTAGE HIGHWAY:
+ longitude: -120.1839
+ latitude: 46.96667
+ start: 2022-08-01
+ end: 2022-08-30
+
+OAK:
+ longitude: -119.920769
+ latitude: 37.548708
+ start: 2022-07-22
+ end: 2022-08-11
+
+Cherry Gulch:
+ longitude: -118.7001
+ latitude: 41.81449
+ start: 2022-08-27
+ end: 2022-08-30
+
+Sturgill:
+ longitude: -117.5343
+ latitude: 45.2837
+ start: 2022-08-23
+ end: 2022-10-24
+
+WILLOW CREEK:
+ longitude: -117.3864
+ latitude: 44.16373
+ start: 2022-06-28
+ end: 2022-07-06
+
+Nebo:
+ longitude: -117.11
+ latitude: 45.13242
+ start: 2022-08-26
+ end: 2022-10-25
+
+FAIRVIEW:
+ longitude: -116.893262
+ latitude: 33.716765
+ start: 2022-09-05
+ end: 2022-09-23
+
+Double Creek:
+ longitude: -116.7389
+ latitude: 45.42754
+ start: 2022-08-30
+ end: 2022-10-25
+
+Russell Mountain:
+ longitude: -116.5692
+ latitude: 48.78603
+ start: 2022-08-24
+ end: 2022-09-15
+
+Four Corners:
+ longitude: -116.1688
+ latitude: 44.53732
+ start: 2022-08-14
+ end: 2022-10-20
+
+Williams Creek:
+ longitude: -115.6516
+ latitude: 45.69329
+ start: 2022-08-30
+ end: 2022-11-03
+
+Wildcat:
+ longitude: -115.294
+ latitude: 41.64561
+ start: 2022-07-14
+ end: 2022-07-23
+
+Ross Fork:
+ longitude: -114.9796
+ latitude: 43.8108
+ start: 2022-08-14
+ end: 2022-11-01
+ EPSG: 32612
+
+Patrol Point:
+ longitude: -114.9376
+ latitude: 45.42633
+ start: 2022-08-20
+ end: 2022-11-03
+
+Bray:
+ longitude: -114.9193
+ latitude: 43.04725
+ start: 2022-07-19
+ end: 2022-07-21
+
+Elmo:
+ longitude: -114.5066667
+ latitude: 47.8183333
+ start: 2022-07-30
+ end: 2022-08-23
+
+Eden 2:
+ longitude: -114.2128
+ latitude: 42.64999
+ start: 2022-09-08
+ end: 2022-09-10
+
+Moose:
+ longitude: -114.0906
+ latitude: 45.37469
+ start: 2022-07-17
+ end: 2022-11-09
+
+Trail Ridge:
+ longitude: -113.8681
+ latitude: 45.77466
+ start: 2022-08-26
+ end: 2022-10-29
+
+Halfway Hill:
+ longitude: -112.339
+ latitude: 38.91389
+ start: 2022-07-08
+ end: 2022-09-23
+
+Pipeline:
+ longitude: -111.6664
+ latitude: 35.269722
+ start: 2022-06-12
+ end: 2022-07-04
+
+Tunnel:
+ longitude: -111.5886
+ latitude: 35.304167
+ start: 2022-04-18
+ end: 2022-06-30
+
+CONTRERAS:
+ longitude: -111.5742
+ latitude: 31.848889
+ start: 2022-06-11
+ end: 2022-07-04
+
+San Rafael:
+ longitude: -110.6138889
+ latitude: 31.3533333
+ start: 2022-05-08
+ end: 2022-05-15
+
+BLACK:
+ longitude: -108.0592
+ latitude: 33.203611
+ start: 2022-05-14
+ end: 2023-01-18
+
+BEAR TRAP:
+ longitude: -107.5328
+ latitude: 33.850278
+ start: 2022-05-01
+ end: 2022-06-09
+
+Busman Road:
+ longitude: -107.4023
+ latitude: 46.26342
+ start: 2022-08-04
+ end: 2022-09-10
+
+Cerro Pelado:
+ longitude: -106.5844
+ latitude: 35.775
+ start: 2022-04-22
+ end: 2022-06-16
+
+Hermits Peak:
+ longitude: -105.399
+ latitude: 35.71782
+ start: 2022-04-06
+ end: 2022-08-21
+
+Cooks Peak:
+ longitude: -105.0372222
+ latitude: 36.2441667
+ start: 2022-04-17
+ end: 2022-09-12
+
+Mitchell:
+ longitude: -103.8416667
+ latitude: 35.8022222
+ start: 2022-04-24
+ end: 2022-05-13
+
+Carter Canyon:
+ longitude: -103.76
+ latitude: 41.7625
+ start: 2022-07-31
+ end: 2022-08-08
+
+Casino:
+ longitude: -102.8712
+ latitude: 43.13107
+ start: 2022-07-19
+ end: 2022-07-26
+
+Little Highline:
+ longitude: -101.794096
+ latitude: 35.398513
+ start: 2022-04-23
+ end: 2022-04-25
+
+Beaver River Fire:
+ longitude: -100.786667
+ latitude: 36.83
+ start: 2022-04-06
+ end: 2022-04-21
+
+Canadian River Bottom:
+ longitude: -100.54257111
+ latitude: 35.74566749
+ start: 2022-03-29
+ end: 2022-04-03
+
+Road 702:
+ longitude: -100.5293
+ latitude: 40.1558
+ start: 2022-04-23
+ end: 2022-05-01
+
+23 and DD:
+ longitude: -100.4617
+ latitude: 37.104444
+ start: 2022-04-29
+ end: 2022-04-07
+
+Bovee:
+ longitude: -100.3106
+ latitude: 41.85924
+ start: 2022-10-02
+ end: 2022-10-09
+
+Smoke Stack Lightning:
+ longitude: -100.1691667
+ latitude: 33.1866667
+ start: 2022-05-02
+ end: 2022-05-05
+
+Road 739:
+ longitude: -99.98161
+ latitude: 40.53966
+ start: 2022-04-08
+ end: 2022-04-23
+
+Mesquite Heat:
+ longitude: -99.9636111
+ latitude: 32.2658333
+ start: 2022-05-17
+ end: 2022-05-29
+
+Washita River Fire:
+ longitude: -99.8894444
+ latitude: 35.8158333
+ start: 2022-03-30
+ end: 2022-04-05
+
+Ness_Ellis County:
+ longitude: -99.64193
+ latitude: 38.63993
+ start: 2022-11-09
+ end: 2022-11-09
+
+Coconut:
+ longitude: -99.3397222
+ latitude: 33.8619444
+ start: 2022-05-17
+ end: 2022-05-22
+
+217 Fire:
+ longitude: -99.1205556
+ latitude: 36.5075
+ start: 2022-07-26
+ end: 2022-08-01
+
+62 Fire:
+ longitude: -98.9141667
+ latitude: 34.8019444
+ start: 2022-03-14
+ end: 2022-03-21
+
+Kidd:
+ longitude: -98.8291333
+ latitude: 32.33495
+ start: 2022-03-17
+ end: 2022-03-31
+
+North Branch:
+ longitude: -98.3425
+ latitude: 39.8955556
+ start: 2022-03-30
+ end: 2022-04-09
+
+Dempsey:
+ longitude: -98.25086667
+ latitude: 32.80428333
+ start: 2022-06-23
+ end: 2022-07-04
+
+Borrega:
+ longitude: -98.01950692
+ latitude: 27.47338901
+ start: 2022-03-31
+ end: 2022-04-04
+
+Big L:
+ longitude: -98.0034409
+ latitude: 32.36159702
+ start: 2022-03-20
+ end: 2022-03-25
+
+Hayfield South:
+ longitude: -97.6619444
+ latitude: 26.8072222
+ start: 2022-03-24
+ end: 2022-03-27
+
+Bell 2101:
+ longitude: -97.6213889
+ latitude: 31.2641667
+ start: 2022-03-27
+ end: 2022-04-07
+
+BERTHA SWAMP RD:
+ longitude: -85.3302778
+ latitude: 30.1494444
+ start: 2022-03-05
+ end: 2022-03-31
+
+L 30:
+ longitude: -80.4855556
+ latitude: 25.8925
+ start: 2022-03-31
+ end: 2022-04-10
+
+L39:
+ longitude: -80.4041667
+ latitude: 26.3616667
+ start: 2022-05-05
+ end: 2022-05-09
+
+Mullica River Fire:
+ longitude: -74.7208
+ latitude: 39.7335
+ start: 2022-06-20
+ end: 2022-06-23
+
+
+# 2023
+
+Anvil:
+ longitude: -124.3436111
+ latitude: 42.7458333
+ start: 2023-08-26
+ end: 2023-11-30
+
+Flat:
+ longitude: -124.0372222
+ latitude: 42.5158333
+ start: 2023-07-16
+ end: 2023-11-30
+
+Kelly:
+ longitude: -123.84
+ latitude: 41.8586
+ start: 2023-08-15
+ end: 2023-11-14
+
+Mosquito:
+ longitude: -123.6725
+ latitude: 41.372167
+ start: 2023-08-16
+ end: 2023-10-25
+
+ELLIOT:
+ longitude: -123.517283
+ latitude: 41.604117
+ start: 2023-08-15
+ end: 2023-10-23
+
+Pearch:
+ longitude: -123.4879
+ latitude: 41.3044
+ start: 2023-08-17
+ end: 2023-10-25
+
+Bedrock:
+ longitude: -122.5461111
+ latitude: 43.9713889
+ start: 2023-07-23
+ end: 2023-10-09
+
+Lookout:
+ longitude: -122.1458333
+ latitude: 44.2219444
+ start: 2023-08-07
+ end: 2023-10-10
+
+NEWELL ROAD:
+ longitude: -120.4588889
+ latitude: 45.8308333
+ start: 2023-07-21
+ end: 2023-08-02
+
+EAGLE BLUFF:
+ longitude: -119.47675
+ latitude: 48.880933
+ start: 2023-07-29
+ end: 2023-08-17
+
+Hat Rock:
+ longitude: -119.1527778
+ latitude: 45.9077778
+ start: 2023-06-13
+ end: 2023-12-20
+
+GRAY:
+ longitude: -117.743967
+ latitude: 47.538033
+ start: 2023-08-18
+ end: 2023-09-12
+
+OREGON:
+ longitude: -117.230417
+ latitude: 48.033967
+ start: 2023-08-18
+ end: 2023-09-12
+
+Elkhorn:
+ longitude: -115.315367
+ latitude: 45.504167
+ start: 2023-07-25
+ end: 2023-10-05
+
+YORK:
+ longitude: -115.2863889
+ latitude: 35.2863889
+ start: 2023-07-28
+ end: 2023-08-20
+
+River Road East:
+ longitude: -114.8058333
+ latitude: 47.3816667
+ start: 2023-08-18
+ end: 2023-09-28
+
+Niarada:
+ longitude: -114.5925
+ latitude: 47.8277778
+ start: 2023-07-30
+ end: 2023-08-21
+
+Middle Ridge:
+ longitude: -114.4147222
+ latitude: 47.5216667
+ start: 2023-07-30
+ end: 2023-08-13
+
+Hayden:
+ longitude: -113.7422222
+ latitude: 44.7025
+ start: 2023-07-19
+ end: 2023-09-21
+
+Pilot:
+ longitude: -113.2875
+ latitude: 34.8708333
+ start: 2023-07-01
+ end: 2023-08-01
+
+Ridge:
+ longitude: -111.9925
+ latitude: 35.9102778
+ start: 2023-06-06
+ end: 2023-07-29
+
+Wilbur:
+ longitude: -111.4663889
+ latitude: 34.5508333
+ start: 2023-05-23
+ end: 2023-07-11
+
+Still:
+ longitude: -111.2536111
+ latitude: 34.5825
+ start: 2023-09-14
+ end: 2023-11-01
+
+BEEHIVE:
+ longitude: -111.157522
+ latitude: 31.5013
+ start: 2023-07-01
+ end: 2023-07-17
+
+Pasture:
+ longitude: -108.5969444
+ latitude: 33.5672222
+ start: 2023-07-23
+ end: 2023-08-12
+
+Prior:
+ longitude: -108.3880556
+ latitude: 33.2944444
+ start: 2023-07-28
+ end: 2023-10-06
+
+Divide:
+ longitude: -108.387833
+ latitude: 33.540333
+ start: 2023-07-14
+ end: 2023-08-12
+
+Pass:
+ longitude: -108.2894444
+ latitude: 33.4063889
+ start: 2023-05-19
+ end: 2023-08-01
+
+ZINK:
+ longitude: -96.20493
+ latitude: 36.30688
+ start: 2023-04-04
+ end: 2023-04-10
+
+HWY 123:
+ longitude: -96.12658
+ latitude: 36.62699
+ start: 2023-04-03
+ end: 2023-04-10
+
+Tiger Island:
+ longitude: -93.4386111
+ latitude: 30.6727778
+ start: 2023-08-22
+ end: 2023-10-25
+
+Sandy:
+ longitude: -81.03472
+ latitude: 25.93
+ start: 2023-05-01
+ end: 2023-05-22
+
+MILE 31:
+ longitude: -80.6544444
+ latitude: 26.3305556
+ start: 2023-03-24
+ end: 2023-03-24
+
+Matts Creek:
+ longitude: -79.432783
+ latitude: 37.592433
+ start: 2023-11-13
+ end: 2023-11-28
+
+Pulp Road:
+ longitude: -78.2036111
+ latitude: 34.1147222
+ start: 2023-06-15
+ end: 2023-06-29
+
+GREAT LAKES:
+ longitude: -77.05141
+ latitude: 34.86006
+ start: 2023-04-20
+ end: 2023-07-05
+
 
 

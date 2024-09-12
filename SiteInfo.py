@@ -13,6 +13,7 @@ from GlobalValues import site_conf
 
 
 class SiteInfo():
+
     def __init__(self,location=None):
 
         self.location = location
@@ -21,13 +22,16 @@ class SiteInfo():
         self.start_time, self.end_time = config.get(location).get('start') , config.get(location).get('end')
         self.latitude , self.longitude = config.get(location).get('latitude') , config.get(location).get('longitude')
         self.rectangular_size = config.get('rectangular_size')
-        self.EPSG_formula  = config.get(location).get('EPSG')
-        self.EPSG= self.coordinate2EPSG(self.latitude, self.longitude)
+        self.bottom_left = [self.latitude - self.rectangular_size, self.longitude - self.rectangular_size]
+        self.top_right = [self.latitude + self.rectangular_size, self.longitude + self.rectangular_size]
+        # self.EPSG  = config.get(location).get('EPSG')
+        self.EPSG=  self.coordinate2EPSG(self.latitude, self.longitude)
 
     def coordinate2EPSG(self,lat,lon):
         start_lon = -126
         end_lon = -60
         start_zone = 32610
+        # u.s epsg 32610 to 32620
         # lon_min, lon_max = -125.0, -66.93457 for united states
         for i in range(start_lon, end_lon, 6):
             if i < lon <= i + 6:
@@ -39,3 +43,45 @@ class SiteInfo():
         #     return 32611
         # if -114.0 < lon <= -108.0:
         #     return 32612
+
+    def get_image_dimention(self, res=375):
+
+        from pyproj import Transformer
+        self.res = res
+        
+        # transforming lon lat to utm
+        # UTM, Universal Transverse Mercator ( northing and easting)
+        # https://www.youtube.com/watch?v=LcVlx4Gur7I
+
+        # https://epsg.io/32611
+        # 32610 (126 to 120) ;32611 (120 to 114) ;32612 (114 to 108)
+
+        self.transformer = Transformer.from_crs(4326, self.EPSG)
+        bottom_left_utm = [int(self.transformer.transform(self.bottom_left[0], self.bottom_left[1])[0]),
+                            int(self.transformer.transform(self.bottom_left[0], self.bottom_left[1])[1])]
+        top_right_utm = [int(self.transformer.transform(self.top_right[0], self.top_right[1])[0]),
+                            int(self.transformer.transform(self.top_right[0], self.top_right[1])[1])]
+
+        top_right_utm = [top_right_utm[0] - (top_right_utm[0] - bottom_left_utm[0]) % self.res,
+                            top_right_utm[1] - (top_right_utm[1] - bottom_left_utm[1]) % self.res]
+        # adjustment (adding residue) because we want to make equal sized grids on whole area
+        # ------
+        # ------
+        # ------
+        # ------
+        # creating offset for top right pixel
+
+        lon = [bottom_left_utm[0], top_right_utm[0]]
+        lat = [bottom_left_utm[1], top_right_utm[1]]
+        # print(lon, lat)
+
+        # setting image parameters
+        xmin, ymin, xmax, ymax = [min(lon), min(lat), max(lon), max(lat)]
+
+        self.transformed_bottom_left= [ymin, xmin]
+        self.transformed_top_right = [ymax, xmax]
+
+        nx = round((xmax - xmin) / self.res)
+        ny = round((ymax - ymin) / self.res)
+
+        self.image_size = (ny, nx)

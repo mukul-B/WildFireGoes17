@@ -30,6 +30,7 @@ def createDataset(location, product):
     log_path = 'logs/failures_' + location + '_' + str(site.start_time) + '_' + str(site.end_time) + '.txt'
     product_band = ''.join(map(lambda item: f"{item['product_name']}{format(item['band'],'02d')}", product))
     goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD_BAND', product_band)
+    site.get_image_dimention()
     # initialize Goes object and prvide file for log
     goes = GoesProcessing(log_path,list(map(lambda item: item['product_name'], product)),list(map(lambda item: item['band'],product))
                                     ,site=site)
@@ -43,12 +44,13 @@ def createDataset(location, product):
 
         # filter firepixel for a date
         unique_time = v2r_viirs.get_unique_dateTime(fire_date)
+        unique_time = v2r_viirs.collapse_close_dates(unique_time)
         # running for ever hhmm for perticular date
         for ac_time in unique_time:
             paths = goes.download_goes(fire_date, str(ac_time))
             if -1 not in paths:
                 v2r_viirs.make_tiff(fire_date, ac_time)
-                goes.nc2tiff(fire_date, ac_time, paths, site, v2r_viirs.image_size, goes_tif_dir)
+                goes.nc2tiff(fire_date, ac_time, paths, site, site.image_size, goes_tif_dir)
     # print(location,count_training_set_created(goes_tif_dir))
 
 

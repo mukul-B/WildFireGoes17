@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Gallery</title>
+    <title>AI enhanced GOES Wildfire Monotoring</title>
     <style>
         .gallery-container {
             display: flex;
@@ -59,6 +59,14 @@
         {% endfor %}
         <button class="button" id="nextButton">Next</button>
         <button class="button live-button" id="liveButton">Live</button>
+    </div>
+
+    <div style="margin-top: 20px; text-align: center;">
+        {% if viirs %}
+            <button class="button" onclick="window.location.href='/'">Back to Results</button>
+        {% else %}
+            <button class="button" onclick="window.location.href='/viirs'">View VIIRS Results</button>
+        {% endif %}
     </div>
 
     <script>

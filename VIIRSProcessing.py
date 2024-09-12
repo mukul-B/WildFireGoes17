@@ -23,6 +23,56 @@ from os.path import exists as file_exists
 
 
 class VIIRSProcessing:
+    # def __init__(self, year="2021", satellite="viirs-snpp", site=None, res=375):
+
+
+    #     self.location = site.location
+    #     self.satellite = satellite
+    #     self.crs = site.EPSG
+    #     self.res = res
+    #     self.year = year
+
+    #     # defining extend of site in lat and lon
+    #     latitude, longitude = site.latitude, site.longitude
+    #     rectangular_size = site.rectangular_size
+    #     self.bottom_left = [latitude - rectangular_size, longitude - rectangular_size]
+    #     self.top_right = [latitude + rectangular_size, longitude + rectangular_size]
+    #     # print(bottom_left, top_right)
+
+    #     # filtering in fire pixel inside the bounding box of the given site
+
+    #     # transforming lon lat to utm
+    #     # UTM, Universal Transverse Mercator ( northing and easting)
+    #     # https://www.youtube.com/watch?v=LcVlx4Gur7I
+
+    #     # https://epsg.io/32611
+    #     # 32610 (126 to 120) ;32611 (120 to 114) ;32612 (114 to 108)
+
+    #     self.transformer = Transformer.from_crs(4326, self.crs)
+    #     bottom_left_utm = [int(self.transformer.transform(self.bottom_left[0], self.bottom_left[1])[0]),
+    #                        int(self.transformer.transform(self.bottom_left[0], self.bottom_left[1])[1])]
+    #     top_right_utm = [int(self.transformer.transform(self.top_right[0], self.top_right[1])[0]),
+    #                      int(self.transformer.transform(self.top_right[0], self.top_right[1])[1])]
+
+    #     top_right_utm = [top_right_utm[0] - (top_right_utm[0] - bottom_left_utm[0]) % self.res,
+    #                      top_right_utm[1] - (top_right_utm[1] - bottom_left_utm[1]) % self.res]
+    #     # adjustment (adding residue) because we want to make equal sized grids on whole area
+    #     # ------
+    #     # ------
+    #     # ------
+    #     # ------
+    #     # creating offset for top right pixel
+
+    #     lon = [bottom_left_utm[0], top_right_utm[0]]
+    #     lat = [bottom_left_utm[1], top_right_utm[1]]
+    #     # print(lon, lat)
+
+    #     # setting image parameters
+    #     self.xmin, self.ymin, self.xmax, self.ymax = [min(lon), min(lat), max(lon), max(lat)]
+    #     self.nx = round((self.xmax - self.xmin) / self.res)
+    #     self.ny = round((self.ymax - self.ymin) / self.res)
+    #     self.image_size = (self.ny, self.nx)
+
     def __init__(self, year="2021", satellite="viirs-snpp", site=None, res=375):
 
 
@@ -33,53 +83,82 @@ class VIIRSProcessing:
         self.year = year
 
         # defining extend of site in lat and lon
-        latitude, longitude = site.latitude, site.longitude
-        rectangular_size = site.rectangular_size
-        self.bottom_left = [latitude - rectangular_size, longitude - rectangular_size]
-        self.top_right = [latitude + rectangular_size, longitude + rectangular_size]
-        # print(bottom_left, top_right)
+        self.bottom_left = site.bottom_left
+        self.top_right = site.top_right
 
-        # filtering in fire pixel inside the bounding box of the given site
+        self.transformer = site.transformer
+        self.xmin, self.ymin, self.xmax, self.ymax = [site.transformed_bottom_left[1], site.transformed_bottom_left[0], site.transformed_top_right[1], site.transformed_top_right[0]]
+        self.nx = site.image_size[1]
+        self.ny = site.image_size[0]
+        self.image_size = site.image_size
+        
 
-        # transforming lon lat to utm
-        # UTM, Universal Transverse Mercator ( northing and easting)
-        # https://www.youtube.com/watch?v=LcVlx4Gur7I
+    def set_FIRMS_MAP_KEY(self):
+        file_path = 'config/FIRMS_API_MAP_KEY'
+        key_map = {}
+        with open(file_path, 'r') as file:
+            for line in file:
+                key, value = line.strip().split(' ')
+                key_map[key] = value
 
-        # https://epsg.io/32611
-        # 32610 (126 to 120) ;32611 (120 to 114) ;32612 (114 to 108)
+        self.MAP_KEY=key_map['realtimekey']
 
-        self.transformer = Transformer.from_crs(4326, self.crs)
-        bottom_left_utm = [int(self.transformer.transform(self.bottom_left[0], self.bottom_left[1])[0]),
-                           int(self.transformer.transform(self.bottom_left[0], self.bottom_left[1])[1])]
-        top_right_utm = [int(self.transformer.transform(self.top_right[0], self.top_right[1])[0]),
-                         int(self.transformer.transform(self.top_right[0], self.top_right[1])[1])]
 
-        top_right_utm = [top_right_utm[0] - (top_right_utm[0] - bottom_left_utm[0]) % self.res,
-                         top_right_utm[1] - (top_right_utm[1] - bottom_left_utm[1]) % self.res]
-        # adjustment (adding residue) because we want to make equal sized grids on whole area
-        # ------
-        # ------
-        # ------
-        # ------
-        # creating offset for top right pixel
 
-        lon = [bottom_left_utm[0], top_right_utm[0]]
-        lat = [bottom_left_utm[1], top_right_utm[1]]
-        # print(lon, lat)
+    def extract_hotspots_via_API(self, fire_date):
 
-        # setting image parameters
-        self.xmin, self.ymin, self.xmax, self.ymax = [min(lon), min(lat), max(lon), max(lat)]
-        self.nx = round((self.xmax - self.xmin) / self.res)
-        self.ny = round((self.ymax - self.ymin) / self.res)
-        self.image_size = (self.ny, self.nx)
+        filePath = f'VIIRS_Source_realtime/VIIRS_NOAA20_NRT_USA_{fire_date}.csv'
+        if os.path.exists(filePath):
+            # Read the CSV file into a DataFrame
+            VIIRS_pixel = pd.read_csv(filePath)
+        else:
+            
+            sensor_list = ['VIIRS_NOAA20_NRT','VIIRS_SNPP_NRT']
+            source_list = []
+            for sensor in sensor_list:
+                US_url = 'https://firms.modaps.eosdis.nasa.gov/api/country/csv/' + self.MAP_KEY + '/'+sensor+'/USA/1/'+fire_date
+                df = pd.read_csv(US_url)
+                columns_order = [
+                                'latitude', 'longitude', 'bright_ti4', 'scan', 'track', 
+                                'acq_date', 'acq_time', 'satellite', 'instrument', 'confidence', 
+                                'version', 'bright_ti5', 'frp', 'daynight'
+                            ]
 
+                # Select the columns in the desired order
+                df = df[columns_order]
+                source_list.append(df)
+            VIIRS_pixel = pd.concat(source_list, ignore_index=True)
+            VIIRS_pixel.to_csv(filePath, index=False)
+
+        self.fire_pixels = VIIRS_pixel
+
+        self.fire_pixels = self.fire_pixels[self.fire_pixels.latitude.gt(self.bottom_left[0])
+                                            & self.fire_pixels.latitude.lt(self.top_right[0])
+                                            & self.fire_pixels.longitude.gt(self.bottom_left[1])
+                                            & self.fire_pixels.longitude.lt(self.top_right[1])]
     def extract_hotspots(self):
         country = 'United_States'
-
+        dtype = np.dtype([
+                ('latitude', 'float64'),
+                ('longitude', 'float64'),
+                ('bright_ti4', 'float64'),
+                ('scan', 'float32'),
+                ('track', 'float32'),
+                ('acq_date', 'U10'),    # String for date
+                ('acq_time', 'int32'),     # Assuming time is stored as an integer
+                ('satellite', 'object'),   # String for satellite
+                ('instrument', 'object'),  # String for instrument
+                ('confidence', 'object'),  # String for confidence
+                ('version', 'object'),     # String for version
+                ('bright_ti5', 'float64'),
+                ('frp', 'float32'),
+                ('daynight', 'U1'),    # String for day/night
+                ('type', 'int32')          # Integer for type
+            ])
         source_list = []
         Sdirectory = "VIIRS_Source/" + self.satellite + "_" + self.year + "_" + country + ".csv"
         if os.path.exists(Sdirectory):
-            snn_yearly= pd.read_csv(Sdirectory)
+            snn_yearly= pd.read_csv(Sdirectory, low_memory=False)
             source_list.append(snn_yearly)
 
         Sdirectory3 = f'VIIRS_Source_new/fire_archive_SV-C2_{self.year}.csv'
@@ -118,18 +197,56 @@ class VIIRSProcessing:
         unique_time = self.fire_data_filter_on_date_and_bbox.acq_time.unique()
         return unique_time
 
-
-    def make_tiff(self, fire_date,ac_time):
+    def hhmm_to_minutes(self,hhmm):
+        """Convert HHMM format to minutes since midnight."""
+        hours = hhmm // 100
+        minutes = hhmm % 100
+        return hours * 60 + minutes
+    
+    def get_close_dates(self,unique_time):
+        if(len(unique_time) <2):
+            return []
+        unique_time = np.sort(unique_time)
+        unique_time_minutes = np.array([self.hhmm_to_minutes(t) for t in unique_time])
+        time_intervel = np.diff(unique_time_minutes)
+        min_time_intervel = time_intervel.min()
+        short_unique=[]
+        for i,j in enumerate(time_intervel):
+            if time_intervel[i] < 10:
+                short_unique.append(unique_time[i])
+                short_unique.append(unique_time[i+1])
+        # print(short_unique)
+        short_unique = np.unique(short_unique)
+        return short_unique
+    
+    def collapse_close_dates(self,unique_time):
+            if(len(unique_time) <2):
+                return unique_time
+            unique_time = np.sort(unique_time)
+            unique_time_minutes = np.array([self.hhmm_to_minutes(t) for t in unique_time])
+            time_intervel = np.diff(unique_time_minutes)
+            time_intervel = np.append(time_intervel,2400)
+            short_unique=[]
+            for i,j in enumerate(time_intervel):
+                # if time_intervel[i] < 10:
+                #     short_unique.append(unique_time[i+1])
+                if time_intervel[i] > 10:
+                    short_unique.append(unique_time[i])
+            return short_unique
+    
+    def make_tiff(self, fire_date,ac_time,viirs_tif_dir = None):
 
         # output file name
-        viirs_tif_dir = viirs_dir.replace('$LOC', self.location)
+        if viirs_tif_dir is None:
+            viirs_tif_dir = viirs_dir.replace('$LOC', self.location) 
+
         out_file = viirs_tif_dir + self.satellite + '-' + str(fire_date) + "_" + str(ac_time) + '.tif'
 
         if ((not VIIRS_OVERWRITE) and file_exists(out_file)):
             return
         # filter firepixel for time of date
         fire_data_filter_on_time = self.fire_data_filter_on_date_and_bbox[
-            self.fire_data_filter_on_date_and_bbox.acq_time.eq(ac_time)]
+            (self.fire_data_filter_on_date_and_bbox.acq_time.lt(ac_time+1)) & (self.fire_data_filter_on_date_and_bbox.acq_time.gt(ac_time-10))]
         fire_data_filter_on_timestamp = np.array(fire_data_filter_on_time)
 
         # b1_pixels = self.inverse_mapping(fire_data_filter_on_timestamp)

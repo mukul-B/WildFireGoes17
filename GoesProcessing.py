@@ -23,6 +23,7 @@ from GlobalValues import RAD, FDC, GOES_ndf, GOES_OVERWRITE
 import cartopy.crs as ccrs
 from osgeo import gdal
 from osgeo import osr
+from satpy.modifiers.parallax import ParallaxCorrection
 
 warnings.filterwarnings('ignore')
 
@@ -100,12 +101,13 @@ class GoesProcessing:
 
         # return if file not present for criteria and write in log
         if len(files) == 0:
-            # print("fine not found in GOES")
+            # print("fine not found in GOES",sDATE )
             self.failures.write("No Match found for {}\n".format(sDATE))
             return -1
 
         # find closed goes fire from viirs( the closest minutes)
         last, closest = 0, 0
+        found = 0
         for index, file in enumerate(files):
             fname = file.split("/")[-1]
             splits = fname.split("_")
@@ -114,7 +116,14 @@ class GoesProcessing:
                 last = index
             if abs(int(dt.datetime.strftime(g_time, '%M')) - int(minute)) < 3:
                 closest = index
-
+                found = 1
+        
+        # return if file not present for criteria and write in log
+        if found == 0:
+            # print("fine not found in GOES",sDATE , dt.datetime.now(dt.timezone.utc))
+            self.failures.write("No Match found for {}\n".format(sDATE))
+            return -1
+        
         # downloading closed file
         first_file = files[closest]
         # out_file=  "GOES-"+str(fire_date)+"_"+str(ac_time)+".nc"
@@ -206,7 +215,9 @@ class GoesProcessing:
             return -1
         goes_scene.load(layer)
         goes_scene = goes_scene.resample(area_def)
-
+        #TODO : parallex corrections
+        # corrector = ParallaxCorrection(area_def)
+        # corrector(goes_scene[layer[0]])
         out_val = [np.nan_to_num(goes_scene[band].values) for band in layer]
         # layer = layer[0]
         # goes_scene[layer].values = np.nan_to_num(goes_scene[layer].values)

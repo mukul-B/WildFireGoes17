@@ -109,6 +109,14 @@ def goes_img_to_channels(gf):
     gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
     # gf_min, gf_max = [0,0,0,210, 207],[120,126,126,413,342]
     for i in range(GOES_Bands):
+        # if(gf[i].max() == 0):
+        if(np.count_nonzero(gf[i]==0) > 0):
+            # print(np.count_nonzero(gf[i]==0))
+            # print(np.count_nonzero(gf[i]!=0))
+            return -1
+        if(gf[i].max() > gf_max[i] or gf[i].min() < gf_min[i]):
+            print("Error: Max and man values of GOES is incorrect")
+            print(i, gf[i].max() , gf_max[i] , gf[i].min() , gf_min[i])
         # update_global_max_min(gf[i],'GOESBAND'+str(i)+'.txt')
         gf_channels[i] = Normalize_img(gf[i],gf_min[i], gf_max[i])
     
@@ -174,6 +182,9 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
 }
     
     gf_channels = goes_img_to_channels(kf)
+
+    if(gf_channels == -1):
+        return
 
     for i in range(GOES_Bands):
         training_data_with_field[f'gf_c{i+1}'] = gf_channels[i]

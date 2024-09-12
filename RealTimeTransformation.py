@@ -164,10 +164,12 @@ def zoom_bbox(bbox, margin, shift_fraction=(0.5, 0.5)):
 
 
 
-def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
+def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution,vpath):
     
     d = gpath.split('/')[-1].split('.')[0][5:].split('_')
-    result_file =output_path+ '/FRP_'  + str(d[0] + '_' + d[1]) + '.png'
+    fdate = d[0]
+    ftime = d[1].rjust(4, '0')
+    result_file =output_path+ '/FRP_'  + str(fdate + '_' + ftime) + '.png'
     if  file_exists(result_file):
         return
 
@@ -224,11 +226,11 @@ def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
     zoom_margin = 0.85
     corner = (0.6,0.55)
     # print(bbox)
-    new_bbox = zoom_bbox(bbox, zoom_margin,corner)
-    ax.set_extent(new_bbox)
+    bbox = zoom_bbox(bbox, zoom_margin,corner)
+    ax.set_extent(bbox)
     cmap = 'YlOrRd'
     # plt.suptitle('Mosquito Fire on {0} at {1} UTC'.format(d[0], d[1]))
-    plot_date = datetime.strptime(f'{d[0]} {d[1][:2]}:{d[1][2:]}', '%Y-%m-%d %H:%M')
+    plot_date = datetime.strptime(f'{fdate} {ftime[:2]}:{ftime[2:]}', '%Y-%m-%d %H:%M')
 
     utc_timezone = pytz.timezone('UTC')
     plot_date_utc_time = utc_timezone.localize(plot_date)
@@ -267,6 +269,22 @@ def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution):
     # validate_with_radar = False
     if(validate_with_radar):
         returnval = radarprocessing.plot_radar_json(date_radar, ax)
+    
+    if(vpath):
+        #TODO:  viirs file name correction
+        vfile = vpath+'/'+ gpath.split('/')[-1].replace('GOES','viirs-snpp')
+        if  os.path.exists(vfile):
+            VIIRS_data = xr.open_rasterio(vfile)
+            vd = VIIRS_data.variable.data[0]
+            vd = retain_adjacent_nonzero(vd)
+            vd[vd > 0] = 1
+            vd[vd == 0] = None
+            q = ax.pcolormesh(lat, lon, vd,
+                        transform=ccrs.PlateCarree(),
+                        #   vmin=0 if prediction else GOES_MIN_VAL,
+                        #   # vmax=34,
+                        #   vmax=VIIRS_MAX_VAL if prediction else GOES_MAX_VAL,
+                        )
     # plt.show()
     if (not validate_with_radar) or (returnval):
         # print('/FRP_' + str(d[0] + '_' + d[1]) + '.png')
