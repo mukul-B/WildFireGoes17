@@ -21,10 +21,11 @@ from torch.utils.data import DataLoader
 
 import wandb
 from Classifier import Encoder
-from AutoencoderDataset import npDataset
+from CustomDataset import npDataset
+from ClassifierTraining import balance_dataset_if_TH
 from GlobalValues import RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
     HC, HI, LI, LC
-from GlobalValues import training_dir, Results, random_state, project_name_template, test_split
+from GlobalValues import training_dir, Results, random_state, project_name_template, test_split, model_specific_postfix
 from ModelRunConfiguration import use_config
 from EvaluationOperation import  get_evaluation_results
 from LossFunctions import Classification_loss
@@ -179,6 +180,9 @@ def test(test_loader, selected_model, npd):
     # maxdif = 0
     iou_plot_control = []
     iou_plot_prediction = []
+
+    iou_plot_control2 = []
+    iou_plot_prediction2 = []
     # sum_fpr = []
     mc = []
     for i in range(0, 11):
@@ -223,16 +227,22 @@ def test(test_loader, selected_model, npd):
                                  LOSS_NAME,z)
                 # print(z.nonzero().size(0), z.sum().item())
                 eval_single.fire_size = y.nonzero().size(0)
+                eval_single.total_BT = y.sum().item()
                 eval_single.total_FRP = z.sum().item()
+                eval_single.G7_max = round(x[0].max().item(),4)
+                eval_single.G14_max = round(x[1].max().item(),4)
                 
                 # if (eval_single.fire_size < 20 and eval_single.total_FRP < 50 ):
                 evals.update(eval_single)
                 if(eval_single.type == 'HCHI'):
-                    # print(z.sum().item())
-                    iou_plot_control.append([eval_single.IOU_predicted,eval_single.fire_size * (100/16384),eval_single.total_FRP])
+                    iou_plot_control.append([eval_single.IOU_predicted,eval_single.fire_size * (100/16384),eval_single.total_FRP,eval_single.total_BT,eval_single.G7_max,eval_single.G14_max ])
                 if(eval_single.type == 'LCLI'):
-                    # print(z.sum().item())
-                    iou_plot_prediction.append([eval_single.IOU_predicted,eval_single.fire_size * (100/16384),eval_single.total_FRP])
+                    iou_plot_prediction.append([eval_single.IOU_predicted,eval_single.fire_size * (100/16384),eval_single.total_FRP,eval_single.total_BT,eval_single.G7_max,eval_single.G14_max  ])
+
+                if(eval_single.type == 'HCLI'):
+                    iou_plot_control2.append([eval_single.IOU_predicted,eval_single.fire_size * (100/16384),eval_single.total_FRP,eval_single.total_BT,eval_single.G7_max,eval_single.G14_max  ])
+                if(eval_single.type == 'LCHI'):
+                    iou_plot_prediction2.append([eval_single.IOU_predicted,eval_single.fire_size * (100/16384),eval_single.total_FRP,eval_single.total_BT,eval_single.G7_max,eval_single.G14_max  ])
                 mc.append(eval_single.coverage_converage)
                 incv, incc = dir[round(eval_single.coverage_converage, 1)]
                 dir[round(eval_single.coverage_converage, 1)] = (incv + eval_single.IOU_predicted, incc + 1)
@@ -245,8 +255,24 @@ def test(test_loader, selected_model, npd):
 
     # plot_result_histogram(count, iou_plot_prediction)
     evals.report_results()
-    # report_results(evals)
+    import pandas as pd 
+    df = pd.DataFrame(iou_plot_control)
+    df.to_csv("HCHI.csv")
+    df2 = pd.DataFrame(iou_plot_prediction)
+    df2.to_csv("LCLI.csv")
+    df = pd.DataFrame(iou_plot_control)
+    df.to_csv("HCLI.csv")
+    df2 = pd.DataFrame(iou_plot_prediction)
+    df2.to_csv("LCHI.csv")
+    plot_classification_dependency(iou_plot_control, iou_plot_prediction,f'{res}/IOU_foreachcoverage.png')
+    plot_classification_dependency(iou_plot_control, [],f'{res}/IOU_foreachcoverage2.png')
+    plot_classification_dependency(iou_plot_control2, iou_plot_prediction2,f'{res}/IOU_foreachcoverage3.png')
+    
+    elapsed_time = time.time() - start_time
+    avg_elapsed_time += elapsed_time
+    logging.info("It took  {}s for processing  {} records".format(avg_elapsed_time, count))
 
+def plot_classification_dependency(iou_plot_control, iou_plot_prediction,savePath):
     iou_plot_control = np.array(iou_plot_control)
     iou_plot_prediction = np.array(iou_plot_prediction)
 
@@ -263,11 +289,8 @@ def test(test_loader, selected_model, npd):
     plt.legend(loc='upper right')  
     plt.tight_layout()
 
-    plt.savefig(f'{res}/IOU_foreachcoverage.png')
-    
-    elapsed_time = time.time() - start_time
-    avg_elapsed_time += elapsed_time
-    logging.info("It took  {}s for processing  {} records".format(avg_elapsed_time, count))
+    plt.savefig(savePath)
+    plt.close()
     # print(f'{res}/evaluation.log')
 
 def plot_result_histogram(count, iou_plot_prediction):
@@ -298,44 +321,21 @@ def test_runner(selected_model):
 
     # Get List of downloaded files and set up reference_data loader
     file_list = os.listdir(im_dir)
-    logging.info(f'{len(file_list)} reference_data samples found')
-    
-    # positive_scoop , th_scoop , negitive_scoop  = 1,0.91,0.95
-    # positive_scoop , th_scoop , negitive_scoop  = 0.6,0.9,0.9
-    # positive_scoop , th_scoop , negitive_scoop  = 0,1,0.45
-    # positive_scoop , th_scoop , negitive_scoop  = 1,1,0.35
-    # positive_scoop , th_scoop , negitive_scoop  = 1,0,0.85
-    positive_scoop , th_scoop , negitive_scoop  = 1,0.73,0
+    file_list = balance_dataset_if_TH(file_list)
 
 
-    file_list_pos = os.listdir(im_dir.replace('classifier','classifier_pos'))
-    file_list_neg = os.listdir(im_dir.replace('classifier','classifier_neg'))
-    file_list_TH = os.listdir(im_dir.replace('classifier','classifier_TH_neg'))
-
-
-    file_list_pos, reject_pos = train_test_split(file_list_pos, test_size=positive_scoop, random_state=random_state) if(positive_scoop != 0) else [[],[]]
-    file_list_neg, reject_neg = train_test_split(file_list_neg, test_size=negitive_scoop, random_state=random_state) if(negitive_scoop != 0) else [[],[]]
-    file_list_TH, reject_TH = train_test_split(file_list_TH, test_size=th_scoop, random_state=random_state) if(th_scoop != 0) else [[],[]]
-
-
-
-    print(f'{len(file_list_pos)} reference_data samples found pos')
-    print(f'{len(file_list_neg)} reference_data samples found neg')
-    print(f'{len(file_list_TH)} reference_data samples found TH')
-    file_list_total = file_list_pos + file_list_neg + file_list_TH
-    print(f'{len(file_list_total)} reference_data samples found')
-
-    # train_files, test_files = train_test_split(file_list_total, test_size=test_split, random_state=random_state)
+    train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
     # # train_files, validation_files = train_test_split(train_files, test_size=validation_split, random_state=random_state)
 
-    train_pos, test_pos = train_test_split(file_list_pos, test_size=test_split, random_state=random_state) if(len(file_list_pos)>0) else [[],[]]
-    train_neg, test_neg = train_test_split(file_list_neg, test_size=test_split, random_state=random_state) if(len(file_list_neg)>0) else [[],[]]
-    train_TH, test_TH = train_test_split(file_list_TH, test_size=test_split, random_state=random_state) if(len(file_list_TH)>0) else [[],[]]
+    # train_pos, test_pos = train_test_split(file_list_pos, test_size=test_split, random_state=random_state) if(len(file_list_pos)>0) else [[],[]]
+    # train_neg, test_neg = train_test_split(file_list_neg, test_size=test_split, random_state=random_state) if(len(file_list_neg)>0) else [[],[]]
+    # train_TH, test_TH = train_test_split(file_list_TH, test_size=test_split, random_state=random_state) if(len(file_list_TH)>0) else [[],[]]
 
-    # Combine the splits
-    train_files = train_pos + train_neg + train_TH
-    test_files = test_pos + test_neg + test_TH
-    
+    # # Combine the splits
+    # train_files = train_pos + train_neg + train_TH
+    # test_files = test_pos + test_neg + test_TH
+    logging.info(
+        f'Training sample : {len(train_files)} , testing samples : {len(test_files)}')
     npd = npDataset(test_files, batch_size, im_dir, augment=False, evaluate=True)
     test_loader = DataLoader(npd)
     
@@ -346,7 +346,8 @@ def test_runner(selected_model):
 
 def get_selected_model_weight(selected_model,model_project_path):
     # selected_model.load_state_dict(torch.load(model_project_path + "/" + RES_AUTOENCODER_PTH))
-    selected_model.encoder.load_state_dict(torch.load(model_project_path + "/" + RES_ENCODER_PTH))
+    selected_model.load_state_dict(torch.load(model_project_path + "/" + RES_ENCODER_PTH))
+
     # selected_model.decoder.load_state_dict(torch.load(model_project_path + "/" + RES_DECODER_PTH))
 
 
@@ -390,7 +391,8 @@ def main(config=None):
     loss_function_name=loss_function_name,
     n_epochs=n_epochs,
     batch_size=batch_size,
-    learning_rate=learning_rate
+    learning_rate=learning_rate,
+    model_specific_postfix = model_specific_postfix
 )
     path = model_path + project_name
     print(project_name)

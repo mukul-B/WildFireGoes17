@@ -38,12 +38,29 @@ class Classification_loss(nn.Module):
         target2[target2 > 0] = 1
         binary_targets = target2.view(-1).long()
         # one_hot_targets = F.one_hot(binary_targets, num_classes=2)
-        loss =nn.CrossEntropyLoss()
+        loss = nn.CrossEntropyLoss()
         rmse = loss(pred,binary_targets)
 
         # rmse = torch.sqrt(torch.mean((one_hot_targets - pred) ** 2))
         return rmse
 
+#segmentation
+class Segmentation_loss(nn.Module):
+    def __init__(self, beta):
+        self.last_activation = ACTIVATION_RELU
+        super(Segmentation_loss, self).__init__()
+
+    def forward(self, pred, target):
+        # target2 = torch.sum(target, (2, 3))
+        target[target > 0] = 1
+        # binary_targets = target2.view(-1).long()
+        # one_hot_targets = F.one_hot(binary_targets, num_classes=2)
+        loss = nn.BCEWithLogitsLoss()
+        rmse = loss(pred,target)
+
+        # rmse = torch.sqrt(torch.mean((one_hot_targets - pred) ** 2))
+        return rmse
+    
 # Global plus local MSE
 class GLMSE(nn.Module):
     def __init__(self, beta):

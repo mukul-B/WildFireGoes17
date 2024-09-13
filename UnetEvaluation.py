@@ -20,15 +20,16 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
 import wandb
-from AutoEncoderTraining import balance_dataset_if_TH
 from Autoencoder import Autoencoder, Encoder, Decoder
 from CustomDataset import npDataset
-from GlobalValues import COLOR_NORMAL_VALUE, RES_AUTOENCODER_PTH, RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
+from GlobalValues import RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
     HC, HI, LI, LC
-from GlobalValues import training_dir, Results, random_state, project_name_template, test_split, model_specific_postfix, realtime_model_specific_postfix
-from ModelRunConfiguration import use_config
+from GlobalValues import training_dir, Results, random_state, project_name_template, test_split, model_specific_postfix
+from ModelRunConfiguration import Selected_model, use_config
 from EvaluationOperation import get_evaluation_results
+from torch import nn
 
+from UnetTraining import balance_dataset_if_TH
 plt.style.use('plot_style/wrf')
 
 # logging.basicConfig(filename='evaluation.log', filemode='w',format='%(message)s', level=logging.INFO)
@@ -56,6 +57,14 @@ class EvaluateDataset:
             'typecount': {}
         }
 
+    # def update(self, type, IOU_control, psnr_control_inter, psnr_control_union, IOU_predicted, psnr_predicted_inter, psnr_predicted_union):
+    #     self.evals['control']['avg_IOU'][type] = self.evals['control']['avg_IOU'].get(type, 0.0) + IOU_control
+    #     self.evals['control']['avg_psnr_inter'][type] = self.evals['control']['avg_psnr_inter'].get(type, 0.0) + psnr_control_inter
+    #     self.evals['control']['avg_psnr_union'][type] = self.evals['control']['avg_psnr_union'].get(type, 0.0) + psnr_control_union
+    #     self.evals['predicted']['avg_IOU'][type] = self.evals['predicted']['avg_IOU'].get(type, 0.0) + IOU_predicted
+    #     self.evals['predicted']['avg_psnr_inter'][type] = self.evals['predicted']['avg_psnr_inter'].get(type, 0.0) + psnr_predicted_inter
+    #     self.evals['predicted']['avg_psnr_union'][type] = self.evals['predicted']['avg_psnr_union'].get(type, 0.0) + psnr_predicted_union
+    #     self.evals['typecount'][type] = self.evals['typecount'].get(type, 0) + 1
 
     def update(self, eval_single):
         
@@ -151,7 +160,10 @@ def test(test_loader, selected_model, npd):
             count += 1
             x, y = torch.squeeze(x, dim=0), torch.squeeze(y, dim=0)
             x = x.cuda()
-            decoder_output = selected_model(x)
+            
+            decoder_output = selected_model (x)
+            sigmoid = nn.Sigmoid()
+            decoder_output = sigmoid(decoder_output)
             if len(decoder_output) == 1:
                 output_rmse, output_jaccard = None, None
                 if LOSS_NAME == 'jaccard_loss':
@@ -180,6 +192,7 @@ def test(test_loader, selected_model, npd):
                 eval_single = get_evaluation_results(output_rmse, output_jaccard, x, y, path, npd.array[batch_idx], gf_min, gf_max, vf_max,
                                  LOSS_NAME,z)
                 evals.update(eval_single)
+
                 iou_plot_control.append(eval_single.IOU_control)
                 iou_plot_prediction.append(eval_single.IOU_predicted)
                 mc.append(eval_single.coverage_converage)
@@ -191,7 +204,7 @@ def test(test_loader, selected_model, npd):
         incv, incc = dir[i / 10]
         dir[i / 10] = (0 if incc == 0 else (incv / incc), incc)
     # logging.info(dir)
-    plot_result_histogram(count, iou_plot_prediction)
+    # plot_result_histogram(count, iou_plot_prediction)
     evals.report_results()
     elapsed_time = time.time() - start_time
     avg_elapsed_time += elapsed_time
@@ -223,79 +236,24 @@ def plot_result_histogram(count, iou_plot_prediction):
     plt.close()
 
 def test_runner(selected_model):
-
     # Get List of downloaded files and set up reference_data loader
     file_list = os.listdir(im_dir)
     file_list = balance_dataset_if_TH(file_list)
     logging.info(f'{len(file_list)} reference_data samples found')
     train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
-    # test_files = os.listdir(im_dir)
     logging.info(f'{len(test_files)} test_data samples found')
     npd = npDataset(test_files, batch_size, im_dir, augment=False, evaluate=True)
     test_loader = DataLoader(npd)
-    
+
     selected_model.cuda()
 
     # test the model components
     test(test_loader, selected_model, npd)
 
 def get_selected_model_weight(selected_model,model_project_path):
-    selected_model.load_state_dict(torch.load(model_project_path + "/" + RES_AUTOENCODER_PTH))
-    # selected_model.encoder.load_state_dict(torch.load(model_project_path + "/" + RES_ENCODER_PTH))
-    # selected_model.decoder.load_state_dict(torch.load(model_project_path + "/" + RES_DECODER_PTH))
-
-
-class RuntimeDLTransformation:
-    def __init__(self,conf):
-        loss_function = conf.get(LOSS_FUNCTION)
-        loss_function_name = str(loss_function).split("'")[1].split(".")[1]
-        
-        self.LOSS_NAME = loss_function_name
-        OUTPUT_ACTIVATION = loss_function(1).last_activation
-        self.selected_model = Autoencoder(GOES_Bands, OUTPUT_ACTIVATION)
-        model_name = type(self.selected_model).__name__
-
-        project_name = project_name_template.format(
-        model_name = model_name,
-        loss_function_name=loss_function_name,
-        n_epochs=conf.get(EPOCHS),
-        batch_size=conf.get(BATCH_SIZE),
-        learning_rate=conf.get(LEARNING_RATE),
-        model_specific_postfix=realtime_model_specific_postfix
-    )
-        path = model_path + project_name
-        get_selected_model_weight(self.selected_model,path)
-        self.selected_model.cuda()
-
-    def Transform(self, x):
-        
-        x = single_dataload(x)
-        with torch.no_grad():
-            x = x.cuda()
-            # encoder_output = encoder(x)
-            # decoder_output = decoder(encoder_output)
-            decoder_output = self.selected_model(x)
-            if len(decoder_output) == 1:
-                output_rmse, output_jaccard = None, None
-                if self.LOSS_NAME == 'jaccard_loss':
-                    output_jaccard = decoder_output
-                else:
-                    output_rmse = decoder_output
-            else:
-                output_rmse = decoder_output[0]
-            output_rmse = output_rmse.cpu()
-            # x = x.cpu()
-            # x = np.squeeze(x)
-            output = np.squeeze(output_rmse)
-            return output
-        
-
-
-def single_dataload(x):
-    x = np.array(x) / float(COLOR_NORMAL_VALUE)
-    # x = np.expand_dims(x, 1)
-    x = torch.Tensor(x)
-    return x
+    encoder_path = model_project_path + "/" + RES_ENCODER_PTH
+    decoder_path = model_project_path + "/" + RES_DECODER_PTH
+    selected_model.load_state_dict(torch.load(encoder_path))
 
 
 def prepare_dir(res):
@@ -314,32 +272,30 @@ def prepare_dir(res):
 
 
 def main(config=None):
-
+    
     if config:
         wandb.config = config
-    
-    n_epochs=wandb.config.get(EPOCHS)
-    batch_size=wandb.config.get(BATCH_SIZE)
-    learning_rate=wandb.config.get(LEARNING_RATE)
+
     loss_function = wandb.config.get(LOSS_FUNCTION)
-
     loss_function_name = str(loss_function).split("'")[1].split(".")[1]
+    # config.py
 
-    global res, LOSS_NAME
+    # global encoder_path, decoder_path, res, OUTPUT_ACTIVATION, LOSS_NAME
+    global path, res, OUTPUT_ACTIVATION, LOSS_NAME
     
     LOSS_NAME = loss_function_name
     OUTPUT_ACTIVATION = loss_function(1).last_activation
-    
-    selected_model = Autoencoder(GOES_Bands, OUTPUT_ACTIVATION)
+
+    selected_model = Selected_model(in_channels=GOES_Bands, out_channels=1)
     model_name = type(selected_model).__name__
     
     project_name = project_name_template.format(
     model_name = model_name,
     loss_function_name=loss_function_name,
-    n_epochs=n_epochs,
-    batch_size=batch_size,
-    learning_rate=learning_rate,
-    model_specific_postfix = model_specific_postfix
+    n_epochs=wandb.config.get(EPOCHS),
+    batch_size=wandb.config.get(BATCH_SIZE),
+    learning_rate=wandb.config.get(LEARNING_RATE),
+    model_specific_postfix=model_specific_postfix
 )
     path = model_path + project_name
     print(project_name)
@@ -353,7 +309,7 @@ def main(config=None):
             logging.StreamHandler()
         ]
     )
-
+    
     logging.info(f'Evaluating Model : {project_name} at {path}')
     get_selected_model_weight(selected_model,path)
     test_runner(selected_model)

@@ -20,6 +20,8 @@ from GlobalValues import GOES_MAX_VAL, VIIRS_UNITS, GOES_product_size, viirs_dir
 import datetime
 
 from WriteDataset import Normalize_img
+from CommonFunctions import prepareDirectory
+from SiteInfo import SiteInfo
 
 # demonstrate reference_data standardization with sklearn
 
@@ -64,16 +66,49 @@ def viewtiff(location,v_file, g_file, date, save=True, compare_dir=None):
     GOES_data = xr.open_rasterio(g_file)
 
     vd = VIIRS_data.variable.data[0]
+    FRP = VIIRS_data.variable.data[1]
     gd = [GOES_data.variable.data[i] for i in range(GOES_product_size)]
     # if in GOES and VIIRS , the values are normalized, using this flag to visualize result
     normalized = False
     vmin,vmax = (0, 250) if normalized else (200,420)
     # to_plot, lables = multi_spectral_plots(vd, gd)
+    to_plot, lables = multi_spectralAndFRP(vd, FRP, gd)
+
+    site = SiteInfo(location)
+    longitude = site.longitude
+    latitude = site.latitude
+    compare_dir = compare_dir.replace( location,'')
+
+    # small_big = "small" if np.count_nonzero(vd) < 30 else "big"
+    # small_big = 'issueGOES'
+    # compare_dir = compare_dir.replace('compare','compare_'+small_big)
+    # compare_dir = f'{compare_dir}/{str(site.EPSG)}'
+    # compare_dir = f'{compare_dir}/c{int((latitude // 4 ) * 4)}_{int(longitude)}'
+    # compare_dir = f'{compare_dir}/{int(longitude)}_{int(latitude)}_{location}'
+    compare_dir = f'{compare_dir}/{location}'
+    # compare_dir = f'{compare_dir}/{int(20 *(FRP.sum() // 20))}'
+    
+    save_path = f'{compare_dir}/{int(longitude)}_{int(latitude)}_{location}_{date}.png' if save else None
+    # save_path = f'{compare_dir}/{str(site.EPSG)}/{int(longitude)}_{int(latitude)}_{location}_{date}.png' if save else None
+    plot_condition = True
+    # plot_condition = (np.count_nonzero(gd[0]==0) > 5)
+    # plot_condition = (np.count_nonzero(vd) < 30 and FRP.sum() <150 )
+    if(plot_condition):
+        prepareDirectory(compare_dir)
+        plot_title = f'{location} at {date} coordinates : {longitude},{latitude}'
+        Plot_list(plot_title,  to_plot, lables, vd.shape, None, None, save_path)
+
+def basic_plot(vd, gd):
     to_plot = [gd[0],vd,(gd[0] - vd)]
     lables = ["GOES","VIIRS","VIIRS On GOES"]
-    
-    save_path = f'{compare_dir}{date}.png' if save else None
-    Plot_list(f'{location} at {date}',  to_plot, lables, vd.shape, None, None, save_path)
+    return to_plot,lables
+
+def multi_spectralAndFRP(vd, FRP, gd):
+    Active_fire = (gd[0]-gd[1])/(gd[0]+gd[1])
+    cloud_remove_280 = Active_fire * (gd[2]> 280) * 1000
+    to_plot = [gd[0],vd,(gd[0] - vd),FRP,Active_fire,cloud_remove_280]
+    lables = ["GOES","VIIRS "+str(vd.sum())+' '+str(np.count_nonzero(vd))+' '+str(round(np.average(vd),2)),"VIIRS On GOES",'FRP '+str(FRP.sum())+' '+str(np.count_nonzero(FRP))+' '+str(round(np.max(FRP),2)),"Active_fire",'cloud_remove_280']
+    return to_plot,lables
 
 def multi_spectral_plots(vd, gd):
     Active_fire = (gd[0]-gd[1])/(gd[0]+gd[1])
@@ -168,5 +203,8 @@ def validateAndVisualizeDataset(location, product):
     viirs_list = os.listdir(viirs_tif_dir)
     for v_file in viirs_list:
         g_file = "GOES" + v_file[10:]
+        sample_date = v_file[11:-4]
+        sample_date = sample_date.split('_')
+        sample_date = f'{sample_date[0]}_{sample_date[1].rjust(4,"0")}'
         # shape_check(viirs_tif_dir + v_file, goes_tif_dir + g_file)
-        viewtiff(location,viirs_tif_dir + v_file, goes_tif_dir + g_file, v_file[11:-4], compare_dir=comp_dir, save=True)
+        viewtiff(location,viirs_tif_dir + v_file, goes_tif_dir + g_file, sample_date, compare_dir=comp_dir, save=True)

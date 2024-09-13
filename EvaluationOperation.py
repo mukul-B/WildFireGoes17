@@ -107,7 +107,40 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
             positiveNegitive = HI if prediction_rmse.item() == 1 else LI
             condition = TRUEFalse + positiveNegitive
             predRMSEEV.dis = f''
+            
+    elif(LOSS_NAME == 'Segmentation_loss'):
+        # finding coverage and intensity criteria based on input and groundthruth
+        condition_coverage = HC if inputEV.coverage > THRESHOLD_COVERAGE else LC
+        condition_intensity = HI if inputEV.iou > THRESHOLD_IOU else LI
+        condition = condition_coverage + condition_intensity
+        
 
+        #  4)rmse prediction evaluation
+        predRMSEEV = EvaluationVariables("prediction_rmse")
+        if prediction_rmse is not None:
+            outmap_min = prediction_rmse.min()
+            outmap_max = prediction_rmse.max()
+            # prediction_rmse_normal = (prediction_rmse - outmap_min) / (outmap_max - outmap_min)
+            prediction_rmse_normal = prediction_rmse
+            # prediction_rmse = prediction_rmse.numpy()
+            prediction_rmse = prediction_rmse_normal.numpy()
+            prediction_rmse = np.nan_to_num(prediction_rmse)
+            
+            predRMSEEV.ret, predRMSEEV.th, histogram,_, _ = getth(prediction_rmse, on=0)
+            # retN, thN, _,_, _ = getth(prediction_rmse_normal, on=0)
+
+            # prediction_rmse_TH = thN * prediction_rmse_normal
+            # prediction_rmse[prediction_rmse<0.5] = 0
+            # predRMSEEV.th = prediction_rmse
+            predRMSEEV.th_img = predRMSEEV.th * prediction_rmse
+            predRMSEEV.iou = IOU_numpy(groundTruth, predRMSEEV.th)
+            predRMSEEV.psnr_intersection = PSNR_intersection(groundTruth, predRMSEEV.th_img)
+            predRMSEEV.psnr_union = PSNR_union(groundTruth, predRMSEEV.th_img)
+            predRMSEEV.coverage = np.count_nonzero(predRMSEEV.th) / predRMSEEV.th.size
+            predRMSEEV.dis = f'\nThreshold: {str(round(predRMSEEV.ret, 4))}  Coverage:  {str(round(predRMSEEV.coverage, 4))} ' \
+                    f'\nIOU :  {str(predRMSEEV.iou)} ' \
+                    f'\nPSNR_intersection : {str(round(predRMSEEV.psnr_intersection, 4))}'
+# 
     else:
         # finding coverage and intensity criteria based on input and groundthruth
         condition_coverage = HC if inputEV.coverage > THRESHOLD_COVERAGE else LC
@@ -160,7 +193,7 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
     # ----------------------------------------------------------------------------------
     # random result plot
     if ALL_SAMPLES or filename[0] in SELECTED_SAMPLES :
-    # if condition in (LC+HI, LC+LI ) :
+    # if condition in (LC+HI, LC+LI ) and filename[0] in SELECTED_SAMPLES :
     # if 0:
     # if np.count_nonzero(groundTruth) > 100:
 
@@ -175,9 +208,12 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
         #                inputEV.th_l1 * inp,
         #                OTSU_thresholding_on_GOES_LABEL + inputEV.dis)
         # minmaxg3 = "\n second min: " + str(groundTruth_NZ_min) +"\n max: " + str(groundTruth_max)
+        viirs_30wl = np.sum((frp > 0)& (frp <=30))
+        viirs_30wm = np.sum(frp >30)
+        viirs30wratio = viirs_30wm /viirs_30wl
         g3 = ImagePlot(VIIRS_UNITS,vf_max,VIIRS_MIN_VAL,
                        groundTruth ,
-                       VIIRS_GROUND_TRUTH_LABEL + str(np.count_nonzero(groundTruth)) + ' ' +str(np.sum(frp) ))
+                       VIIRS_GROUND_TRUTH_LABEL + str(np.count_nonzero(groundTruth)) + ' ' +str(np.sum(frp))+ ' ' +str(viirs_30wl) + ' ' +str(viirs_30wm )+ ' ' +str(round(viirs30wratio,3) ))
         # g6 = ImagePlot(GOES_UNITS,gf_max, gf_min,
         #                predIOUEV.th_img,
         #                VIIRS_GROUND_TRUTH_LABEL + minmaxg3)
@@ -193,7 +229,7 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
             # minmaxg4 = "\n second min: " + str(outmap_NZ_min) +"\n max: " + str(outmap_max) +"\n psnr_intersection: " + str(round(predRMSEEV.psnr_intersection,4))+"\n psnr_union: " + str(round(predRMSEEV.psnr_union,4)) + "\nIOU: " +str(round(predRMSEEV.iou,4))
             g4 = ImagePlot(VIIRS_UNITS if prediction_rmse is not None else "IOU",vf_max,VIIRS_MIN_VAL,
                         prediction_rmse if prediction_rmse is not None else prediction_IOU,
-                        Prediction_RMSE_LABEL+ pl[1] if prediction_rmse is not None else Prediction_JACCARD_LABEL)
+                        Prediction_RMSE_LABEL if prediction_rmse is not None else Prediction_JACCARD_LABEL)
 
         
         # psnr_intersection6 = PSNR_intersection(groundTruth, thN * prediction_rmse_TH)

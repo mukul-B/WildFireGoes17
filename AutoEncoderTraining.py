@@ -11,9 +11,9 @@ import logging
 
 import wandb
 from Autoencoder import Autoencoder, Encoder, Decoder
-from AutoencoderDataset import npDataset
+from CustomDataset import npDataset
 from GlobalValues import RES_AUTOENCODER_PTH, GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
-    LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template, validation_split, test_split
+    LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template, validation_split, test_split, model_specific_postfix
 from ModelRunConfiguration import SWEEP_OPERATION, use_config,sweep_loss_funtion
 
 im_dir = training_dir
@@ -72,7 +72,7 @@ def train(train_loader, test_loader, selected_model, optimizer, n_epochs, criter
             # forward + backward + optimize
 
             decoder_output = selected_model(x)
-            wandb.log({"output": torch.sum(decoder_output[0]), "epoch": epoch})
+            # wandb.log({"output": torch.sum(decoder_output[0]), "epoch": epoch})
             target = y
             loss = criteria(decoder_output, target)
             if loses_count == 0:
@@ -127,6 +127,7 @@ def train(train_loader, test_loader, selected_model, optimizer, n_epochs, criter
 def train_runner( selected_model, n_epochs, batch_size, criteria, optimizer):
     # Get List of downloaded files and set up reference_data loader
     file_list = os.listdir(im_dir)
+    file_list = balance_dataset_if_TH(file_list)
     print(f'{len(file_list)} reference_data samples found')
     train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
     train_files, validation_files = train_test_split(train_files, test_size=validation_split, random_state=random_state)
@@ -139,6 +140,36 @@ def train_runner( selected_model, n_epochs, batch_size, criteria, optimizer):
     #starting training
     selected_model.cuda()
     train(train_loader, validation_loader, selected_model, optimizer, n_epochs, criteria)
+
+def balance_dataset_if_TH(file_list):
+    logging.info(f'{len(file_list)} reference_data samples found')
+    
+    # positive_scoop , th_scoop , negitive_scoop  = 1,0.91,0.95
+    # positive_scoop , th_scoop , negitive_scoop  = 0.6,0.9,0.9
+    # positive_scoop , th_scoop , negitive_scoop  = 0,1,0.58
+    # positive_scoop , th_scoop , negitive_scoop  = 1,1,0.35
+    # positive_scoop , th_scoop , negitive_scoop  = 1,0,0.89
+    # positive_scoop , th_scoop , negitive_scoop  = 1,0.73,0
+    positive_scoop , th_scoop , negitive_scoop  = 1,0,0
+
+    # positive_scoop , th_scoop , negitive_scoop  = 0,1,0
+
+
+    file_list_pos = os.listdir(im_dir.replace('training_data','training_data_pos'))
+    file_list_neg = os.listdir(im_dir.replace('training_data','training_data_neg'))
+    file_list_TH = os.listdir(im_dir.replace('training_data','training_data_TH'))
+
+
+    file_list_pos, reject_pos = train_test_split(file_list_pos, test_size=positive_scoop, random_state=random_state) if(positive_scoop != 0) else [[],[]]
+    file_list_neg, reject_neg = train_test_split(file_list_neg, test_size=negitive_scoop, random_state=random_state) if(negitive_scoop != 0) else [[],[]]
+    file_list_TH, reject_TH = train_test_split(file_list_TH, test_size=th_scoop, random_state=random_state) if(th_scoop != 0) else [[],[]]
+    
+    print(f'{len(file_list_pos)} reference_data samples found pos')
+    print(f'{len(file_list_neg)} reference_data samples found neg')
+    print(f'{len(file_list_TH)} reference_data samples found TH')
+    file_list_total = file_list_pos + file_list_neg + file_list_TH
+    print(f'{len(file_list_total)} reference_data samples found')
+    return file_list_total
 
 def main(config=None):
     start_time = datetime.now()
@@ -175,7 +206,8 @@ def main(config=None):
     loss_function_name=loss_function_name,
     n_epochs=n_epochs,
     batch_size=batch_size,
-    learning_rate=learning_rate
+    learning_rate=learning_rate,
+    model_specific_postfix=model_specific_postfix
 )
     print(project_name)
 

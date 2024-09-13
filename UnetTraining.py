@@ -2,7 +2,6 @@ import os
 from datetime import datetime
 
 import torch
-
 torch.cuda.empty_cache()
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
@@ -11,8 +10,7 @@ from torch.utils.data import DataLoader
 import logging
 
 import wandb
-from Classifier import Encoder
-from TransferLearning import get_pre_model
+# from AutoencoderDataset import npDataset
 from CustomDataset import npDataset
 from GlobalValues import GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
     LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template, validation_split, test_split, model_specific_postfix
@@ -130,23 +128,9 @@ def train_runner( selected_model, n_epochs, batch_size, criteria, optimizer):
     # Get List of downloaded files and set up reference_data loader
     file_list = os.listdir(im_dir)
     file_list = balance_dataset_if_TH(file_list)
-    logging.info(f'{len(file_list)} reference_data samples found')
-
+    print(f'{len(file_list)} reference_data samples found')
     train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
     train_files, validation_files = train_test_split(train_files, test_size=validation_split, random_state=random_state)
-
-    # train_pos, test_pos = train_test_split(file_list_pos, test_size=test_split, random_state=random_state) if(len(file_list_pos)>0) else [[],[]]
-    # train_neg, test_neg = train_test_split(file_list_neg, test_size=test_split, random_state=random_state) if(len(file_list_neg)>0) else [[],[]]
-    # train_TH, test_TH = train_test_split(file_list_TH, test_size=test_split, random_state=random_state) if(len(file_list_TH)>0) else [[],[]]
-
-    # train_pos, val_pos = train_test_split(train_pos, test_size=validation_split, random_state=random_state) if(len(train_pos)>0) else [[],[]]
-    # train_neg, val_neg = train_test_split(train_neg, test_size=validation_split, random_state=random_state) if(len(train_neg)>0) else [[],[]]
-    # train_TH, val_TH = train_test_split(train_TH, test_size=validation_split, random_state=random_state) if(len(train_TH)>0) else [[],[]]
-
-    # # Combine the splits
-    # train_files = train_pos + train_neg + train_TH  
-    # test_files = test_pos + test_neg + test_TH
-    # validation_files = val_pos + val_neg + val_TH 
 
     train_loader = DataLoader(npDataset(train_files, batch_size, im_dir,True,False), shuffle=True)
     validation_loader = DataLoader(npDataset(validation_files, batch_size, im_dir,True,False), shuffle=False)
@@ -159,13 +143,16 @@ def train_runner( selected_model, n_epochs, batch_size, criteria, optimizer):
 
 def balance_dataset_if_TH(file_list):
     logging.info(f'{len(file_list)} reference_data samples found')
-    
+
     file_list_pos = os.listdir(im_dir.replace('training_data','training_data_pos'))
     file_list_neg = os.listdir(im_dir.replace('training_data','training_data_neg'))
     file_list_TH = os.listdir(im_dir.replace('training_data','training_data_TH'))
 
     pos_len, th_len, neg_len = len(file_list_pos) , len(file_list_TH),len(file_list_neg)
-    positive_scoop , th_scoop , negitive_scoop  = 1,1 ,1- ((pos_len + th_len )/neg_len) # pos th , equal distribution fire and non fire
+
+    positive_scoop , th_scoop , negitive_scoop  = 1,0 ,0 # only pos  
+
+    # positive_scoop , th_scoop , negitive_scoop  = 1,1 ,1- ((pos_len + th_len )/neg_len) # pos th , equal distribution fire and non fire
     # positive_scoop , th_scoop , negitive_scoop  = 1,1 - (pos_len/th_len) ,1-(2*pos_len/neg_len) # pos th , equal distribution of big, small fire also
     # positive_scoop , th_scoop , negitive_scoop  = 1,0 ,1-(pos_len/neg_len) # pos/neg th , equal distribution but removing small fires
     # positive_scoop , th_scoop , negitive_scoop  = 1,1 - (pos_len/th_len) ,0 # neg th , equal distribution but removing no fire
@@ -177,12 +164,13 @@ def balance_dataset_if_TH(file_list):
     file_list_TH, reject_TH = train_test_split(file_list_TH, test_size=th_scoop, random_state=random_state) if(th_scoop != 0) else [[],[]]
 
 
+    file_list_total = file_list_pos + file_list_neg + file_list_TH
 
     print(f'{len(file_list_pos)} reference_data samples found pos')
     print(f'{len(file_list_neg)} reference_data samples found neg')
     print(f'{len(file_list_TH)} reference_data samples found TH')
-    file_list_total = file_list_pos + file_list_neg + file_list_TH
     print(f'{len(file_list_total)} reference_data samples found')
+
     return file_list_total
 
 def main(config=None):
@@ -211,7 +199,7 @@ def main(config=None):
     # criteria = two_branch_loss(beta)
     OUTPUT_ACTIVATION = criteria.last_activation if criteria.last_activation else "relu"
     # Set up the model. and optimizer
-    selected_model = get_pre_model(GOES_Bands)
+    selected_model = Selected_model(in_channels=GOES_Bands, out_channels=1)
     model_name = type(selected_model).__name__
     optimizer = optim.Adam(list(selected_model.parameters()), lr=learning_rate)
 

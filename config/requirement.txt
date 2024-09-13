@@ -19,3 +19,4 @@ conda install pyyaml
 
 conda install -c conda-forge opencv
 conda install conda-forge::torchinfo
+conda install conda-forge::watchdog
