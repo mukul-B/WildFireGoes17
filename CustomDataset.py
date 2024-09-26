@@ -62,7 +62,7 @@ class npDataset(Dataset):
         x,y = torch.Tensor(x), torch.Tensor(y)
         if(self.augment):
             # TODO not doing transformation increases the accuracy in testing (need to be checked)
-            x, y = self.transform(x,y)
+            x, y = self.transform([x,y])
         if self.evaluate:
             z = np.array(z)
             z = np.expand_dims(z, 1)
@@ -80,27 +80,40 @@ class npDataset(Dataset):
 #
 # ])
 
-
-def transform( image, mask):
-    # # Resize
-    # resize = transforms.Resize(size=(520, 520))
-    # image = resize(image)
-    # mask = resize(mask)
-    #
-    # # Random crop
-    # i, j, h, w = transforms.RandomCrop.get_params(
-    #     image, output_size=(512, 512))
-    # image = torch.crop(image, i, j, h, w)
-    # mask = TF.crop(mask, i, j, h, w)
-
+def transform( images):
     # Random horizontal flipping
     if random() > 0.5:
-        image = image.flip((2,))
-        mask = mask.flip((2,))
-
+        images = [im.flip((2,)) for im in images]
+       
+        
     # Random vertical flipping
     if random() > 0.5:
-        image = image.flip( (3,))
-        mask = mask.flip( (3,))
+        images = [im.flip( (3,)) for im in images]
+    
+    return images
+    
 
-    return image, mask
+
+# def transform( image, mask):
+#     # # Resize
+#     # resize = transforms.Resize(size=(520, 520))
+#     # image = resize(image)
+#     # mask = resize(mask)
+#     #
+#     # # Random crop
+#     # i, j, h, w = transforms.RandomCrop.get_params(
+#     #     image, output_size=(512, 512))
+#     # image = torch.crop(image, i, j, h, w)
+#     # mask = TF.crop(mask, i, j, h, w)
+
+#     # Random horizontal flipping
+#     if random() > 0.5:
+#         image = image.flip((2,))
+#         mask = mask.flip((2,))
+
+#     # Random vertical flipping
+#     if random() > 0.5:
+#         image = image.flip( (3,))
+#         mask = mask.flip( (3,))
+
+#     return image, mask

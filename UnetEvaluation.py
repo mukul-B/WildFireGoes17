@@ -20,16 +20,16 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
 import wandb
+from UnetTraining import balance_dataset_if_TH
 from Autoencoder import Autoencoder, Encoder, Decoder
 from CustomDataset import npDataset
-from GlobalValues import RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
+from GlobalValues import COLOR_NORMAL_VALUE,RES_AUTOENCODER_PTH, RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
     HC, HI, LI, LC
-from GlobalValues import training_dir, Results, random_state, project_name_template, test_split, model_specific_postfix
-from ModelRunConfiguration import Selected_model, use_config
+from GlobalValues import training_dir, Results, random_state, project_name_template, test_split, model_specific_postfix, realtime_model_specific_postfix
+from ModelRunConfiguration import Selected_model, use_config_UNET
 from EvaluationOperation import get_evaluation_results
 from torch import nn
 
-from UnetTraining import balance_dataset_if_TH
 plt.style.use('plot_style/wrf')
 
 # logging.basicConfig(filename='evaluation.log', filemode='w',format='%(message)s', level=logging.INFO)
@@ -154,15 +154,14 @@ def test(test_loader, selected_model, npd):
     # logging.info(dir)
     selected_model.eval()
     start_time = time.time()
+    sigmoid = nn.Sigmoid()
     with torch.no_grad():
         # for batch_idx, (x, y) in enumerate(test_loader):
         for batch_idx, (x, y, z, gf_min, gf_max, vf_max) in enumerate(test_loader):
             count += 1
             x, y = torch.squeeze(x, dim=0), torch.squeeze(y, dim=0)
             x = x.cuda()
-            
-            decoder_output = selected_model (x)
-            sigmoid = nn.Sigmoid()
+            decoder_output = selected_model(x)
             decoder_output = sigmoid(decoder_output)
             if len(decoder_output) == 1:
                 output_rmse, output_jaccard = None, None
@@ -192,7 +191,6 @@ def test(test_loader, selected_model, npd):
                 eval_single = get_evaluation_results(output_rmse, output_jaccard, x, y, path, npd.array[batch_idx], gf_min, gf_max, vf_max,
                                  LOSS_NAME,z)
                 evals.update(eval_single)
-
                 iou_plot_control.append(eval_single.IOU_control)
                 iou_plot_prediction.append(eval_single.IOU_predicted)
                 mc.append(eval_single.coverage_converage)
@@ -251,9 +249,64 @@ def test_runner(selected_model):
     test(test_loader, selected_model, npd)
 
 def get_selected_model_weight(selected_model,model_project_path):
-    encoder_path = model_project_path + "/" + RES_ENCODER_PTH
-    decoder_path = model_project_path + "/" + RES_DECODER_PTH
-    selected_model.load_state_dict(torch.load(encoder_path))
+    selected_model.load_state_dict(torch.load(model_project_path + "/" + RES_AUTOENCODER_PTH))
+
+class RuntimeDLTransformation:
+    def __init__(self,conf):
+        loss_function = conf.get(LOSS_FUNCTION)
+        loss_function_name = str(loss_function).split("'")[1].split(".")[1]
+        
+        self.LOSS_NAME = loss_function_name
+        OUTPUT_ACTIVATION = loss_function(1).last_activation
+        self.selected_model = Selected_model(in_channels=GOES_Bands, out_channels=1)
+        self.sigmoid = nn.Sigmoid()
+        model_name = type(self.selected_model).__name__
+
+        project_name = project_name_template.format(
+        model_name = model_name,
+        loss_function_name=loss_function_name,
+        n_epochs=conf.get(EPOCHS),
+        batch_size=conf.get(BATCH_SIZE),
+        learning_rate=conf.get(LEARNING_RATE),
+        model_specific_postfix=realtime_model_specific_postfix
+    )   
+        print(project_name)
+        path = model_path + project_name
+        get_selected_model_weight(self.selected_model,path)
+        self.selected_model.cuda()
+
+    def Transform(self, x):
+        
+        x = single_dataload(x)
+        with torch.no_grad():
+            x = x.cuda()
+            decoder_output = self.selected_model(x)
+            if len(decoder_output) == 1:
+                output_rmse, output_jaccard = None, None
+                if self.LOSS_NAME == 'jaccard_loss':
+                    output_jaccard = decoder_output
+                else:
+                    output_rmse = decoder_output
+            else:
+                output_rmse = decoder_output[0]
+            output_rmse = self.sigmoid(output_rmse)
+            return output_rmse
+            
+            
+    def out_put_to_numpy(self, output_rmse):
+        output_rmse = output_rmse.cpu()
+        # x = x.cpu()
+        # x = np.squeeze(x)
+        output = np.squeeze(output_rmse)
+        return output
+        
+
+
+def single_dataload(x):
+    x = np.array(x) / float(COLOR_NORMAL_VALUE)
+    # x = np.expand_dims(x, 1)
+    x = torch.Tensor(x)
+    return x
 
 
 def prepare_dir(res):
@@ -275,7 +328,10 @@ def main(config=None):
     
     if config:
         wandb.config = config
-
+    
+    n_epochs=wandb.config.get(EPOCHS)
+    batch_size=wandb.config.get(BATCH_SIZE)
+    learning_rate=wandb.config.get(LEARNING_RATE)
     loss_function = wandb.config.get(LOSS_FUNCTION)
     loss_function_name = str(loss_function).split("'")[1].split(".")[1]
     # config.py
@@ -292,10 +348,10 @@ def main(config=None):
     project_name = project_name_template.format(
     model_name = model_name,
     loss_function_name=loss_function_name,
-    n_epochs=wandb.config.get(EPOCHS),
-    batch_size=wandb.config.get(BATCH_SIZE),
-    learning_rate=wandb.config.get(LEARNING_RATE),
-    model_specific_postfix=model_specific_postfix
+    n_epochs=n_epochs,
+    batch_size=batch_size,
+    learning_rate=learning_rate,
+    model_specific_postfix = model_specific_postfix
 )
     path = model_path + project_name
     print(project_name)
@@ -309,7 +365,7 @@ def main(config=None):
             logging.StreamHandler()
         ]
     )
-    
+
     logging.info(f'Evaluating Model : {project_name} at {path}')
     get_selected_model_weight(selected_model,path)
     test_runner(selected_model)
@@ -317,5 +373,5 @@ def main(config=None):
 
 
 if __name__ == "__main__":
-    config = use_config
+    config = use_config_UNET
     main(config)

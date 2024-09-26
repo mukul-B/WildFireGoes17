@@ -78,8 +78,11 @@ class SiteInfo():
         # setting image parameters
         xmin, ymin, xmax, ymax = [min(lon), min(lat), max(lon), max(lat)]
 
-        self.transformed_bottom_left= [ymin, xmin]
-        self.transformed_top_right = [ymax, xmax]
+        # self.transformed_bottom_left= [ymin, xmin]
+        # self.transformed_top_right = [ymax, xmax]
+
+        self.transformed_bottom_left= [xmin,ymin]
+        self.transformed_top_right = [xmax,ymax]
 
         nx = round((xmax - xmin) / self.res)
         ny = round((ymax - ymin) / self.res)

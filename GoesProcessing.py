@@ -19,7 +19,7 @@ from pyproj import Transformer
 from pyresample.geometry import AreaDefinition
 from satpy import Scene
 
-from GlobalValues import RAD, FDC, GOES_ndf, GOES_OVERWRITE
+from GlobalValues import RAD, FDC, GOES_ndf, GOES_OVERWRITE, GOES_tiff_file_name
 import cartopy.crs as ccrs
 from osgeo import gdal
 from osgeo import osr
@@ -41,41 +41,77 @@ class GoesProcessing:
         self.site = site
 
         # product to g_reader for Satpy
+        self.fs = s3fs.S3FileSystem(anon=True)
         self.g_reader = []
         for pn in product_name:
             g_reader = pn.split('-')
             g_reader = '_'.join(g_reader[:2]).lower()
             g_reader = 'abi_l2_nc' if (g_reader == 'abi_l2') else g_reader
             self.g_reader.append(g_reader)
+        
+        self.area_def = self.get_areaDefination_old(site)
+        # area_def_old = self.get_areaDefination_old(site)
+
+        # if(self.area_def!=area_def_old):
+        #     print(self.area_def,area_def_old)
+        # return 
 
 
     def __del__(self):
         self.failures.close()
 
     def download_goes(self, fire_date, ac_time):
-        return [self.download_goes_product(fire_date, ac_time, product_name, band) for product_name , band in zip(self.product_name,self.band)]
+
+        sDATE = dt.datetime.strptime(fire_date + "_" + ac_time.zfill(4), '%Y-%m-%d_%H%M')
+        # 2022-10-13
+        # no more GOES -17 after 10 jan 2023 4 p.m
+        # GOES 18 has issue from 9/8/2022 to 10/13/2022 ( use goes -17 for this range)
+        G18_overlap_start_date = dt.datetime(2022, 9, 1)
+        # G18_start_date = dt.datetime(2022, 10, 14)
+        G18_start_date = dt.datetime(2022, 11, 15)
+
+        # Compare the dates
+        if sDATE > G18_start_date:
+            bucket_names=['noaa-goes18']
+            # setelite_file_prefix = 'G18'
+        elif sDATE > G18_overlap_start_date:
+            bucket_names = ['noaa-goes18','noaa-goes17']
+        else:
+            bucket_names=['noaa-goes17']
+            # setelite_file_prefix = 'G17'
+        if(self.site.longitude > -109):
+            bucket_names=['noaa-goes16']
+
+        for bucket_name in bucket_names:
+            return_paths =  [self.download_goes_product(sDATE, product_name, band,bucket_name=bucket_name) for product_name , band in zip(self.product_name,self.band)]
+            if -1  not in return_paths:
+                path = [self.download_paths(first_file) for first_file in return_paths]
+                # path = [-1,-1,-1]
+                # date_prefix = [ first_file.split("_")[3] for first_file in return_paths]
+                # date_same = np.all([ dater == date_prefix[0] for dater in date_prefix])
+                
+                # if(date_same == False):
+                #     print('error not all date same')
+                # ret_date = dt.datetime.strptime(date_prefix[0], 's%Y%j%H%M%S%f')
+                # ret_date_diff = abs((sDATE - ret_date).total_seconds() // 60)
+                # if(ret_date_diff > 3):
+                #     print('error diff',ret_date_diff)
+                
+                return path
+            
+        return [-1,-1,-1]
         
         
     # download GOES reference_data for date , product band and mode , finction have default values
-    def download_goes_product(self, fire_date, ac_time, product_name, band, mode='M6',
+    def download_goes_product(self, sDATE, product_name, band, mode='M6',
                       bucket_name='noaa-goes17'):
 
         # extract date parameter of AWS request from given date and time
-        sDATE = dt.datetime.strptime(fire_date + "_" + ac_time.zfill(4), '%Y-%m-%d_%H%M')
-        # 2022-09-01
-        comparison_date = dt.datetime(2022, 9, 1)
-
-        # Compare the dates
-        if sDATE > comparison_date:
-            bucket_name='noaa-goes18'
-            setelite_file_prefix = 'G18'
-        else:
-            bucket_name='noaa-goes17'
-            setelite_file_prefix = 'G17'
-
-        if(self.site.longitude > -109):
-            bucket_name='noaa-goes16'
-            setelite_file_prefix = 'G16'
+        setelite_file_prefix = bucket_name.replace('noaa-goes','G')
+        
+        minute = sDATE.minute
+        if(minute == 59):
+            sDATE = sDATE + dt.timedelta(minutes=1)
 
         day_of_year = sDATE.timetuple().tm_yday
         year = sDATE.year
@@ -84,7 +120,7 @@ class GoesProcessing:
         # print(day_of_year, year, hour, minute)
 
         # Use anonymous credentials to access public reference_data  from AWS
-        fs = s3fs.S3FileSystem(anon=True)
+        # fs = s3fs.S3FileSystem(anon=True)
         # band = ('C' + str(band).zfill(2) if band else "")
         # fdc does have commutative bands
         band = "" if (self.product_name == FDC) else band
@@ -94,7 +130,7 @@ class GoesProcessing:
 
         # print(prefix,file_prefix)
         # listing all files for product date for perticular hour
-        files = fs.ls(prefix)
+        files = self.fs.ls(prefix)
 
         # filtering band and mode from file list
         files = [i for i in files if file_prefix in i]
@@ -117,6 +153,7 @@ class GoesProcessing:
             if abs(int(dt.datetime.strftime(g_time, '%M')) - int(minute)) < 3:
                 closest = index
                 found = 1
+                break
         
         # return if file not present for criteria and write in log
         if found == 0:
@@ -126,6 +163,9 @@ class GoesProcessing:
         
         # downloading closed file
         first_file = files[closest]
+        return first_file
+
+    def download_paths(self, first_file):
         # out_file=  "GOES-"+str(fire_date)+"_"+str(ac_time)+".nc"
         out_file = first_file.split('/')[-1]
         # path = directory + '/' + product_name + "/" + out_file
@@ -133,9 +173,8 @@ class GoesProcessing:
         path = GOES_ndf + "/" + out_file
         if not file_exists(path):
             print('\nDownloading files from AWS...', end='', flush=True)
-            fs.download(first_file, path)
-            print(files[closest], "completed")
-
+            self.fs.download(first_file, path)
+            print(first_file, "completed")
         return path
 
 
@@ -190,7 +229,9 @@ class GoesProcessing:
         # path = paths[0]
 
         # ouput file location
-        out_file = "GOES-" + str(fire_date) + "_" + str(ac_time) + '.tif'
+        # out_file = "GOES-" + str(fire_date) + "_" + str(ac_time) + '.tif'
+        out_file = GOES_tiff_file_name.format(fire_date = str(fire_date),
+                                              ac_time = str(ac_time))
         out_path = directory + out_file
 
         if ((not GOES_OVERWRITE) and file_exists(out_path)):
@@ -204,8 +245,6 @@ class GoesProcessing:
         rectangular_size = site.rectangular_size
         EPSG = site.EPSG
 
-        area_def = self.get_areaDefination(EPSG, image_size, latitude, longitude, rectangular_size)
-
         # using satpy to crop goes for the given site
         try:
             goes_scene = Scene(reader=self.g_reader,
@@ -214,7 +253,7 @@ class GoesProcessing:
             self.failures.write("issue in satpy netcdf read {}\n".format(paths))
             return -1
         goes_scene.load(layer)
-        goes_scene = goes_scene.resample(area_def)
+        goes_scene = goes_scene.resample(self.area_def)
         #TODO : parallex corrections
         # corrector = ParallaxCorrection(area_def)
         # corrector(goes_scene[layer[0]])
@@ -234,10 +273,10 @@ class GoesProcessing:
         # was using int
         self.gdal_writter(out_path,EPSG,image_size,out_val)
     
-    def gdal_writter(self, out_file, crs, image_size, b1_pixels):
+    def gdal_writter(self, out_file, crs, image_size, b_pixels):
         dst_ds = gdal.GetDriverByName('GTiff').Create(
             out_file, image_size[1],
-            image_size[0], len(b1_pixels),
+            image_size[0], len(b_pixels),
             gdal.GDT_Float32)
         # transforms between pixel raster space to projection coordinate space.
         # new_raster.SetGeoTransform((x_min, pixel_size, 0, y_min, 0, pixel_size))
@@ -246,14 +285,38 @@ class GoesProcessing:
         srs = osr.SpatialReference()  # establish encoding
         srs.ImportFromEPSG(crs)  # WGS84 lat/long
         dst_ds.SetProjection(srs.ExportToWkt())  # export coords to file
-        for i in range(len(b1_pixels)):
-            dst_ds.GetRasterBand(i+1).WriteArray(b1_pixels[i]) 
+        for i in range(len(b_pixels)):
+            dst_ds.GetRasterBand(i+1).WriteArray(b_pixels[i]) 
         # dst_ds.GetRasterBand(2).WriteArray(b1_pixels[1])
         dst_ds.FlushCache()  # write to disk
         dst_ds = None
         
+    def get_areaDefination(self, site):
+        # defining area definition with image size , projection and extend
+        EPSG, image_size = site.EPSG, site.image_size
+        area_id = 'given'
+        description = 'given'
+        proj_id = 'given'
+        projection = 'EPSG:' + str(EPSG)
+        width = image_size[1]
+        height = image_size[0]
+        self.xmin, self.ymin, self.xmax, self.ymax = [site.transformed_bottom_left[0], site.transformed_bottom_left[1], site.transformed_top_right[0], site.transformed_top_right[1]]
+        
+        # the lat lon is changed when using utm !?
+        area_extent = (site.transformed_bottom_left[0], site.transformed_bottom_left[1], site.transformed_top_right[0], site.transformed_top_right[1])
+        area_def = AreaDefinition(area_id, description, proj_id, projection,
+                                  width, height, area_extent)
+        return area_def
+
     # get area defination for satpy, with new projection and bounding pox
-    def get_areaDefination(self, EPSG, image_size, latitude, longitude, rectangular_size):
+    def get_areaDefination_old(self, site):
+
+
+        latitude, longitude = site.latitude, site.longitude
+        rectangular_size = site.rectangular_size
+        EPSG = site.EPSG
+        image_size = site.image_size
+
         bottom_left = [latitude - rectangular_size, longitude - rectangular_size]
         top_right = [latitude + rectangular_size, longitude + rectangular_size]
 
@@ -263,6 +326,10 @@ class GoesProcessing:
                            int(transformer.transform(bottom_left[0], bottom_left[1])[1])]
         top_right_utm = [int(transformer.transform(top_right[0], top_right[1])[0]),
                          int(transformer.transform(top_right[0], top_right[1])[1])]
+        #TODO: need to check  this, the login needs to be added for consistency but, the UNET evaluation proceduce poor results with this
+
+        # top_right_utm = [top_right_utm[0] - (top_right_utm[0] - bottom_left_utm[0]) % 375,
+        #                     top_right_utm[1] - (top_right_utm[1] - bottom_left_utm[1]) % 375]
         
         lon = [bottom_left_utm[0], top_right_utm[0]]
         lat = [bottom_left_utm[1], top_right_utm[1]]

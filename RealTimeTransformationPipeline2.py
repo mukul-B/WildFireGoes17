@@ -89,7 +89,8 @@ if __name__ == '__main__':
                                         callback=on_success, error_callback=on_error)
                     # print(res.get())
                 else:
-                    plot_prediction(dir + gfile,pathC,epsg,plotPredition,supr_resolution,VIIRS_dir)
+                    output_path = plot_prediction(dir + gfile,pathC,epsg,plotPredition,supr_resolution,VIIRS_dir)
+                    on_success(output_path)
     if(parallel):
         pool.close()
         pool.join()

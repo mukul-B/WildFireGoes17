@@ -23,7 +23,7 @@ import wandb
 from Classifier import Encoder
 from CustomDataset import npDataset
 from ClassifierTraining import balance_dataset_if_TH
-from GlobalValues import RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
+from GlobalValues import RES_AUTOENCODER_PTH, RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
     HC, HI, LI, LC
 from GlobalValues import training_dir, Results, random_state, project_name_template, test_split, model_specific_postfix
 from ModelRunConfiguration import use_config
@@ -345,10 +345,7 @@ def test_runner(selected_model):
     test(test_loader, selected_model, npd)
 
 def get_selected_model_weight(selected_model,model_project_path):
-    # selected_model.load_state_dict(torch.load(model_project_path + "/" + RES_AUTOENCODER_PTH))
-    selected_model.load_state_dict(torch.load(model_project_path + "/" + RES_ENCODER_PTH))
-
-    # selected_model.decoder.load_state_dict(torch.load(model_project_path + "/" + RES_DECODER_PTH))
+    selected_model.load_state_dict(torch.load(model_project_path + "/" + RES_AUTOENCODER_PTH))
 
 
 def prepare_dir(res):

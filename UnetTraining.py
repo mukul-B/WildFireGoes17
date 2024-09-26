@@ -11,10 +11,11 @@ import logging
 
 import wandb
 # from AutoencoderDataset import npDataset
+from ModelRunConfiguration import Selected_model
 from CustomDataset import npDataset
-from GlobalValues import GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
+from GlobalValues import RES_AUTOENCODER_PTH, GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
     LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template, validation_split, test_split, model_specific_postfix
-from ModelRunConfiguration import SWEEP_OPERATION, Selected_model, use_config,sweep_loss_funtion
+from ModelRunConfiguration import SWEEP_OPERATION, use_config_UNET,sweep_loss_funtion
 
 im_dir = training_dir
 log_interval = 10
@@ -72,7 +73,7 @@ def train(train_loader, test_loader, selected_model, optimizer, n_epochs, criter
             # forward + backward + optimize
 
             decoder_output = selected_model(x)
-            wandb.log({"output": torch.sum(decoder_output[0]), "epoch": epoch})
+            # wandb.log({"output": torch.sum(decoder_output[0]), "epoch": epoch})
             target = y
             loss = criteria(decoder_output, target)
             if loses_count == 0:
@@ -162,14 +163,12 @@ def balance_dataset_if_TH(file_list):
     file_list_pos, reject_pos = train_test_split(file_list_pos, test_size=positive_scoop, random_state=random_state) if(positive_scoop != 0) else [[],[]]
     file_list_neg, reject_neg = train_test_split(file_list_neg, test_size=negitive_scoop, random_state=random_state) if(negitive_scoop != 0) else [[],[]]
     file_list_TH, reject_TH = train_test_split(file_list_TH, test_size=th_scoop, random_state=random_state) if(th_scoop != 0) else [[],[]]
-
-
-    file_list_total = file_list_pos + file_list_neg + file_list_TH
-
+    
     print(f'{len(file_list_pos)} reference_data samples found pos')
     print(f'{len(file_list_neg)} reference_data samples found neg')
     print(f'{len(file_list_TH)} reference_data samples found TH')
-    print(f'{len(file_list_total)} reference_data samples found')
+    file_list_total = file_list_pos + file_list_neg + file_list_TH
+    logging.info(f'{len(file_list_total)} reference_data samples found')
 
     return file_list_total
 
@@ -249,9 +248,7 @@ def main(config=None):
     reset_logging()
 
 def save_selected_model(selected_model, mp):
-    torch.save(selected_model.state_dict(), mp + "/" + RES_ENCODER_PTH)
-    # torch.save(selected_model.encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
-    # torch.save(selected_model.decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
+    torch.save(selected_model.state_dict(), mp + "/" + RES_AUTOENCODER_PTH)
 
 def log_end_process(start_time):
     end =  datetime.now()
@@ -286,7 +283,7 @@ if __name__ == "__main__":
         sweep_id = wandb.sweep(sweep=sweep_configuration, project='sweep_config')
         wandb.agent(sweep_id, function=main, count=14)
     else:
-        config = use_config
+        config = use_config_UNET
         main(config)
 
 # https://pytorch.org/tutorials/beginner/hyperparameter_tuning_tutorial.html

@@ -20,7 +20,7 @@ def prepareDir(location, product):
 
     os.makedirs(viirs_tif_dir, exist_ok=True)
 
-    os.makedirs(comp_dir, exist_ok=True)
+    # os.makedirs(comp_dir, exist_ok=True)
 
     os.makedirs(logs, exist_ok=True)
 

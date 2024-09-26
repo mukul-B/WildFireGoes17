@@ -22,7 +22,7 @@ from matplotlib import pyplot as plt
 from pandas.io.common import file_exists
 from pyproj import Transformer
 
-from AutoEncoderEvaluation import RuntimeDLTransformation
+# from AutoEncoderEvaluation import RuntimeDLTransformation
 from EvaluationOperation import getth
 from GlobalValues import GOES_product_size, RealTimeIncoming_files, RealTimeIncoming_results, GOES_MIN_VAL, GOES_MAX_VAL, VIIRS_MAX_VAL, \
     PREDICTION_UNITS, GOES_UNITS,Results,goes_folder,validate_with_radar
@@ -212,7 +212,7 @@ def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution,vpath):
         # gf_min, gf_max = GOES_MIN_VAL, GOES_MAX_VAL
         # gfin = goes_radiance_normaization(gfin, gf_max, gf_min)
         pred = gfin[0]
-        ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, on=200)
+        ret1, th1, hist1, bins1, index_of_max_val1 = getth(pred, on=270)
         pred = th1 * pred
         pred[pred == 0] = None
         # pred = VIIRS_MAX_VAL * pred
@@ -223,8 +223,10 @@ def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution,vpath):
     # plt.figure(figsize=(6, 3))
     ax = plt.axes(projection=proj)
     ax.add_image(StreetmapESRI(), 12)
-    zoom_margin = 0.85
-    corner = (0.6,0.55)
+    # zoom_margin = 0.85
+    # corner = (0.6,0.55)
+    zoom_margin = 0
+    corner = (0.5,0.5)
     # print(bbox)
     bbox = zoom_bbox(bbox, zoom_margin,corner)
     ax.set_extent(bbox)
@@ -289,12 +291,16 @@ def plot_prediction(gpath,output_path,epsg, prediction,supr_resolution,vpath):
     if (not validate_with_radar) or (returnval):
         # print('/FRP_' + str(d[0] + '_' + d[1]) + '.png')
         
-        print(result_file)
+        # print(result_file)
         plt.savefig(result_file, bbox_inches='tight', dpi=600)
         # with open(result_file.replace('png','geojson'), "w") as f:
         #     f.write(geojson_str)
-    # plt.show()
-    plt.close()
+        # plt.show()
+        plt.close()
+    else:
+        plt.close()
+        return 
+    
     return result_file
 
 def partion_image_to_windows(gf_channels,window_size,step_size):
@@ -310,8 +316,8 @@ def apply_DLmodel(supr_resolution,partioned_image, window_size):
         df = []
         df.append(np.stack(windows, axis=0))
         if(windows[0].shape == window_size):
-            
-            res_image[(x, y)]  = supr_resolution.Transform(df).numpy()
+            out_put = supr_resolution.Transform(df)
+            res_image[(x, y)]  = supr_resolution.out_put_to_numpy(out_put).numpy()
         else:
             res_image[(x, y)] = windows[0] * 0
     return res_image

@@ -172,7 +172,6 @@ def test(test_loader, selected_model, npd):
             if output_jaccard is not None:
                 output_jaccard = output_jaccard.cpu()
                 output_jaccard = np.squeeze(output_jaccard)
-
             nonzero = np.count_nonzero(output_rmse)
             if True:
                 path = f'{res}/{batch_idx}.png'
@@ -241,8 +240,6 @@ def test_runner(selected_model):
 
 def get_selected_model_weight(selected_model,model_project_path):
     selected_model.load_state_dict(torch.load(model_project_path + "/" + RES_AUTOENCODER_PTH))
-    # selected_model.encoder.load_state_dict(torch.load(model_project_path + "/" + RES_ENCODER_PTH))
-    # selected_model.decoder.load_state_dict(torch.load(model_project_path + "/" + RES_DECODER_PTH))
 
 
 class RuntimeDLTransformation:
@@ -262,7 +259,8 @@ class RuntimeDLTransformation:
         batch_size=conf.get(BATCH_SIZE),
         learning_rate=conf.get(LEARNING_RATE),
         model_specific_postfix=realtime_model_specific_postfix
-    )
+    )   
+        print(project_name)
         path = model_path + project_name
         get_selected_model_weight(self.selected_model,path)
         self.selected_model.cuda()
@@ -272,8 +270,6 @@ class RuntimeDLTransformation:
         x = single_dataload(x)
         with torch.no_grad():
             x = x.cuda()
-            # encoder_output = encoder(x)
-            # decoder_output = decoder(encoder_output)
             decoder_output = self.selected_model(x)
             if len(decoder_output) == 1:
                 output_rmse, output_jaccard = None, None
@@ -283,11 +279,15 @@ class RuntimeDLTransformation:
                     output_rmse = decoder_output
             else:
                 output_rmse = decoder_output[0]
-            output_rmse = output_rmse.cpu()
-            # x = x.cpu()
-            # x = np.squeeze(x)
-            output = np.squeeze(output_rmse)
-            return output
+            return output_rmse
+            
+            
+    def out_put_to_numpy(self, output_rmse):
+        output_rmse = output_rmse.cpu()
+        # x = x.cpu()
+        # x = np.squeeze(x)
+        output = np.squeeze(output_rmse)
+        return output
         
 
 

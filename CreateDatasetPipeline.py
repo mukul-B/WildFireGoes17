@@ -27,11 +27,12 @@ def on_error(e):
     print(f"Error: {e}")
 
 def CreateDatasetPipeline(location, product, train_test):
+    print(location)
     prepareDir(location, product)
     createDataset(location, product)
     validateAndVisualizeDataset(location, product)
     writeDataset(location, product, train_test)
-    print(location)
+    
     return location
 
 def count_training_set_created(dir):
@@ -52,6 +53,7 @@ def count_training_set_created(dir):
     print(f'{file_count} records writtenin {dir}')
 
 if __name__ == '__main__':
+    print(f'Creating dataset for sites in {toExecuteSiteList}')
     data = pd.read_csv(toExecuteSiteList)
     locations = data["Sites"][:]
     train_test = training_dir
@@ -72,6 +74,7 @@ if __name__ == '__main__':
                 # print(results.get())
             else:
                 result = CreateDatasetPipeline(location, GOES_product, train_test)
+                on_success(location)
             # results.append(result)
         if(parallel):
             pool.close()

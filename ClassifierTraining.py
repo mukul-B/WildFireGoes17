@@ -14,7 +14,7 @@ import wandb
 from Classifier import Encoder
 from TransferLearning import get_pre_model
 from CustomDataset import npDataset
-from GlobalValues import GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
+from GlobalValues import RES_AUTOENCODER_PTH, GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
     LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template, validation_split, test_split, model_specific_postfix
 from ModelRunConfiguration import SWEEP_OPERATION, Selected_model, use_config,sweep_loss_funtion
 
@@ -261,9 +261,7 @@ def main(config=None):
     reset_logging()
 
 def save_selected_model(selected_model, mp):
-    torch.save(selected_model.state_dict(), mp + "/" + RES_ENCODER_PTH)
-    # torch.save(selected_model.encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
-    # torch.save(selected_model.decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
+    torch.save(selected_model.state_dict(), mp + "/" + RES_AUTOENCODER_PTH)
 
 def log_end_process(start_time):
     end =  datetime.now()

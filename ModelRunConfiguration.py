@@ -13,8 +13,10 @@ from Unet import UNET
 model_list = [UNET]
 Selected_model = model_list[0]
 
-selected_case = 8
-loss_cases = [
+selected_case = 7
+
+def get_HyperParams(selected_case):
+    loss_cases = [
     # case 1 : GMSE
      {
         LEARNING_RATE: 3e-5,
@@ -82,9 +84,35 @@ loss_cases = [
         BATCH_SIZE: 64,
         LOSS_FUNCTION: GMSE
     },
-    
+     # case 9 : GMSE after seg
+     {
+        LEARNING_RATE: 1e-5,
+        EPOCHS: 150,
+        BATCH_SIZE: 16,
+        LOSS_FUNCTION: GMSE
+    },
+    # case 10: Segmentation_loss
+     {
+        LEARNING_RATE: 1e-6,
+        EPOCHS: 200,
+        BATCH_SIZE: 32,
+        LOSS_FUNCTION: Segmentation_loss
+    },
+    # case 11: Segmentation_loss
+     {
+        LEARNING_RATE: 9e-5,
+        EPOCHS: 150,
+        BATCH_SIZE: 32,
+        LOSS_FUNCTION: Segmentation_loss
+    }
 ]
-use_config = loss_cases[selected_case - 1]
+    
+    return loss_cases[selected_case - 1]
+
+
+use_config = get_HyperParams(selected_case)
+use_config_UNET = get_HyperParams(7)
+
 
 real_time_config = {
         LEARNING_RATE: 3e-5,

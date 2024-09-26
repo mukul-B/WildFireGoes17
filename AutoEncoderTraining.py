@@ -143,21 +143,20 @@ def train_runner( selected_model, n_epochs, batch_size, criteria, optimizer):
 
 def balance_dataset_if_TH(file_list):
     logging.info(f'{len(file_list)} reference_data samples found')
-    
-    # positive_scoop , th_scoop , negitive_scoop  = 1,0.91,0.95
-    # positive_scoop , th_scoop , negitive_scoop  = 0.6,0.9,0.9
-    # positive_scoop , th_scoop , negitive_scoop  = 0,1,0.58
-    # positive_scoop , th_scoop , negitive_scoop  = 1,1,0.35
-    # positive_scoop , th_scoop , negitive_scoop  = 1,0,0.89
-    # positive_scoop , th_scoop , negitive_scoop  = 1,0.73,0
-    positive_scoop , th_scoop , negitive_scoop  = 1,0,0
-
-    # positive_scoop , th_scoop , negitive_scoop  = 0,1,0
-
 
     file_list_pos = os.listdir(im_dir.replace('training_data','training_data_pos'))
     file_list_neg = os.listdir(im_dir.replace('training_data','training_data_neg'))
     file_list_TH = os.listdir(im_dir.replace('training_data','training_data_TH'))
+
+    pos_len, th_len, neg_len = len(file_list_pos) , len(file_list_TH),len(file_list_neg)
+
+    positive_scoop , th_scoop , negitive_scoop  = 1,0 ,0 # only pos  
+
+    # positive_scoop , th_scoop , negitive_scoop  = 1,1 ,1- ((pos_len + th_len )/neg_len) # pos th , equal distribution fire and non fire
+    # positive_scoop , th_scoop , negitive_scoop  = 1,1 - (pos_len/th_len) ,1-(2*pos_len/neg_len) # pos th , equal distribution of big, small fire also
+    # positive_scoop , th_scoop , negitive_scoop  = 1,0 ,1-(pos_len/neg_len) # pos/neg th , equal distribution but removing small fires
+    # positive_scoop , th_scoop , negitive_scoop  = 1,1 - (pos_len/th_len) ,0 # neg th , equal distribution but removing no fire
+    # positive_scoop , th_scoop , negitive_scoop  = 1,1 - (pos_len/(2*th_len)) ,1-(pos_len/(2*neg_len)) # neg th , equal distribution of positive and negitive
 
 
     file_list_pos, reject_pos = train_test_split(file_list_pos, test_size=positive_scoop, random_state=random_state) if(positive_scoop != 0) else [[],[]]
@@ -168,7 +167,8 @@ def balance_dataset_if_TH(file_list):
     print(f'{len(file_list_neg)} reference_data samples found neg')
     print(f'{len(file_list_TH)} reference_data samples found TH')
     file_list_total = file_list_pos + file_list_neg + file_list_TH
-    print(f'{len(file_list_total)} reference_data samples found')
+    logging.info(f'{len(file_list_total)} reference_data samples found')
+
     return file_list_total
 
 def main(config=None):
@@ -248,8 +248,6 @@ def main(config=None):
 
 def save_selected_model(selected_model, mp):
     torch.save(selected_model.state_dict(), mp + "/" + RES_AUTOENCODER_PTH)
-    # torch.save(selected_model.encoder.state_dict(), mp + "/" + RES_ENCODER_PTH)
-    # torch.save(selected_model.decoder.state_dict(), mp + "/" + RES_DECODER_PTH)
 
 def log_end_process(start_time):
     end =  datetime.now()

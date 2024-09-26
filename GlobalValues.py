@@ -147,7 +147,7 @@ toExecuteSiteList = f"config/training_sites{site_Postfix}"
 # training = 'training'
 # reference_data = "reference_data_working"
 reference_data = f"DataRepository/reference_data{referenceDir_speficic_Postfix}"
-compare_dir = f'{reference_data}/$LOC/compare/'
+compare_dir = f'{reference_data}/compare/$LOC/'
 # compare_dir = f'{reference_data}/compare_all/'
 viirs_dir = f'{reference_data}/$LOC/VIIRS/'
 goes_dir = f'{reference_data}/$LOC/GOES/$PROD_BAND/tif/'
@@ -155,6 +155,11 @@ training_dir = f'DataRepository/training_data{trainingDir_speficic_Postfix}/'
 # training_dir = 'training_data_working/'
 GOES_OVERWRITE = False
 VIIRS_OVERWRITE = False
+
+# "GOES-" + str(fire_date) + "_" + str(ac_time) + '.tif'
+# self.satellite + '-' + str(fire_date) + "_" + str(ac_time) + '.tif'
+GOES_tiff_file_name = 'GOES-{fire_date}_{ac_time}.tif'
+VIIRS_tiff_file_name = 'viirs-snpp-{fire_date}_{ac_time}.tif'
 
 # Autoencoder training and testing
 # model_path = 'Model_BEFORE_MOVING_NORMALIZATION/'

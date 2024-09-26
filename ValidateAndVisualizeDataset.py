@@ -182,13 +182,17 @@ def PSNR(pred, gt, shave_border=0):
 
 
 def shape_check(v_file, g_file):
-    vf = Image.open(v_file)
-    gf = Image.open(g_file)
+    VIIRS_data = xr.open_rasterio(v_file)
+    GOES_data = xr.open_rasterio(g_file)
+
+    vf = VIIRS_data.variable.data[0]
+    gd = GOES_data.variable.data[0]
     vf = np.array(vf)[:, :]
-    gf = np.array(gf)[:, :]
+    gd = np.array(gd)[:, :]
     # (343,)(27, 47)
-    print(vf.shape, gf.shape)
-    print(PSNR(gf, vf))
+    if(vf.shape != gd.shape):
+        print(vf.shape, gd.shape)
+    # print(PSNR(gd, vf))
 
 
 # the dataset created is evaluated visually and statistically

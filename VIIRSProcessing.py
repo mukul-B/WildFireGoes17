@@ -18,7 +18,7 @@ from scipy.interpolate import griddata
 from sklearn.neighbors import NearestNeighbors
 from scipy import interpolate
 
-from GlobalValues import viirs_dir, VIIRS_OVERWRITE
+from GlobalValues import VIIRS_tiff_file_name, viirs_dir, VIIRS_OVERWRITE
 from os.path import exists as file_exists
 
 
@@ -87,7 +87,8 @@ class VIIRSProcessing:
         self.top_right = site.top_right
 
         self.transformer = site.transformer
-        self.xmin, self.ymin, self.xmax, self.ymax = [site.transformed_bottom_left[1], site.transformed_bottom_left[0], site.transformed_top_right[1], site.transformed_top_right[0]]
+        # self.xmin, self.ymin, self.xmax, self.ymax = [site.transformed_bottom_left[1], site.transformed_bottom_left[0], site.transformed_top_right[1], site.transformed_top_right[0]]
+        self.xmin, self.ymin, self.xmax, self.ymax = [site.transformed_bottom_left[0], site.transformed_bottom_left[1], site.transformed_top_right[0], site.transformed_top_right[1]]
         self.nx = site.image_size[1]
         self.ny = site.image_size[0]
         self.image_size = site.image_size
@@ -240,7 +241,10 @@ class VIIRSProcessing:
         if viirs_tif_dir is None:
             viirs_tif_dir = viirs_dir.replace('$LOC', self.location) 
 
-        out_file = viirs_tif_dir + self.satellite + '-' + str(fire_date) + "_" + str(ac_time) + '.tif'
+        # VIIRS_file_name = self.satellite + '-' + str(fire_date) + "_" + str(ac_time) + '.tif'
+        VIIRS_file_name = VIIRS_tiff_file_name.format(fire_date = str(fire_date),
+                                                       ac_time = str(ac_time))
+        out_file = viirs_tif_dir + VIIRS_file_name
 
         if ((not VIIRS_OVERWRITE) and file_exists(out_file)):
             return
