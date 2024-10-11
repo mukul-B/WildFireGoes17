@@ -44,7 +44,7 @@ class SiteInfo():
         # if -114.0 < lon <= -108.0:
         #     return 32612
 
-    def get_image_dimention(self, res=375):
+    def get_image_dimention(self, res=375,in_crs = 4326):
 
         from pyproj import Transformer
         self.res = res
@@ -56,7 +56,7 @@ class SiteInfo():
         # https://epsg.io/32611
         # 32610 (126 to 120) ;32611 (120 to 114) ;32612 (114 to 108)
 
-        self.transformer = Transformer.from_crs(4326, self.EPSG)
+        self.transformer = Transformer.from_crs(in_crs, self.EPSG)
         bottom_left_utm = [int(self.transformer.transform(self.bottom_left[0], self.bottom_left[1])[0]),
                             int(self.transformer.transform(self.bottom_left[0], self.bottom_left[1])[1])]
         top_right_utm = [int(self.transformer.transform(self.top_right[0], self.top_right[1])[0]),
