@@ -1,20 +1,18 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from CommonFunctions import prepareDirectory
 from EvaluationMetricsAndUtilities import denoralize, getth
+
 plt.style.use('plot_style/wrf')
-Prediction_JACCARD_LABEL = 'Prediction(Jaccard)'
-Prediction_RMSE_LABEL = 'Prediction(RMSE)'
-VIIRS_GROUND_TRUTH_LABEL = 'VIIRS Ground Truth'
-OTSU_thresholding_on_GOES_LABEL = 'OTSU thresholding on GOES'
-GOES_input_LABEL = 'GOES input'
 
 
 class ImagePlot:
-    def __init__(self,unit,vmax,vmin,image_blocks,lable_blocks):
+    def __init__(self,unit,vmax,vmin,image_blocks,lable_blocks,binary=False):
         self.unit = unit
         self.vmin = vmin
         self.vmax = vmax
+        self.binary = binary
         if(self.unit):
             self.image_blocks = denoralize(image_blocks,vmax,vmin)
         else:
@@ -22,9 +20,8 @@ class ImagePlot:
         self.lable_blocks = lable_blocks
 
 
-def plot_from_ImagePlot(title,img_seq,condition,path,colection=True):
+def plot_from_ImagePlot(title,img_seq,path,colection=True):
     pl = path.split('/')
-    # filename = pl[-1].split('.')
     filename = pl[-1].replace('.png','')
     c,r = len(img_seq) ,len(img_seq[0])
     if(colection):
@@ -35,6 +32,7 @@ def plot_from_ImagePlot(title,img_seq,condition,path,colection=True):
             
             image_blocks=img_seq[col][row].image_blocks
             lable_blocks=img_seq[col][row].lable_blocks
+            binary = img_seq[col][row].binary
             cb_unit=img_seq[col][row].unit
             vmin,vmax = img_seq[col][row].vmin, img_seq[col][row].vmax
             # vmin,vmax = 0 , 413
@@ -61,7 +59,8 @@ def plot_from_ImagePlot(title,img_seq,condition,path,colection=True):
 
                 # cb_unit = "Background | Fire Area     " if lable_blocks in [
                 #     Prediction_JACCARD] else VIIRS_UNITS
-                if lable_blocks in [Prediction_JACCARD_LABEL]:
+                # if lable_blocks in [Prediction_JACCARD_LABEL,Prediction_Segmentation_label]:
+                if binary:
                     sc = ax.pcolormesh(Y, -X, image_blocks, cmap=plt.get_cmap("gray_r", 2), vmin=vmin, vmax=vmax)
                 else:
                     # sc = ax.pcolormesh(Y, -X, image_blocks, cmap=plt.get_cmap("gray_r"), vmin=vmin, vmax=vmax)
@@ -82,9 +81,11 @@ def plot_from_ImagePlot(title,img_seq,condition,path,colection=True):
                 ax.set_yticks([])
                 if(not colection):
                     filenamecorrection = lable_blocks.replace('\n','_').replace(' ','_').replace('.','_').replace('(','_').replace(')','_').replace(':','_')
+                    condition = ''
                     path ='/'.join(pl[:2]) + f'/{condition}_{filename}_{filenamecorrection}.png'
                     # path = '/'.join(pl[:1]) + f"/allresults/{condition}/{filename}_{filenamecorrection}.png" 
                     # print(path)
+                    # prepareDirectory(path)
                     plt.savefig(path,
                                 bbox_inches='tight', dpi=600)
                     plt.show()
@@ -95,9 +96,13 @@ def plot_from_ImagePlot(title,img_seq,condition,path,colection=True):
         # path = "cheko.png"
         # path = '/'.join(pl[:2]) + f"/{condition}/{filename[0]}_{output_iou}_{psnr_intersection_i}_{psnr_union_i}_{str(round(coverage_i, 4))}.png"
         print(filename)
-        path = '/'.join(pl[:-1]) + f"/{condition}/{filename}.png"
+        # path = '/'.join(pl[:-1]) + f"/{condition}"
+        path = '/'.join(pl[:-1]) 
+        # prepareDirectory(path)
+        fpath = path + f'/{filename}.png'
         plt.rcParams['savefig.dpi'] = 600
-        fig.savefig(path)
+        
+        fig.savefig(fpath)
         # input()
         
         # plt.show()

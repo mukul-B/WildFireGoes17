@@ -12,6 +12,7 @@ wandb/
 results/
 Model/
 secrets/FIRMS_API_MAP_KEY
+secrets/DEM_API_MAP_KEY
 Exp_in_notebook
 VIIRS_Source_realtime
 radar_data

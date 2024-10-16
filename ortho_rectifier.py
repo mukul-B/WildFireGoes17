@@ -17,6 +17,131 @@ from goes_ortho.rad import goesBrightnessTemp, goesReflectance
 from CommonFunctions import prepareDirectory
 from DEM_Map import DEM_Map
 from SiteInfo import SiteInfo
+from os.path import exists as file_exists
+import numpy as np
+
+import numpy as np
+
+def resample_raster(site, abi_image):
+    # Assuming abi_image['tb'] is 2D, and abi_image['longitude'] and abi_image['latitude'] are 1D arrays
+    data_array = abi_image['tb'].values  # 2D array of values (fire data)
+    y = abi_image['longitude'].values    # 1D array of longitudes
+    x = abi_image['latitude'].values     # 1D array of latitudes
+
+    # Create a 2D meshgrid from 1D arrays
+    lon_grid, lat_grid = np.meshgrid(y, x)
+
+    # Flatten the 2D arrays
+    fire_lats = lat_grid.ravel()    # Flattened latitudes (same size as data_array)
+    fire_lons = lon_grid.ravel()    # Flattened longitudes (same size as data_array)
+    fire_values = data_array.ravel()  # Flattened data array (fire data)
+
+    # Prepare empty raster grid
+    b1_pixels = np.zeros(site.image_size, dtype=float)
+    nx, ny = site.image_size[1], site.image_size[0]
+    
+    # Define the bounding box
+    xmin, ymin, xmax, ymax = (
+        site.transformed_bottom_left[0], site.transformed_bottom_left[1], 
+        site.transformed_top_right[0], site.transformed_top_right[1]
+    )
+    
+    # Vectorized transformation of lat/lon to UTM coordinates
+    lon_points, lat_points = site.transformer.transform(fire_lats,fire_lons)
+
+    # Calculate pixel coordinates (vectorized)
+    cord_x = np.round((lon_points - xmin) / site.res).astype(int)
+    cord_y = np.round((lat_points - ymin) / site.res).astype(int)
+
+    # Mask out points that fall outside the raster bounds
+    valid_mask = (cord_x >= 0) & (cord_x < nx) & (cord_y >= 0) & (cord_y < ny)
+
+    # Apply the mask to the pixel coordinates and fire values
+    cord_x_valid = cord_x[valid_mask]
+    cord_y_valid = cord_y[valid_mask]
+    fire_values_valid = fire_values[valid_mask]
+
+    # Update the raster grid using vectorized max operation
+    np.maximum.at(b1_pixels, (ny - 1 - cord_y_valid, cord_x_valid), fire_values_valid)
+
+    return b1_pixels
+
+def check2(site, abi_image):
+    # Assuming abi_image['tb'] is 2D, and abi_image['longitude'] and abi_image['latitude'] are 1D arrays
+    data_array = abi_image['tb'].values  # 2D array of values (fire data)
+    y = abi_image['longitude'].values    # 1D array of longitudes
+    x = abi_image['latitude'].values     # 1D array of latitudes
+
+    # Create a 2D meshgrid from 1D arrays
+    lon_grid, lat_grid = np.meshgrid(y, x)
+
+    # Flatten the 2D arrays
+    fire_lats = lat_grid.ravel()    # Flattened latitudes (same size as data_array)
+    fire_lons = lon_grid.ravel()    # Flattened longitudes (same size as data_array)
+    fire_values = data_array.ravel()  # Flattened data array (fire data)
+
+    # Prepare empty raster grid
+    b1_pixels = np.zeros(site.image_size, dtype=float)
+    nx, ny = site.image_size[1], site.image_size[0]
+    
+    # Define the bounding box
+    xmin, ymin, xmax, ymax = (
+        site.transformed_bottom_left[0], site.transformed_bottom_left[1], 
+        site.transformed_top_right[0], site.transformed_top_right[1]
+    )
+    
+    # Vectorized transformation of lat/lon to UTM coordinates
+    lon_points, lat_points = site.transformer.transform(fire_lats,fire_lons)
+
+    # min_lon,max_lon = np.min(lon_points),np.max(lon_points)
+    # min_lat,max_lat = np.min(lat_points),np.max(lat_points)
+    
+    # (min_lon,min_lat,max_lon,max_lat) - (xmin, ymin, xmax, ymax)
+    valid_mask2 = (lon_points >= xmin) & (lon_points <= xmax) & (lat_points >= ymin) & (lat_points <=ymax)
+    lon_points, lat_points = lon_points[valid_mask2], lat_points[valid_mask2]
+    return b1_pixels
+
+def resample_raster_old(site,abi_image):
+        data_array = abi_image['tb'].values  # Use the correct variable
+        y = abi_image['longitude'].values
+        x = abi_image['latitude'].values
+        fire_data_filter_on_timestamp = [(lat,lon,data_array[i][j]) for i,lat in enumerate(x) for j,lon in enumerate(y)]
+        # image_size = (site.image_size[0] + 10 , site.image_size[1] +10 )
+        image_size =site.image_size
+        b1_pixels = np.zeros(image_size, dtype=float)
+        nx = image_size[1]
+        ny = image_size[0]
+        xmin, ymin, xmax, ymax = [site.transformed_bottom_left[0], site.transformed_bottom_left[1], site.transformed_top_right[0], site.transformed_top_right[1]]
+        
+        # bottom_left_utm = [int(site.transformer.transform(self.bottom_left[0], self.bottom_left[1])[0]),
+        #                     int(site.transformer.transform(self.bottom_left[0], self.bottom_left[1])[1])]
+        dir = {}
+        for k in range(len(fire_data_filter_on_timestamp)):
+            record = fire_data_filter_on_timestamp[k]
+            # transforming lon lat to utm
+            # lat and long should be inter change , and so does cord_x and cord_y
+            lon_point = site.transformer.transform(record[0], record[1])[0]
+            lat_point = site.transformer.transform(record[0], record[1])[1]
+            # if (lon_point <xmin or lat_point <ymin):
+            #     continue
+            # if (lon_point > xmax or lat_point > ymax):
+            #     continue
+            cord_x = round((lon_point - xmin) / site.res)
+            cord_y = round((lat_point - ymin) / site.res)
+            if cord_x >= nx or cord_y >= ny:
+                continue
+            if (cord_x <0 or cord_y <0):
+                continue
+            if (cord_x ==0 or cord_y ==0):
+                dir[(cord_x,cord_y)] =dir.get((cord_x,cord_y),0) + 1
+                # print(cord_y, cord_x)
+            #     pass
+                # b1_pixels[-cord_y, cord_x] = 400
+            b1_pixels[ny -1 -cord_y, cord_x] = max(b1_pixels[ny -1 -cord_y, cord_x], record[2])
+            # b1_pixels[ny -1 -cord_y, cord_x] = ny -1  - cord_y
+        print(dir)
+        return b1_pixels
+
 
 def create_raster_array(site,fire_data_filter_on_timestamp):
         b1_pixels = np.zeros(site.image_size, dtype=float)
@@ -65,7 +190,11 @@ def plot_verification_TP(location, fire_date, ac_time, out_file_name, resampled_
     previous_goes = f'DataRepository/reference_data_areaDef_correction/{location}/GOES/ABI-L1b-RadC07ABI-L1b-RadC14ABI-L1b-RadC15/tif/GOES-{fire_date}_{ac_time}.tif'
     GOES_data = xr.open_rasterio(previous_goes)
     gd = GOES_data.variable.data[0]
-    shape = gd.shape
+    # np.array(resampled_fire_dat)
+    # if(np.count_nonzero(resampled_fire_dat==0) > 0):
+    #     print(location,np.count_nonzero(resampled_fire_dat==0),np.count_nonzero(gd==0))
+    # return
+    shape = resampled_fire_dat.shape
     X, Y = np.mgrid[0:1:complex(str(shape[0]) + "j"), 0:1:complex(str(shape[1]) + "j")]
     # Load the VIIRS data
     v_file = f'DataRepository/reference_data_areaDef_correction/{location}/VIIRS/viirs-snpp-{fire_date}_{ac_time}.tif'
@@ -74,15 +203,18 @@ def plot_verification_TP(location, fire_date, ac_time, out_file_name, resampled_
     
     # Plot setup
     fig, axs = plt.subplots(1, 4, figsize=(15, 5))
-    vmin = 209
+    vmin = None
     vmax = None
     # Plot Satpy GOES using pcolormesh
     axs[0].pcolormesh(Y, -X,gd, cmap='jet', vmin=vmin,vmax=vmax)
     axs[0].set_title('Satpy GOES')
 
     # Plot Ortho_rec GOES using pcolormesh
-    axs[1].pcolormesh(Y, -X,np.array(resampled_fire_dat), cmap='jet', vmin=vmin,vmax=vmax)
+    z = axs[1].pcolormesh(Y, -X,resampled_fire_dat, cmap='jet', vmin=vmin,vmax=vmax)
     axs[1].set_title('Ortho_rec GOES')
+    # cb = fig.colorbar(z, pad=0.01,ax=axs[1])
+    
+    # axs[2].pcolormesh(Y, -X,resampled_fire_dat-gd, cmap='jet', vmin=vmin,vmax=vmax)
 
     # Overlay VIIRS with Satpy GOES
     axs[2].pcolormesh(Y, -X,vd, cmap='Greys', vmin=vmin)  # VIIRS as background
@@ -91,14 +223,16 @@ def plot_verification_TP(location, fire_date, ac_time, out_file_name, resampled_
 
     # Overlay VIIRS with Ortho_rec GOES
     axs[3].pcolormesh(Y, -X,vd, cmap='Greys', vmin=vmin)  # VIIRS as background
-    axs[3].pcolormesh(Y, -X,np.array(resampled_fire_dat), alpha=0.6, cmap='jet', vmin=vmin,vmax=vmax)  # GOES as overlay
+    axs[3].pcolormesh(Y, -X,resampled_fire_dat, alpha=0.6, cmap='jet', vmin=vmin,vmax=vmax)  # GOES as overlay
     axs[3].set_title('Overlay with Ortho_rec GOES')
 
+    # indices = np.where(resampled_fire_dat == 0)
+    # axs[3].scatter(indices[0],-indices[1],  color='red', label="Zero Values") 
     # Adjust layout and save plot
     plt.tight_layout()
     plt.savefig(f"{out_file_name}.png")
     plt.close()
-    print(f"Plot saved as {out_file_name}.png")
+    # print(f"Plot saved as {out_file_name}.png")
     
 # change to pcolormesh
 def plot_verification(location, fire_date, ac_time, out_file_name, resampled_fire_dat):
@@ -296,31 +430,33 @@ def buffer_boundingbox(bounds,ortho_buffer = 0.2):
     minx,miny,maxx,maxy = bounds
     return (minx - ortho_buffer, miny - ortho_buffer, maxx + ortho_buffer, maxy + ortho_buffer)
 
-def Oretho_rectifier_operation():
-    locations = ['Dixie']
-    for location in locations:
-        
+def Oretho_rectifier_operation(location,dir='DataRepository/Ortho_results_test'):
 
-        # GOES_netcdfs/OR_ABI-L1b-RadC-M6C07_G17_s20212162131177_e20212162133561_c20212162133594.nc 2021-08-04 2129
-        site = SiteInfo(location)
-        site.get_image_dimention()
-        longitude = site.longitude
-        bounds = (site.bottom_left[1],site.bottom_left[0],site.top_right[1],site.top_right[0])
-        ortho_bounds = buffer_boundingbox(bounds)
-        # ortho_bounds = bounds
-        
-        dem_path = f"DataRepository/DEM_site_api/tuolumne_dem_{location}.tif"
-        directory = f'Ortho_results_test/{location}/'
-        
-        ortho_map = get_orth_map_for_site(dem_path, longitude, ortho_bounds)
-        
-        # paths = download_goes(self, fire_date, ac_time)
-        # paths = ['orthorectifier_files/OR_ABI-L1b-RadC-M6C07_G17_s20212001006177_e20212001008561_c20212001008592.nc']
-        paths = ['orthorectifier_files/OR_ABI-L1b-RadC-M6C07_G17_s20212162131177_e20212162133561_c20212162133594.nc']
-        # paths = []
-        fire_date, ac_time = '2021-08-04','2129'
-        
-        GOES_ortho_write(directory, site, ortho_map, paths, fire_date, ac_time)
+    # GOES_netcdfs/OR_ABI-L1b-RadC-M6C07_G17_s20212162131177_e20212162133561_c20212162133594.nc 2021-08-04 2129
+    site = SiteInfo(location)
+    site.get_image_dimention()
+    longitude = site.longitude
+    bounds = (site.bottom_left[1],site.bottom_left[0],site.top_right[1],site.top_right[0])
+    ortho_bounds = buffer_boundingbox(bounds)
+    # ortho_bounds = bounds
+    
+    dem_path = f"DataRepository/DEM_site_api/tuolumne_dem_{location}.tif"
+    directory = f'DataRepository/Ortho_results_test/{location}/'
+    prepareDirectory(directory)
+    
+    ortho_map = get_orth_map_for_site(dem_path, longitude, ortho_bounds)
+    
+    # paths = download_goes(self, fire_date, ac_time)
+    # paths = ['orthorectifier_files/OR_ABI-L1b-RadC-M6C07_G17_s20212001006177_e20212001008561_c20212001008592.nc']
+    
+    # paths = []
+    # paths = ['DataRepository/orthorectifier_files/OR_ABI-L1b-RadC-M6C07_G17_s20212162131177_e20212162133561_c20212162133594.nc']
+    # fire_date, ac_time = '2021-08-04','2129'
+    paths = ['GOES_netcdfs/OR_ABI-L1b-RadC-M6C07_G17_s20192972026196_e20192972028581_c20192972029052.nc']
+    fire_date, ac_time = '2019-10-24','2027'
+    #  2019-10-24 2027
+    
+    GOES_ortho_write(directory, site, ortho_map, paths, fire_date, ac_time)
         
     
 
@@ -337,18 +473,15 @@ def get_orth_map_for_site(dem_path, longitude, ortho_bounds):
     ortho_map = DEM_map.make_ortho_map()
     return ortho_map
 
-def is_within_bbox(lat,lon,bbox):
-    # min_lat, max_lat, min_lon, max_lon = bbox
-    min_lon,min_lat,max_lon,max_lat = bbox
-    return min_lat <= lat <= max_lat and min_lon <= lon <= max_lon
 
 def GOES_ortho_write(directory, site, ortho_map, paths, fire_date, ac_time):
     
     resampled_fire_dat = [None] * len(paths)
     new_filename = [None] * len(paths)
     bounds = (site.bottom_left[1],site.bottom_left[0],site.top_right[1],site.top_right[0])
-    out_file_name = f"{directory}/Orthorectified_GOES_{fire_date}_{ac_time}"
-        
+    out_file_name = f"{directory}/Orthorectified_GOES-{fire_date}_{ac_time}"
+    # if (file_exists(f'{out_file_name}.tif')):
+    #         return   
     for i,image_path in enumerate(paths):
             # create a new filename
             # new_filename[i] = f"{out_file_name}_{i}.nc"
@@ -358,12 +491,19 @@ def GOES_ortho_write(directory, site, ortho_map, paths, fire_date, ac_time):
             # Apply the "ortho map" and save a new NetCDF file with data variables from the original file
         abi_image = orthorectify_abi(image_path, ortho_map, data_vars)
             # abi_image = xr.open_dataset(new_filename[i], decode_times=False)
-        data_array = abi_image['tb'].values  # Use the correct variable
-        y = abi_image['longitude'].values
-        x = abi_image['latitude'].values
-        fire_data = [(lat,lon,data_array[i][j]) for i,lat in enumerate(x) for j,lon in enumerate(y)]
-        # fire_data2 = np.column_stack((x.ravel(), y.ravel(), data_array.ravel()))
-        resampled_fire_dat[i] = create_raster_array(site,fire_data)
+        resampled_fire_dat[i] = resample_raster(site,abi_image)
+        # check0 = resample_raster_old(site,abi_image)
+        # check0 =check2(site,abi_image)
+        # resampled_fire_dat[i] = check0
+        # if(not np.array_equal(resampled_fire_dat[i] , check0)):
+        #     print('issue')
+        
+        # data_array = abi_image['tb'].values  # Use the correct variable
+        # y = abi_image['longitude'].values
+        # x = abi_image['latitude'].values
+        # fire_data = [(lat,lon,data_array[i][j]) for i,lat in enumerate(x) for j,lon in enumerate(y)]
+        # # fire_data2 = np.column_stack((x.ravel(), y.ravel(), data_array.ravel()))
+        # resampled_fire_dat[i] = create_raster_array(site,fire_data)
             # print(resampled_fire_dat[i].shape)
             
     gdal_writter(f'{out_file_name}.tif', site, resampled_fire_dat)
@@ -372,11 +512,11 @@ def GOES_ortho_write(directory, site, ortho_map, paths, fire_date, ac_time):
     
     # Ortho_GOES_data = xr.open_rasterio(f'{out_file_name}.tif')
     # Ortho_gd = Ortho_GOES_data.variable.data[0]
-    
+    # plot_verification_TP('Kincade', fire_date, ac_time, out_file_name, Ortho_gd)
     # plot_verification(location, fire_date, ac_time, out_file_name, Ortho_gd)
  
-def visual_evaluation(dir = 'Ortho_results_test'):
-    location ='Cooks Peak'
+def visual_evaluation(location,dir = 'Ortho_results_test'):
+    
     
     out_path = f'{dir}_visual/{location}'
     in_path = f'{dir}/{location}'
@@ -387,7 +527,7 @@ def visual_evaluation(dir = 'Ortho_results_test'):
 
         Ortho_GOES_data = xr.open_rasterio(f'{in_path}/{g_nc}')
         Ortho_gd = Ortho_GOES_data.variable.data[0]
-        fire_date, ac_time = g_nc.replace('.tif','').replace('Orthorectified_GOES_','').split('_')
+        fire_date, ac_time = g_nc.replace('.tif','').replace('Orthorectified_GOES-','').split('_')
         out_file_name = f'{out_path}/{fire_date}_{ac_time}'
         # fire_date, ac_time
         # print(location, fire_date, ac_time, out_file_name)
@@ -400,10 +540,25 @@ def visual_evaluation(dir = 'Ortho_results_test'):
         
 if __name__ == '__main__':
     
-    # Oretho_rectifier_operation()
-    # visual_evaluation(dir = 'Ortho_results_test')
     
     
-    visual_evaluation(dir = 'Ortho_results')
+    import os
+    import pandas as pd
+
+    toExecuteSiteList = 'config/training_sites'
+    data = pd.read_csv(toExecuteSiteList)
+    print(toExecuteSiteList)
+    locations = data["Sites"][:]
+    
+    
+    # locations = ['Kincade']
+    for location in locations:
+        # Oretho_rectifier_operation(location)
+        visual_evaluation(location,dir = 'DataRepository/Ortho_results')
+        
+        # visual_evaluation(location,dir = 'DataRepository/Ortho_results_test')
+        
+    
+    
     
    

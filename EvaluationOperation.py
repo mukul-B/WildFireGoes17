@@ -13,17 +13,24 @@ import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
+from CommonFunctions import prepareDirectory
 from EvaluationMetricsAndUtilities import IOU_numpy, PSNR_intersection, PSNR_union, best_threshold_iteration, denoralize, getth, noralize_goes_to_radiance, noralize_viirs_to_radiance
 from PlotInputandResults import ImagePlot, plot_from_ImagePlot
 
 
 Prediction_JACCARD_LABEL = 'Prediction(Jaccard)'
-Prediction_RMSE_LABEL = 'Prediction(RMSE)'
+Prediction_RMSE_LABEL = 'Prediction'
 VIIRS_GROUND_TRUTH_LABEL = 'VIIRS Ground Truth'
 OTSU_thresholding_on_GOES_LABEL = 'OTSU thresholding on GOES'
 GOES_input_LABEL = 'GOES input'
+
+Prediction_Segmentation_label = "Prediction: Segmentation"
+Prediction_Regression_label = "Prediction: Regression"
+Prediction_RegressionWtMask_label = "Prediction: Regression wt mask"
+Prediction_Classification_label = "Prediction: Classification"
+
 plt.style.use('plot_style/wrf')
-from GlobalValues import ALL_SAMPLES, GOES_UNITS, HC, HI, LI, LC, SELECTED_SAMPLES, THRESHOLD_COVERAGE, THRESHOLD_IOU, VIIRS_MIN_VAL, VIIRS_UNITS, GOES_Bands
+from GlobalValues import ALL_SAMPLES, GOES_MAX_VAL, GOES_MIN_VAL, GOES_UNITS, HC, HI, LI, LC, SELECTED_SAMPLES, THRESHOLD_COVERAGE, THRESHOLD_IOU, VIIRS_MIN_VAL, VIIRS_UNITS, GOES_Bands
 
 class EvaluationVariables:
     def __init__(self,type):
@@ -49,6 +56,14 @@ class EvaluateSingle:
         self.psnr_predicted_union = psnr_predicted_union
         
         self.type = type
+        
+def update_result_path(path,condition):
+    pl = path.split('/')
+    filename = pl[-1]
+    path = '/'.join(pl[:-1]) + f"/{condition}"
+    # prepareDirectory(path)
+    fpath = path + f'/{filename}'
+    return fpath
 
 def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, gf_min, gf_max, vf_max, LOSS_NAME, frp = None):
 
@@ -84,6 +99,7 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
                 f'\nPSNR_intersection : {str(round(inputEV.psnr_intersection, 4))}'
 
      #  7)rmse prediction evaluation
+    binary_prediction = False
     if(LOSS_NAME == 'Classification_loss'):
         predRMSEEV = EvaluationVariables("prediction_Classification")
         if prediction_rmse is not None:
@@ -107,8 +123,10 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
             positiveNegitive = HI if prediction_rmse.item() == 1 else LI
             condition = TRUEFalse + positiveNegitive
             predRMSEEV.dis = f''
+            Prediction_LABEL = Prediction_Classification_label
             
     elif(LOSS_NAME == 'Segmentation_loss'):
+        binary_prediction = True
         # finding coverage and intensity criteria based on input and groundthruth
         condition_coverage = HC if inputEV.coverage > THRESHOLD_COVERAGE else LC
         condition_intensity = HI if inputEV.iou > THRESHOLD_IOU else LI
@@ -116,7 +134,7 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
         
 
         #  4)rmse prediction evaluation
-        predRMSEEV = EvaluationVariables("prediction_rmse")
+        predRMSEEV = EvaluationVariables("prediction_seg")
         if prediction_rmse is not None:
             outmap_min = prediction_rmse.min()
             outmap_max = prediction_rmse.max()
@@ -140,6 +158,11 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
             predRMSEEV.dis = f'\nThreshold: {str(round(predRMSEEV.ret, 4))}  Coverage:  {str(round(predRMSEEV.coverage, 4))} ' \
                     f'\nIOU :  {str(predRMSEEV.iou)} ' \
                     f'\nPSNR_intersection : {str(round(predRMSEEV.psnr_intersection, 4))}'
+            prediction_rmse = predRMSEEV.th_img
+            Prediction_LABEL = Prediction_Segmentation_label
+            # prediction_rmse2 = predRMSEEV.th_img
+            # prediction_rmse2[prediction_rmse2!=0] = 1
+            # np.save(f'seg_out/{site}', prediction_rmse2)
 # 
     else:
         # finding coverage and intensity criteria based on input and groundthruth
@@ -154,7 +177,7 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
             outmap_min = prediction_rmse.min()
             outmap_max = prediction_rmse.max()
             prediction_rmse_normal = (prediction_rmse - outmap_min) / (outmap_max - outmap_min)
-
+            # prediction_rmse_normal = prediction_rmse
             # prediction_rmse = prediction_rmse.numpy()
             prediction_rmse = prediction_rmse_normal.numpy()
             prediction_rmse = np.nan_to_num(prediction_rmse)
@@ -172,10 +195,14 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
             predRMSEEV.dis = f'\nThreshold: {str(round(predRMSEEV.ret, 4))}  Coverage:  {str(round(predRMSEEV.coverage, 4))} ' \
                     f'\nIOU :  {str(predRMSEEV.iou)} ' \
                     f'\nPSNR_intersection : {str(round(predRMSEEV.psnr_intersection, 4))}'
+            prediction_rmse = predRMSEEV.th_img
+            # Prediction_LABEL = Prediction_Regression_label
+            Prediction_LABEL = Prediction_RegressionWtMask_label
 
         # 5)IOU prediction evaluation
         predIOUEV = EvaluationVariables("prediction_jaccard")
         if prediction_IOU is not None:
+            binary_prediction = True
             prediction_IOU = prediction_IOU.numpy()
             predIOUEV.ret, predIOUEV.th,  _,_, _ = getth(prediction_IOU, on=0)
             predIOUEV.th_img = predIOUEV.th * prediction_IOU
@@ -192,11 +219,11 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
     
     # ----------------------------------------------------------------------------------
     # random result plot
-    if ALL_SAMPLES or filename[0] in SELECTED_SAMPLES :
+    # if ALL_SAMPLES or filename[0] in ['900','2600','2100','1700'] :
     # if condition in (LC+HI, LC+LI ) and filename[0] in SELECTED_SAMPLES :
-    # if 0:
+    if 0:
     # if np.count_nonzero(groundTruth) > 100:
-
+    # if ALL_SAMPLES or filename[0] in SELECTED_SAMPLES :
         
         g1 = ImagePlot(GOES_UNITS,gf_max, gf_min,
                        extract_img, 
@@ -211,25 +238,28 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
         viirs_30wl = np.sum((frp > 0)& (frp <=30))
         viirs_30wm = np.sum(frp >30)
         viirs30wratio = viirs_30wm /viirs_30wl
+        # + str(np.count_nonzero(groundTruth)) + ' ' +str(np.sum(frp))
         g3 = ImagePlot(VIIRS_UNITS,vf_max,VIIRS_MIN_VAL,
                        groundTruth ,
-                       VIIRS_GROUND_TRUTH_LABEL + str(np.count_nonzero(groundTruth)) + ' ' +str(np.sum(frp))+ ' ' +str(viirs_30wl) + ' ' +str(viirs_30wm )+ ' ' +str(round(viirs30wratio,3) ))
+                       VIIRS_GROUND_TRUTH_LABEL )
         # g6 = ImagePlot(GOES_UNITS,gf_max, gf_min,
         #                predIOUEV.th_img,
         #                VIIRS_GROUND_TRUTH_LABEL + minmaxg3)
 
-        
+        nl = '\n'
         
         if(LOSS_NAME == 'Classification_loss'):
             # classification
             g4 = ImagePlot(None,vf_max,VIIRS_MIN_VAL,
                         prediction_rmse if prediction_rmse is not None else prediction_IOU,
-                        str(prediction_rmse.item())+' '+Prediction_RMSE_LABEL if prediction_rmse is not None else Prediction_JACCARD_LABEL)
+                        str(prediction_rmse.item())+' '+Prediction_LABEL if prediction_rmse is not None else Prediction_JACCARD_LABEL)
         else:
             # minmaxg4 = "\n second min: " + str(outmap_NZ_min) +"\n max: " + str(outmap_max) +"\n psnr_intersection: " + str(round(predRMSEEV.psnr_intersection,4))+"\n psnr_union: " + str(round(predRMSEEV.psnr_union,4)) + "\nIOU: " +str(round(predRMSEEV.iou,4))
+            # + f':{nl}{str(round(iou_p,4))}_{str(round(psnr_intersection_p,2))}' 
+            extra_label  = f':\n{str(round(iou_p,3))}_{str(round(psnr_intersection_p,2))}'
             g4 = ImagePlot(VIIRS_UNITS if prediction_rmse is not None else "IOU",vf_max,VIIRS_MIN_VAL,
                         prediction_rmse if prediction_rmse is not None else prediction_IOU,
-                        Prediction_RMSE_LABEL if prediction_rmse is not None else Prediction_JACCARD_LABEL)
+                        Prediction_LABEL + extra_label if prediction_rmse is not None else Prediction_JACCARD_LABEL,binary_prediction)
 
         
         # psnr_intersection6 = PSNR_intersection(groundTruth, thN * prediction_rmse_TH)
@@ -251,29 +281,38 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
         img_seq = ((g1,g3,g4),)
         if(len(inp) > 1):
             active_fire = 100 *( (inp[0]-inp[1])/(inp[0]+inp[1]) )
+            # print(np.max(active_fire), np.min(active_fire))
+            active_fire = noralize_goes_to_radiance(active_fire,np.max(active_fire), np.min(active_fire))
+            active_fire =     getth(abs(active_fire), on=0)[1]
             # gf_min, gf_max = [210, 207, 205],[413,342, 342]
-            cloud_mask_activeFire = denoralize(inp[2],342, 205)
+            cloud_mask_activeFire = denoralize(inp[2],GOES_MAX_VAL[2], GOES_MIN_VAL[2])
             cloud_mask_activeFire = cloud_mask_activeFire * (cloud_mask_activeFire > 280)
             
-           
-            
-            g7 = ImagePlot(GOES_UNITS,np.max(active_fire), np.min(active_fire),
+            g7 = ImagePlot('Normalized dif.',np.max(active_fire), np.min(active_fire),
                         active_fire, 
-                        "Active fire: normalized diff band7 ,band 14")
+                        "Active fire")
             
-            g8 = ImagePlot(GOES_UNITS,342, 205,
+            g8 = ImagePlot(GOES_UNITS,GOES_MAX_VAL[2], GOES_MIN_VAL[2],
                         cloud_mask_activeFire, 
-                        "Band15 > 280")
+                        "Cloud mask: Band15 > 280")
             
-            g9 = ImagePlot(GOES_UNITS,np.max(active_fire), np.min(active_fire),
+            g9 = ImagePlot('Normalized dif.',np.max(active_fire), np.min(active_fire),
                         active_fire * (cloud_mask_activeFire > 280), 
-                        "Cloud mask Active fire: band15 > 280")
-            img_seq = ((g1,g7,g8),(g3,g4,g9))
+                        "Active fire with Cloud mask")
+            img_seq = ((g1,g7,g3),(g8,g9,g4))
         
         # img_seq = ((g1,g3,g4,g5,g6),)
         # img_seq = ((g1,g3),)
         # path ='/'.join(pl[:-1]+[f'{str(round(iou_p,4))}_{str(round(inputEV.coverage,4))}_{str(round(inputEV.iou,4))}_{pl[-1]}']) 
-        plot_from_ImagePlot(site_date_time+ pl[1],img_seq,condition,path)
+        # path ='/'.join(pl[:-1]+[f'{str(round(iou_p,1))}/{str(round(iou_p,4))}_{str(round(psnr_intersection_p,2))}_{pl[-1]}']) 
+        # + pl[1]
+        name_date_split = site_date_time.split('_')
+        yy,mm,dd,hm = name_date_split[-4:]
+        site_name = ' '.join(name_date_split[:-4])
+        # site,yy,mm,dd,hm = site_date_time.split('_')
+        title_plot = f'{site_name} {yy}-{mm}-{dd} {hm}'
+        path = update_result_path(path,condition)
+        plot_from_ImagePlot(title_plot,img_seq,path)
         
         # print("-----------------------------------------------------------------------")
         logging.info(
