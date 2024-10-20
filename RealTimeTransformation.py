@@ -29,7 +29,7 @@ from GlobalValues import GOES_product_size, RealTimeIncoming_files, RealTimeInco
 from ModelRunConfiguration import use_config
 from RadarProcessing import RadarProcessing
 from SiteInfo import SiteInfo
-from WriteDataset import goes_img_pkg, goes_img_to_channels, goes_radiance_normaization
+from WriteDataset4DLModel import goes_img_pkg, goes_img_to_channels, goes_radiance_normaization
 import pandas as pd
 from datetime import datetime
 import xarray as xr

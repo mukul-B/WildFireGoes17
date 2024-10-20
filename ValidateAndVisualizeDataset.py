@@ -15,15 +15,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 from PIL import Image
-
-from GlobalValues import GOES_MAX_VAL, VIIRS_UNITS, GOES_product_size, viirs_dir, goes_dir, compare_dir
 import datetime
-
-from WriteDataset import Normalize_img
+from os.path import exists as file_exists
+from GlobalValues import GOES_MAX_VAL, VIIRS_UNITS, GOES_product_size, viirs_dir, goes_dir, compare_dir
+from PlotInputandResults2 import ImagePlot2, Plot_individual_list, Plot_list
+# from VIIRS_angleOfView import calculateAngleOfView
+from WriteDataset4DLModel import Normalize_img
 from CommonFunctions import prepareDirectory
 from SiteInfo import SiteInfo
 
-# demonstrate reference_data standardization with sklearn
 
 
 def getth(image, on=0):
@@ -59,9 +59,8 @@ def getth(image, on=0):
     image_r[image_r >= threshold] = 1
     return round(threshold, 2), image_r, hist, bin_edges, index_of_max_val
 
-
 # visualising GOES and VIIRS
-def viewtiff(location,v_file, g_file, date, save=True, compare_dir=None):
+def viewtiff(location,v_file, g_file, date, save=True, compare_dir=None,time_independent_data={}):
     VIIRS_data = xr.open_rasterio(v_file)
     GOES_data = xr.open_rasterio(g_file)
 
@@ -72,7 +71,31 @@ def viewtiff(location,v_file, g_file, date, save=True, compare_dir=None):
     normalized = False
     vmin,vmax = (0, 250) if normalized else (200,420)
     # to_plot, lables = multi_spectral_plots(vd, gd)
-    to_plot, lables = multi_spectralAndFRP(vd, FRP, gd)
+    # to_plot, lables = multi_spectralAndFRP(vd, FRP, gd)
+    to_plot, lables = basic_plot(vd, gd)
+    imges_plots = [ ImagePlot2(to_plot[i],lables[i],VIIRS_UNITS,'jet') for i in range(len(to_plot))]
+    
+    if('angle_of_view' in time_independent_data.keys()):
+        angle_of_view = time_independent_data['angle_of_view']
+        imges_plots.append(ImagePlot2(angle_of_view,'angle_of_view','Angle(degree)','jet'))
+    
+    if('elevation' in time_independent_data.keys()):
+        elevation = time_independent_data['elevation']
+        virrs_at_elevation = elevation[vd !=0]
+        if(len(virrs_at_elevation) == 0):
+            print("woh")
+            return
+        min_elevation , max_elevation = np.min(virrs_at_elevation) , np.max(virrs_at_elevation)
+        # print(min_elevation , max_elevation)
+        elevation_bucket = int(400 *(max_elevation // 400))
+        # elevation[vd ==0] = 0
+        elevation2 = np.copy(elevation)
+        elevation2[vd !=0] = 0
+        
+        elevation_image_plot = ImagePlot2(elevation2,f'Elevation of VIIRS \n Viirs at max:{max_elevation} min:{min_elevation}','Elevation(m)','terrain')
+        elevation_image_plot.vmin , elevation_image_plot.vmax =  (0 , 3500)
+        imges_plots.append(elevation_image_plot)
+
 
     site = SiteInfo(location)
     longitude = site.longitude
@@ -85,18 +108,49 @@ def viewtiff(location,v_file, g_file, date, save=True, compare_dir=None):
     # compare_dir = f'{compare_dir}/{str(site.EPSG)}'
     # compare_dir = f'{compare_dir}/c{int((latitude // 4 ) * 4)}_{int(longitude)}'
     # compare_dir = f'{compare_dir}/{int(longitude)}_{int(latitude)}_{location}'
-    compare_dir = f'{compare_dir}/{location}'
-    # compare_dir = f'{compare_dir}/{int(20 *(FRP.sum() // 20))}'
+    # compare_dir = f'{compare_dir}/{location}'
+    east_West = "east" if(longitude > -109) else "west"
+    goes_sat = 'GOES-16' if(east_West == "east") else 'GOES-17'
+    date_time_utc = datetime.datetime.strptime(date, "%Y-%m-%d_%H%M").replace(tzinfo=datetime.timezone.utc)
+    # snpp_angle = calculateAngleOfView('SUOMI NPP',date_time_utc,[latitude, longitude])
+    # noaa_angle = calculateAngleOfView('NOAA 20 (JPSS-1)',date_time_utc,[latitude, longitude])
     
-    save_path = f'{compare_dir}/{int(longitude)}_{int(latitude)}_{location}_{date}.png' if save else None
+    # GOES_angle = calculateAngleOfView(goes_sat,date_time_utc,[latitude, longitude])
+    
+    # snpp_angle_bucket = int(10 * (snpp_angle//10) ) if (snpp_angle != -1) else 'N'
+    # noaa_angle_bucket = int(10 * (noaa_angle//10) ) if (noaa_angle != -1) else 'N'
+    
+    # Viirs_angle_bucket = f'{snpp_angle_bucket}_{noaa_angle_bucket}'
+    
+    # GOES_angle_bucket =  str(int(5 * (GOES_angle//5) ))
+    
+    viirs_with_angle_label = ''
+    # if(snpp_angle >0):
+    #     viirs_with_angle_label = viirs_with_angle_label + f'\nsnpp_angle:{int(snpp_angle) }'
+    # if(noaa_angle >0):
+    #     viirs_with_angle_label = viirs_with_angle_label + f'\nnoaa_angle:{int(noaa_angle) }'
+    # lables[0] = lables[0] + f'\n{goes_sat}_angle:{int(GOES_angle) }'
+    # lables[1] = lables[1]+ viirs_with_angle_label
+    
+    # compare_dir = f'{compare_dir}/{east_West}/{elevation_bucket}/{GOES_angle_bucket}'
+    # compare_dir = f'{compare_dir}2/{east_West}/{elevation_bucket}/{Viirs_angle_bucket}'
+    # compare_dir = f'{compare_dir}/{int(20 *(FRP.sum() // 20))}'
+    # file_name = f'{int(longitude)}_{int(latitude)}_{location}_{date}.png'
+    file_name = f'{location}_{date}.png'
+    save_path = f'{compare_dir}/{file_name}' if save else None
     # save_path = f'{compare_dir}/{str(site.EPSG)}/{int(longitude)}_{int(latitude)}_{location}_{date}.png' if save else None
-    plot_condition = True
+    # plot_condition = True
+    plot_condition = (np.count_nonzero(vd) > 200 )
     # plot_condition = (np.count_nonzero(gd[0]==0) > 5)
     # plot_condition = (np.count_nonzero(vd) < 30 and FRP.sum() <150 )
+    if (file_exists(save_path)):
+            return
+    
     if(plot_condition):
         prepareDirectory(compare_dir)
         plot_title = f'{location} at {date} coordinates : {longitude},{latitude}'
-        Plot_list(plot_title,  to_plot, lables, vd.shape, None, None, save_path)
+        Plot_list(plot_title,imges_plots, vd.shape, save_path)
+        print(save_path)
 
 def basic_plot(vd, gd):
     to_plot = [gd[0],vd,(gd[0] - vd)]
@@ -126,48 +180,6 @@ def multi_spectral_plots(vd, gd):
     # to_plot = [gd[0],Active_fire,cloud_remove_280,vd]
     # lables = ["GOES","Active_fire","Active_fire with Cloud Mask","VIIRS"]
     return to_plot,lables
-
-def Plot_list( title, to_plot, lables, shape, vmin=None, vmax=None, save_path=None):
-
-    X, Y = np.mgrid[0:1:complex(str(shape[0]) + "j"), 0:1:complex(str(shape[1]) + "j")]
-    n = len(to_plot)
-    fig, ax = plt.subplots(1, n, constrained_layout=True, figsize=(4*n, 4))
-    fig.suptitle(title)
-
-    for k in range(n):
-        curr_img = ax[k] if n > 1 else ax
-        p = curr_img.pcolormesh(Y, -X, to_plot[k], cmap="jet", vmin=vmin, vmax=vmax)
-        curr_img.tick_params(left=False, right=False, labelleft=False,
-                          labelbottom=False, bottom=False)
-        curr_img.text(0.5, -0.1, lables[k], transform=curr_img.transAxes, ha='center', fontsize=12)
-
-        cb = fig.colorbar(p, pad=0.01)
-        cb.ax.tick_params(labelsize=11)
-        cb.set_label(VIIRS_UNITS, fontsize=12)
-    plt.rcParams['savefig.dpi'] = 600
-    if (save_path):
-        fig.savefig(save_path)
-        plt.close()
-    plt.show()
-
-
-def plot_individual_images(X, Y, compare_dir, g_file, gd, vd):
-    ar = [vd, gd, gd - vd]
-    if (g_file == 'reference_data/Kincade/GOES/ABI-L1b-RadC/tif/GOES-2019-10-27_949.tif'):
-        print(g_file, compare_dir)
-        for k in range(3):
-            fig2 = plt.figure()
-            ax = fig2.add_subplot()
-            a = ax.pcolormesh(Y, -X, ar[k], cmap="jet", vmin=200, vmax=420)
-            cb = fig2.colorbar(a, pad=0.01)
-            cb.ax.tick_params(labelsize=11)
-            cb.set_label('Radiance (K)', fontsize=12)
-            plt.tick_params(left=False, right=False, labelleft=False,
-                            labelbottom=False, bottom=False)
-            # plt.show()
-            plt.savefig(f'{compare_dir}/data_preprocessing{k}.png', bbox_inches='tight', dpi=600)
-            plt.close()
-
 
 
 def PSNR(pred, gt, shave_border=0):
@@ -205,10 +217,24 @@ def validateAndVisualizeDataset(location, product):
     # goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product['product_name']).replace('$BAND', format(product['band'],'02d'))
     comp_dir = compare_dir.replace('$LOC', location)
     viirs_list = os.listdir(viirs_tif_dir)
+    
+    time_independent_data = {}
+    plot_time_independent_data = True
+    if plot_time_independent_data:
+        elevation_path =  f'DataRepository/Per_site_elevation/resampled_raster_{location}.tif'
+        ELEVATION_data = xr.open_rasterio(elevation_path)
+        elevation = ELEVATION_data.variable.data[0]
+        time_independent_data['elevation'] = elevation
+        
+        angle_of_view_path = f'DataRepository/AngleOfViewPerSite/loc_{location}.tif'
+        angle_of_view_data = xr.open_rasterio(angle_of_view_path)
+        angle_of_view = angle_of_view_data.variable.data[0]
+        time_independent_data['angle_of_view'] = angle_of_view
+            
     for v_file in viirs_list:
         g_file = "GOES" + v_file[10:]
         sample_date = v_file[11:-4]
         sample_date = sample_date.split('_')
         sample_date = f'{sample_date[0]}_{sample_date[1].rjust(4,"0")}'
         # shape_check(viirs_tif_dir + v_file, goes_tif_dir + g_file)
-        viewtiff(location,viirs_tif_dir + v_file, goes_tif_dir + g_file, sample_date, compare_dir=comp_dir, save=True)
+        viewtiff(location,viirs_tif_dir + v_file, goes_tif_dir + g_file, sample_date, compare_dir=comp_dir, save=True,time_independent_data=time_independent_data)

@@ -146,12 +146,14 @@ toExecuteSiteList = f"config/training_sites{site_Postfix}"
 # toExecuteSiteList = "config/testing_sites"
 # training = 'training'
 # reference_data = "reference_data_working"
-reference_data = f"DataRepository/reference_data{referenceDir_speficic_Postfix}"
+
+DataRepository = 'DataRepository'
+reference_data = f"{DataRepository}/reference_data{referenceDir_speficic_Postfix}"
 compare_dir = f'{reference_data}/compare/$LOC/'
 # compare_dir = f'{reference_data}/compare_all/'
 viirs_dir = f'{reference_data}/$LOC/VIIRS/'
 goes_dir = f'{reference_data}/$LOC/GOES/$PROD_BAND/tif/'
-training_dir = f'DataRepository/training_data{trainingDir_speficic_Postfix}/'
+training_dir = f'{DataRepository}/training_data{trainingDir_speficic_Postfix}/'
 # training_dir = 'training_data_working/'
 GOES_OVERWRITE = False
 VIIRS_OVERWRITE = False
@@ -167,19 +169,19 @@ model_path = 'Model/'
 project_name_template = "{model_name}_{loss_function_name}_{n_epochs}epochs_{batch_size}batchsize_{learning_rate}lr{model_specific_postfix}"
 test_split = 0.2
 validation_split = 0.2
-Results = f'DataRepository/results{result_specific_postfix}/'
+Results = f'{DataRepository}/results{result_specific_postfix}/'
 # THRESHOLD_COVERAGE = 0.2
 # THRESHOLD_IOU = 0.05
 THRESHOLD_COVERAGE, THRESHOLD_IOU = 0.453186035,0.005117899
 
 
 # toExecuteSiteList = "config/testing_sites"
-testing_dir = 'DataRepository/testing_dir/'
+testing_dir = f'{DataRepository}/testing_dir/'
 # realtimeSiteList = "config/realtime_sites"
-RealTimeIncoming_files = 'DataRepository/RealTimeIncoming_files/$LOC/$RESULT_TYPE/'
-RealTimeIncoming_results = 'DataRepository/RealTimeIncoming_results/$LOC/$RESULT_TYPE/'
+RealTimeIncoming_files = f'{DataRepository}/RealTimeIncoming_files/$LOC/$RESULT_TYPE/'
+RealTimeIncoming_results = f'{DataRepository}/RealTimeIncoming_results/$LOC/$RESULT_TYPE/'
 validate_with_radar = False
-videos = 'DataRepository/Videos/'
+videos = f'{DataRepository}/Videos/'
 
 # blind testing
 realtimeSiteList = "config/blind_testing_sites"

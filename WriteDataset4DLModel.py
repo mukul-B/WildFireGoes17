@@ -166,7 +166,7 @@ def Normalize_img(img,gf_min = GOES_MIN_VAL, gf_max = GOES_MAX_VAL):
 
 #  creating dataset in npy format containing both input and reference files ,
 # whole image is croped in window of size 128
-def create_training_dataset(v_file, g_file, date, out_dir, location):
+def create_training_dataset(v_file, g_file, date, out_dir, location,time_independent_data={}):
     td = {}
     if(seperate_th):
         out_dir_neg = out_dir.replace('training_data','training_data_neg')
@@ -175,6 +175,7 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
     # vf = Image.open(v_file)
     VIIRS_data = xr.open_rasterio(v_file)
     vf = VIIRS_data.variable.data[0]
+    
     GOES_data = xr.open_rasterio(g_file)
     kf = goes_img_pkg(GOES_data)
     gf = GOES_data.variable.data[0]
@@ -241,21 +242,22 @@ def create_training_dataset(v_file, g_file, date, out_dir, location):
         if(seperate_th):
             frp_win = window[:, :, 4]
             if np.count_nonzero(v_win) == 0:
-                np.save(os.path.join(out_dir_neg, 'comb.' + location + '_' + date + '.' + str(x) + '.' + str(y) + '.npy'), window)
+                # pass
+                np.save(os.path.join(out_dir_neg, 'comb.' + location + '_D_' + date + '.' + str(x) + '.' + str(y) + '.npy'), window)
             elif np.count_nonzero(v_win) < 60 and np.sum(frp_win) < 600:
                 if(th_neg):
                     window[:, :, 0] =0
-                np.save(os.path.join(out_dir_TH, 'comb.' + location + '_' + date
+                np.save(os.path.join(out_dir_TH, 'comb.' + location + '_D_' + date
                             + '.' + str(x) + '.' + str(y) + '.npy'), window)
             else:
                 # with open('fire_frp.txt', 'a') as file:  
                 #     file.write(f"{np.count_nonzero(v_win)},{np.sum(frp_win)}\n")  
-                np.save(os.path.join(out_dir_pos, 'comb.' + location + '_' + date  + '.' + str(x) + '.' + str(y) + '.npy'), window)
+                np.save(os.path.join(out_dir_pos, 'comb.' + location + '_D_' + date  + '.' + str(x) + '.' + str(y) + '.npy'), window)
 
         elif np.count_nonzero(v_win) == 0:
             continue
    
-        np.save(os.path.join(out_dir, 'comb.' + location + '_' + date
+        np.save(os.path.join(out_dir, 'comb.' + location + '_D_' + date
                         + '.' + str(x) + '.' + str(y) + '.npy'), window)
 
 
@@ -264,15 +266,46 @@ def writeDataset(location, product, train_test):
     # band = product['band']
     viirs_tif_dir = viirs_dir.replace('$LOC', location)
     product_band = ''.join(map(lambda item: f"{item['product_name']}{format(item['band'],'02d')}", product))
-    goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD_BAND', product_band)
-    # goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD', product['product_name']).replace('$BAND', format(product['band'],'02d'))
+    # goes_tif_dir = goes_dir.replace('$LOC', location).replace('$PROD_BAND', product_band)
+    
     viirs_list = os.listdir(viirs_tif_dir)
     # global global_max, global_min
     # global_max = [0] * GOES_Bands
     # global_min = [500] * GOES_Bands
+    goes_tif_dir = f'DataRepository/Ortho_results/{location}/'
     
-    for v_file in viirs_list:
-        g_file = "GOES" + v_file[10:]
+    time_independent_data = {}
+        
+    # elevation_path =  f'DataRepository/Per_site_elevation/resampled_raster_{location}.tif'
+    # ELEVATION_data = xr.open_rasterio(elevation_path)
+    # elevation = ELEVATION_data.variable.data[0]
+    # # time_independent_data['elevation'] = elevation
+    # elevation[elevation<0] = 0
+    # elevation = goes_radiance_normaization(elevation, 33000, 0)
+    # # print(location,np.min(elevation),np.max(elevation))
+    
+    # angle_of_view_path = f'DataRepository/AngleOfViewPerSite/loc_{location}.tif'
+    # angle_of_view_data = xr.open_rasterio(angle_of_view_path)
+    # angle_of_view = angle_of_view_data.variable.data[0]
+    # angle_of_view = goes_radiance_normaization(angle_of_view, 65, 30)
+    # # time_independent_data['angle_of_view'] = angle_of_view
+    # # print(f'{location},{np.min(angle_of_view)},{np.max(angle_of_view)},{np.min(elevation)},{np.max(elevation)}')
+    # # seg_out/comb.Antelope_2021-08-13_2201.0.128.npy
+
+    # static_training_path = 'DataRepository/training_data_static/'
+    # stack = np.stack([elevation,angle_of_view], axis=2)
+    # for x, y, window in sliding_window(stack, 128, (128, 128)):
+    #     if window.shape != (128, 128, 2):
+    #         continue
+    #     np.save(os.path.join(static_training_path, 'comb.' + location   + '.' + str(x) + '.' + str(y) + '.npy'), window)
+        # print(static_training_path, 'comb.' + location)
+    
+    for v_file in viirs_list[:]:
+        # g_file = "GOES" + v_file[10:]
+        g_file = "Orthorectified_GOES" + v_file[10:]
+        
+        
+        
         create_training_dataset(viirs_tif_dir + v_file, goes_tif_dir + g_file, v_file[11:-4],
                                 out_dir=train_test, location=location)
     

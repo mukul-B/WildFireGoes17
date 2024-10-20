@@ -91,7 +91,7 @@ def reproject_raster(tif_file, target_crs,location,out_path):
     
     return resampled_output_file, new_transform, resampled_image.shape
 
-def crop_reprojected_raster(california_bbox_transformed, reprojected_file,level,location,out_path):
+def crop_reprojected_raster(california_bbox_transformed, reprojected_file,level,location,out_path,final_image_size):
     bbox_geojson = [california_bbox_transformed.__geo_interface__]
     
     with rasterio.open(reprojected_file) as src:
@@ -119,7 +119,7 @@ def crop_reprojected_raster(california_bbox_transformed, reprojected_file,level,
         return cropped_output_file ,cropped_transform,cropped_meta
     
     if level == 2 :
-        ret =  resample(cropped_transform, cropped_image, cropped_meta,location,out_path)
+        ret =  resample(cropped_transform, cropped_image, cropped_meta,location,out_path,final_image_size)
         return ret,None,None
 
 
@@ -148,7 +148,7 @@ def Plot_list( title, to_plot, lables, shape, vmin=None, vmax=None, save_path=No
     plt.show()
 
 
-def resample(cropped_transform, cropped_image, cropped_meta,location,out_path):
+def resample(cropped_transform, cropped_image, cropped_meta,location,out_path,final_image_size):
     # Target resolution (in meters)
     target_resolution = 375  # meters
     # EPSG  = 5070
@@ -163,11 +163,11 @@ def resample(cropped_transform, cropped_image, cropped_meta,location,out_path):
     scale_factor = target_resolution / current_resolution
 
     # Calculate new dimensions for the resampled image
-    new_height = int(cropped_image.shape[1] / scale_factor)  # decrease the pixel count
-    new_width = int(cropped_image.shape[2] / scale_factor)
+    # new_height = int(cropped_image.shape[1] / scale_factor)  # decrease the pixel count
+    # new_width = int(cropped_image.shape[2] / scale_factor)
     
-    # new_height = site.image_size[0]
-    # new_width = site.image_size[1]
+    new_height = final_image_size[0]
+    new_width = final_image_size[1]
 
     # Prepare an empty array for the resampled image
     resampled_image = np.empty((cropped_image.shape[0], new_height, new_width), dtype=cropped_image.dtype)
@@ -240,6 +240,9 @@ def create_elevation_dataset(tif_file, out_path, out_path_temp, location):
     rectangular_size = site.rectangular_size
     print(location)
     target_crs = f'EPSG:{site.EPSG}'
+    site.get_image_dimention()
+    final_image_size = site.image_size
+    # target_crs = f'EPSG:4326'
             
             # Step 1: Get bounding box in the target CRS
             
@@ -249,7 +252,7 @@ def create_elevation_dataset(tif_file, out_path, out_path_temp, location):
     california_bbox_transformed = get_boundingBox(longitude, latitude, rectangular_size, target_crs)
 
             
-    c1,_,_ = crop_reprojected_raster(california_bbox_transformed_1, tif_file,1,location,out_path_temp)
+    c1,_,_ = crop_reprojected_raster(california_bbox_transformed_1, tif_file,1,location,out_path_temp,final_image_size)
             # print(c1,'---------------------------------------')
             # out_file.append(c1)
             # Step 2: Reproject the raster
@@ -258,7 +261,7 @@ def create_elevation_dataset(tif_file, out_path, out_path_temp, location):
             # print(reprojected_file,'---------------------------------------')
 
             # # Step 3: Crop the reprojected raster using the transformed bounding box
-    cropped_image,_,_ = crop_reprojected_raster(california_bbox_transformed, reprojected_file,2,location,out_path)
+    cropped_image,_,_ = crop_reprojected_raster(california_bbox_transformed, reprojected_file,2,location,out_path,final_image_size)
     print(cropped_image,'---------------------------------------')
     return location
 
@@ -266,7 +269,9 @@ if __name__ == '__main__':
     # Step 1: Define Bounding Box for California in WGS84 (EPSG:4326)
     
 
-    tif_file = 'Elevation/LC20_Elev_220.tif'
+    tif_file = 'DataRepository/Elevation/LC20_Elev_220.tif'
+    # out_path = 'DataRepository/'
+    # out_path_temp = 'DataRepository/'
     out_path = 'DataRepository/Per_site_elevation'
     out_path_temp = 'DataRepository/Per_site_elevation_temp'
     
@@ -274,7 +279,7 @@ if __name__ == '__main__':
     locations = data["Sites"][:]
     start_time = time.time()
     
-    parallel = 0
+    parallel = 1
     if(parallel):
         pool = mp.Pool(8)
     # Initialize tqdm progress bar

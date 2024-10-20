@@ -20,7 +20,7 @@ class ImagePlot:
         self.lable_blocks = lable_blocks
 
 
-def plot_from_ImagePlot(title,img_seq,path,colection=True):
+def plot_from_ImagePlot(title,img_seq,path,shape=(128,128),colection=True):
     pl = path.split('/')
     filename = pl[-1].replace('.png','')
     c,r = len(img_seq) ,len(img_seq[0])
@@ -52,7 +52,8 @@ def plot_from_ImagePlot(title,img_seq,path,colection=True):
                     fig.suptitle(title)
                     ax = fig.add_subplot()
 
-                X, Y = np.mgrid[0:1:128j, 0:1:128j]
+                # X, Y = np.mgrid[0:1:128j, 0:1:128j]
+                X, Y = np.mgrid[0:1:complex(str(shape[0]) + "j"), 0:1:complex(str(shape[1]) + "j")]
                 
                 # vmin = VIIRS_MIN_VAL if lable_blocks in [VIIRS_GROUND_TRUTH] else None
                 # vmax =420

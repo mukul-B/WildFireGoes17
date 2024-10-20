@@ -13,7 +13,7 @@ import pandas as pd
 from CommonFunctions import prepareDir
 from CreateTrainingDataset import createDataset
 from ValidateAndVisualizeDataset import validateAndVisualizeDataset
-from WriteDataset import writeDataset
+from WriteDataset4DLModel import writeDataset
 from GlobalValues import RAD, GOES_product, toExecuteSiteList, training_dir,testing_dir, realtimeSiteList
 import time
 import multiprocessing as mp
