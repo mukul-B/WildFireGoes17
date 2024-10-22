@@ -21,13 +21,14 @@ from torch.utils.data import DataLoader
 from EvaluationReportingTemplate import EvaluatationReporting_reg
 import wandb
 from AutoEncoderTraining import balance_dataset_if_TH
-from Autoencoder import Autoencoder, Encoder, Decoder
 from CustomDataset import npDataset
 from GlobalValues import COLOR_NORMAL_VALUE, RES_AUTOENCODER_PTH, RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
     HC, HI, LI, LC
 from GlobalValues import training_dir, Results, random_state, project_name_template, test_split, model_specific_postfix, realtime_model_specific_postfix
+from Autoencoder import Autoencoder as Selected_model
 from ModelRunConfiguration import use_config
-from EvaluationOperation import get_evaluation_results
+# from EvaluationOperation import get_evaluation_results
+from EvaluationOperation_torch import get_evaluation_results
 
 plt.style.use('plot_style/wrf')
 
@@ -72,19 +73,7 @@ def test(test_loader, selected_model, npd):
                     output_rmse = decoder_output
             else:
                 output_rmse, output_jaccard = decoder_output[0], decoder_output[1]
-
-            x = x.cpu()
-            x = np.squeeze(x)
-            y = np.squeeze(y)
-
-            if output_rmse is not None:
-                # output_rmse = output_rmse.view(1, 128, 128)
-                output_rmse = output_rmse.cpu()
-                output_rmse = np.squeeze(output_rmse)
-            if output_jaccard is not None:
-                output_jaccard = output_jaccard.cpu()
-                output_jaccard = np.squeeze(output_jaccard)
-            nonzero = np.count_nonzero(output_rmse)
+            y = y.cuda()
             if True:
                 path = f'{res}/{batch_idx}.png'
                 gf_min, gf_max, vf_max = gf_min[0][0][0][0].item(), gf_max[0][0][0][0].item(), vf_max[0][0][0][0].item()
@@ -102,7 +91,7 @@ def test(test_loader, selected_model, npd):
         incv, incc = dir[i / 10]
         dir[i / 10] = (0 if incc == 0 else (incv / incc), incc)
     # logging.info(dir)
-    plot_result_histogram(count, iou_plot_prediction)
+    # plot_result_histogram(count, iou_plot_prediction)
     evals.report_results()
     elapsed_time = time.time() - start_time
     avg_elapsed_time += elapsed_time
@@ -134,17 +123,16 @@ def plot_result_histogram(count, iou_plot_prediction):
     plt.close()
 
 def test_runner(selected_model):
-
     # Get List of downloaded files and set up reference_data loader
     file_list = os.listdir(im_dir)
     file_list = balance_dataset_if_TH(file_list)
     logging.info(f'{len(file_list)} reference_data samples found')
     train_files, test_files = train_test_split(file_list, test_size=test_split, random_state=random_state)
     # test_files = os.listdir(im_dir)
+    # test_files = file_list
     logging.info(f'{len(test_files)} test_data samples found')
     npd = npDataset(test_files, batch_size, im_dir, augment=False, evaluate=True)
     test_loader = DataLoader(npd)
-    
     selected_model.cuda()
 
     # test the model components
@@ -153,7 +141,6 @@ def test_runner(selected_model):
 def get_selected_model_weight(selected_model,model_project_path):
     selected_model.load_state_dict(torch.load(model_project_path + "/" + RES_AUTOENCODER_PTH))
 
-
 class RuntimeDLTransformation:
     def __init__(self,conf):
         loss_function = conf.get(LOSS_FUNCTION)
@@ -161,7 +148,7 @@ class RuntimeDLTransformation:
         
         self.LOSS_NAME = loss_function_name
         OUTPUT_ACTIVATION = loss_function(1).last_activation
-        self.selected_model = Autoencoder(GOES_Bands, OUTPUT_ACTIVATION)
+        self.selected_model = Selected_model(in_channels = GOES_Bands, out_channels = 1, last_activation = OUTPUT_ACTIVATION)
         model_name = type(self.selected_model).__name__
 
         project_name = project_name_template.format(
@@ -234,15 +221,14 @@ def main(config=None):
     batch_size=wandb.config.get(BATCH_SIZE)
     learning_rate=wandb.config.get(LEARNING_RATE)
     loss_function = wandb.config.get(LOSS_FUNCTION)
-
     loss_function_name = str(loss_function).split("'")[1].split(".")[1]
 
     global res, LOSS_NAME
     
     LOSS_NAME = loss_function_name
     OUTPUT_ACTIVATION = loss_function(1).last_activation
-    
-    selected_model = Autoencoder(GOES_Bands, OUTPUT_ACTIVATION)
+
+    selected_model = Selected_model(in_channels = GOES_Bands, out_channels = 1, last_activation = OUTPUT_ACTIVATION)
     model_name = type(selected_model).__name__
     
     project_name = project_name_template.format(

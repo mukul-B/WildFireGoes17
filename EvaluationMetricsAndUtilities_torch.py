@@ -12,11 +12,25 @@ on Sun Jul 23 11:17:09 2022
 
 import math
 import numpy as np
+from pytorch_msssim import ssim
+import torch
+import math
+import numpy as np
+import cv2
 
+def ssim3(img1, img2):
+    batch_ssim = ssim(img1, img2, data_range=1, size_average=True)
+    return batch_ssim
+
+def psnr(target, output, max_val=1.0):
+    mse = torch.mean((target - output) ** 2)
+    if mse == 0:
+        return float('inf')
+    return 20 * math.log10(max_val / math.sqrt(mse))
 
 def get_IOU(target, pred):
-    pred_binary = np.copy(pred)
-    target_binary = np.copy(target)
+    pred_binary = pred.clone()
+    target_binary = target.clone()
     pred_binary[pred_binary != 0] = 1
     target_binary[target_binary != 0] = 1
     intersection = (pred_binary * target_binary).sum()
@@ -24,39 +38,36 @@ def get_IOU(target, pred):
     union = total - intersection
     IOU = (intersection) / (union)
     # IOU = (intersection + SMOOTH) / (union + SMOOTH)
-    return IOU
-
+    return IOU.item()
 
 def PSNR_union(target, pred,max_val=367.0):
     imdff = pred - target
-    # union = pred + target
-    union = target
+    union = pred + target
     imdff[union == 0] = 0
     imdff = imdff.flatten()
-    pixcelsInUnion = np.count_nonzero(union)
-    if pixcelsInUnion > 0:
-        rmse = math.sqrt(np.sum(np.array(imdff ** 2)) / pixcelsInUnion)
+    pixelsInIntersection = torch.count_nonzero(union).item()
+
+    if pixelsInIntersection > 0:
+        rmse = torch.sqrt(torch.sum(imdff ** 2) / pixelsInIntersection).item()
     else:
         return 0
     if rmse == 0:
         return 100
-    return 20 * math.log10(max_val / rmse)
-
+    return 20 * torch.log10(torch.tensor(max_val) / rmse).item()
 
 def PSNR_intersection(target, pred,max_val=367.0):
     imdff = pred - target
     interaction = pred * target
     imdff[interaction == 0] = 0
-    imdff =  imdff.flatten()
-    pixelsInIntersection = np.count_nonzero(interaction)
+    imdff = imdff.flatten()
+    pixelsInIntersection = torch.count_nonzero(interaction).item()
     if pixelsInIntersection > 0:
-        # return math.sqrt(np.sum(np.array(imdff ** 2)) / pixelsInIntersection)
-        rmse = math.sqrt(np.sum(np.array(imdff ** 2)) / pixelsInIntersection)
+        rmse = torch.sqrt(torch.sum(imdff ** 2) / pixelsInIntersection).item()
     else:
         return 0
     if rmse == 0:
         return 100
-    return 20 * math.log10(max_val / rmse)
+    return 20 * torch.log10(torch.tensor(max_val) / rmse).item()
 
 
 def show_img(axis, img, label):
@@ -76,39 +87,44 @@ def show_hist(axis, title, binsl, hist, minr_tick):
     axis.set_xlim(0, )
 
 def getth(image, on=0):
-    bins= 413
-    # Set total number of bins in the histogram
-    image_r = image.copy()
+    bins = 413
+    device = image.device
+    image_r = image.clone()
     image_r = image_r * (bins-1)
     # Get the image histogram
-    hist, bin_edges = np.histogram(image_r, bins=bins)
-    if (on):
+    
+    max_val , min_val = image_r.max().item(), image_r.min().item()
+    bin_width = (max_val - min_val) / bins
+    hist = torch.histc(image_r, bins=bins).to(device)
+    # bin_edges = torch.arange(min_val, max_val , bin_width)
+    
+    # hist = torch.histc(image_r, bins=bins, min=0, max=bins-1).to(device)
+    bin_edges = torch.linspace(min_val, max_val, bins + 1).to(device)
+    if on:
         hist, bin_edges = hist[on:], bin_edges[on:]
-    # Get normalized histogram if it is required
-
-    # Calculate centers of bins
+    
+    # Calculate bin midpoints
     bin_mids = (bin_edges[:-1] + bin_edges[1:]) / 2.
-    # Iterate over all thresholds (indices) and get the probabilities w1(t), w2(t)
-    weight1 = np.cumsum(hist)
-    weight2 = np.cumsum(hist[::-1])[::-1]
-    # Get the class means mu0(t)
-    mean1 = np.cumsum(hist * bin_mids) / weight1
-    # Get the class means mu1(t)
-    mean2 = (np.cumsum((hist * bin_mids)[::-1]) / weight2[::-1])[::-1]
+    weight1 = torch.cumsum(hist, dim=0)
+    weight2 = torch.cumsum(hist.flip(0), dim=0).flip(0)
+    # Calculate class means (mean1 and mean2)
+    mean1 = torch.cumsum(hist * bin_mids, dim=0) / weight1
+    mean2 = (torch.cumsum((hist * bin_mids).flip(0), dim=0) / weight2.flip(0)).flip(0)
+    # Inter-class variance (Otsu's method for thresholding)
     inter_class_variance = weight1[:-1] * weight2[1:] * (mean1[:-1] - mean2[1:]) ** 2
-    # Maximize the inter_class_variance function val
-    index_of_max_val = np.argmax(inter_class_variance)
+    # Find index of maximum inter_class_variance
+    index_of_max_val = torch.argmax(inter_class_variance)
     threshold = bin_mids[:-1][index_of_max_val]
     threshold = threshold + on if ((threshold + on) < (bins-1)) else threshold
     image_r[image_r < threshold] = 0
     image_r[image_r >= threshold] = 1
-    return round(threshold, 2), image_r, hist, bin_edges, index_of_max_val
+    return round(threshold.item(), 2), image_r, hist, bin_edges, index_of_max_val.item()
 
 def best_threshold_iteration(groundTruth, input):
     
     maxiou = 0
     level = 0
-    pth2 = np.ones_like(input)
+    pth2 = torch.ones_like(input)
     pret2 = 0
     phist2, pbin_edges = None, None
     imgs = []

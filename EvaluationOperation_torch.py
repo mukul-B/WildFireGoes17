@@ -13,15 +13,18 @@ import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 from CommonFunctions import prepareDirectory
-from EvaluationMetricsAndUtilities import get_IOU, PSNR_intersection, PSNR_union, best_threshold_iteration, denoralize, getth, noralize_goes_to_radiance, noralize_viirs_to_radiance
+from EvaluationMetricsAndUtilities_torch import get_IOU, PSNR_intersection, PSNR_union, best_threshold_iteration, denoralize, getth, noralize_goes_to_radiance, noralize_viirs_to_radiance, psnr
 from PlotInputandResults import ImagePlot, plot_from_ImagePlot
-
+from pytorch_msssim import ssim
+from EvaluationMetricsAndUtilities import getth as getth2
 Prediction_JACCARD_LABEL = 'Prediction(Jaccard)'
 Prediction_RMSE_LABEL = 'Prediction'
 VIIRS_GROUND_TRUTH_LABEL = 'VIIRS Ground Truth'
 OTSU_thresholding_on_GOES_LABEL = 'OTSU thresholding on GOES'
 GOES_input_LABEL = 'GOES input'
+
 Prediction_Segmentation_label = "Prediction: Segmentation"
 Prediction_Regression_label = "Prediction: Regression"
 Prediction_RegressionWtMask_label = "Prediction: Regression wt mask"
@@ -66,7 +69,7 @@ def update_result_path(path,condition):
 def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, path, site, gf_min, gf_max, vf_max, LOSS_NAME, frp = None):
     
     # move from evaluation
-    inp,groundTruth,prediction_rmse,prediction_IOU = move_to_CPU(inp,groundTruth,prediction_rmse,prediction_IOU)
+    # move_to_CPU(x,y,output_rmse,output_jaccard)
     
     pl = path.split('/')
     filename = pl[-1].split('.')
@@ -75,24 +78,18 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
     # groundTruth_NZ_min = groundTruth[groundTruth>0].min()
     # groundTruth_max = groundTruth.max()
 
-    # 1)Input 
-    inp = inp.numpy()
-
-    # 2)Ground truth
-    groundTruth = groundTruth.numpy()
-    frp = frp.numpy()
-
     # 3)Evaluation on Input after OTSU thresholding
     inputEV = EvaluationVariables("input")
-    extract_img = inp if GOES_Bands == 1 else inp[0]
+    # extract_img = inp
+    extract_img = inp if GOES_Bands == 1 else inp[-1][0]
     inputEV.iteration, inputEV.ret, inputEV.th = best_threshold_iteration(groundTruth, extract_img)
     _, inputEV.th_l1, _, _, _ = getth(extract_img, on=0)
     inputEV.th_img = inputEV.th * extract_img
     inputEV.iou = get_IOU(groundTruth, inputEV.th)
     inputEV.psnr_intersection = PSNR_intersection(groundTruth, inputEV.th_img)
     inputEV.psnr_union = PSNR_union(groundTruth, inputEV.th_img)
-    inputEV.coverage = np.count_nonzero(inputEV.th_l1) / inputEV.th.size
-    inputEV.imagesize = extract_img.size
+    inputEV.coverage = (torch.count_nonzero(inputEV.th_l1) / inputEV.th.numel()).item()
+    # inputEV.imagesize = extract_img.numel()
     # inputEV.dis = ''
     inputEV.dis = f'\nThreshold (Iteration:{str(inputEV.iteration)}): {str(round(inputEV.ret, 4))} Coverage: {str(round(inputEV.coverage, 4))}' \
                 f'\nIOU : {str(inputEV.iou)}' \
@@ -141,8 +138,9 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
             # prediction_rmse_normal = (prediction_rmse - outmap_min) / (outmap_max - outmap_min)
             prediction_rmse_normal = prediction_rmse
             # prediction_rmse = prediction_rmse.numpy()
-            prediction_rmse = prediction_rmse_normal.numpy()
-            prediction_rmse = np.nan_to_num(prediction_rmse)
+            # prediction_rmse = prediction_rmse_normal.numpy()
+            prediction_rmse = prediction_rmse_normal
+            prediction_rmse = torch.nan_to_num(prediction_rmse)
             
             predRMSEEV.ret, predRMSEEV.th, histogram,_, _ = getth(prediction_rmse, on=0)
             # retN, thN, _,_, _ = getth(prediction_rmse_normal, on=0)
@@ -154,7 +152,7 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
             predRMSEEV.iou = get_IOU(groundTruth, predRMSEEV.th)
             predRMSEEV.psnr_intersection = PSNR_intersection(groundTruth, predRMSEEV.th_img)
             predRMSEEV.psnr_union = PSNR_union(groundTruth, predRMSEEV.th_img)
-            predRMSEEV.coverage = np.count_nonzero(predRMSEEV.th) / predRMSEEV.th.size
+            predRMSEEV.coverage = (torch.count_nonzero(predRMSEEV.th) / predRMSEEV.th.numel()).item()
             predRMSEEV.dis = f'\nThreshold: {str(round(predRMSEEV.ret, 4))}  Coverage:  {str(round(predRMSEEV.coverage, 4))} ' \
                     f'\nIOU :  {str(predRMSEEV.iou)} ' \
                     f'\nPSNR_intersection : {str(round(predRMSEEV.psnr_intersection, 4))}'
@@ -179,8 +177,9 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
             prediction_rmse_normal = (prediction_rmse - outmap_min) / (outmap_max - outmap_min)
             # prediction_rmse_normal = prediction_rmse
             # prediction_rmse = prediction_rmse.numpy()
-            prediction_rmse = prediction_rmse_normal.numpy()
-            prediction_rmse = np.nan_to_num(prediction_rmse)
+            # prediction_rmse = prediction_rmse_normal.numpy()
+            prediction_rmse = prediction_rmse_normal
+            prediction_rmse = torch.nan_to_num(prediction_rmse)
             
             predRMSEEV.ret, predRMSEEV.th, histogram,_, _ = getth(prediction_rmse, on=0)
             # retN, thN, _,_, _ = getth(prediction_rmse_normal, on=0)
@@ -191,11 +190,11 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
             predRMSEEV.iou = get_IOU(groundTruth, predRMSEEV.th)
             rescaled = (predRMSEEV.th_img)*367
             rescaled[rescaled < 230] = 0
-            predRMSEEV.psnr_intersection = PSNR_intersection(groundTruth*367, rescaled)
+            predRMSEEV.psnr_intersection = psnr(groundTruth*367, rescaled,367)
             
-            # predRMSEEV.psnr_union = ssim3(groundTruth, predRMSEEV.th_img)
-            predRMSEEV.psnr_union = PSNR_union(groundTruth, predRMSEEV.th_img)
-            predRMSEEV.coverage = np.count_nonzero(predRMSEEV.th) / predRMSEEV.th.size
+            predRMSEEV.psnr_union = ssim(groundTruth, rescaled, data_range=1, size_average=True)
+            # predRMSEEV.psnr_union = PSNR_union(groundTruth, predRMSEEV.th_img)
+            predRMSEEV.coverage = (torch.count_nonzero(predRMSEEV.th) / predRMSEEV.th.numel()).item()
             predRMSEEV.dis = f'\nThreshold: {str(round(predRMSEEV.ret, 4))}  Coverage:  {str(round(predRMSEEV.coverage, 4))} ' \
                     f'\nIOU :  {str(predRMSEEV.iou)} ' \
                     f'\nPSNR_intersection : {str(round(predRMSEEV.psnr_intersection, 4))}'
@@ -207,11 +206,11 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
         predIOUEV = EvaluationVariables("prediction_jaccard")
         if prediction_IOU is not None:
             binary_prediction = True
-            prediction_IOU = prediction_IOU.numpy()
+            # prediction_IOU = prediction_IOU.numpy()
             predIOUEV.ret, predIOUEV.th,  _,_, _ = getth(prediction_IOU, on=0)
             predIOUEV.th_img = predIOUEV.th * prediction_IOU
             predIOUEV.iou = get_IOU(groundTruth, predIOUEV.th)
-            predIOUEV.coverage = np.count_nonzero(predIOUEV.th) / predIOUEV.th.size
+            predIOUEV.coverage = (torch.count_nonzero(predIOUEV.th) / predIOUEV.th.numel()).item()
             predIOUEV.dis = f'\nThreshold:  {str(round(predIOUEV.ret, 4))}  Coverage:  {str(round(predIOUEV.coverage, 4))} ' \
                     f'\nIOU :  {str(predIOUEV.iou)}'
 
@@ -225,9 +224,21 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
     # random result plot
     # if ALL_SAMPLES or filename[0] in ['900','2600','2100','1700'] :
     # if condition in (LC+HI, LC+LI ) and filename[0] in SELECTED_SAMPLES :
-    if 0:
+    # if 0:
     # if np.count_nonzero(groundTruth) > 100:
     # if ALL_SAMPLES or filename[0] in SELECTED_SAMPLES :
+    # if condition in (HC+LI ) and iou_p < 0.24:
+    if ALL_SAMPLES or filename[0] in ['1800']:
+        
+        inp,groundTruth,prediction_rmse,prediction_IOU = move_to_CPU(inp,groundTruth,prediction_rmse,prediction_IOU)
+        # 1)Input 
+        inp = inp.numpy()
+        extract_img= inp[0]
+
+        # 2)Ground truth
+        groundTruth = groundTruth.numpy()
+        frp = frp.numpy()
+        prediction_rmse = prediction_rmse.numpy()
         
         g1 = ImagePlot(GOES_UNITS,gf_max, gf_min,
                        extract_img, 
@@ -287,7 +298,7 @@ def get_evaluation_results(prediction_rmse, prediction_IOU, inp, groundTruth, pa
             active_fire = 100 *( (inp[0]-inp[1])/(inp[0]+inp[1]) )
             # print(np.max(active_fire), np.min(active_fire))
             active_fire = noralize_goes_to_radiance(active_fire,np.max(active_fire), np.min(active_fire))
-            active_fire =     getth(abs(active_fire), on=0)[1]
+            active_fire =     getth2(abs(active_fire), on=0)[1]
             # gf_min, gf_max = [210, 207, 205],[413,342, 342]
             cloud_mask_activeFire = denoralize(inp[2],GOES_MAX_VAL[2], GOES_MIN_VAL[2])
             cloud_mask_activeFire = cloud_mask_activeFire * (cloud_mask_activeFire > 280)

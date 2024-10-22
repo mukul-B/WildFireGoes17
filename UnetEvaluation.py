@@ -22,13 +22,13 @@ from torch.utils.data import DataLoader
 import wandb
 from EvaluationReportingTemplate import EvaluatationReporting_Seg
 from UnetTraining import balance_dataset_if_TH
-from Autoencoder import Autoencoder, Encoder, Decoder
 from CustomDataset import npDataset
-from GlobalValues import COLOR_NORMAL_VALUE,RES_AUTOENCODER_PTH, RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
+from GlobalValues import COLOR_NORMAL_VALUE, RES_AUTOENCODER_PTH, RES_ENCODER_PTH, RES_DECODER_PTH, EPOCHS, BATCH_SIZE, LEARNING_RATE, LOSS_FUNCTION, GOES_Bands, model_path, \
     HC, HI, LI, LC
 from GlobalValues import training_dir, Results, random_state, project_name_template, test_split, model_specific_postfix, realtime_model_specific_postfix
-from ModelRunConfiguration import Selected_model, use_config_UNET
-from EvaluationOperation import get_evaluation_results
+from ModelRunConfiguration import Selected_model, use_config_UNET as use_config
+# from EvaluationOperation import get_evaluation_results
+from EvaluationOperation_torch import get_evaluation_results
 from torch import nn
 
 plt.style.use('plot_style/wrf')
@@ -66,6 +66,7 @@ def test(test_loader, selected_model, npd):
             count += 1
             x, y = torch.squeeze(x, dim=0), torch.squeeze(y, dim=0)
             x = x.cuda()
+            y = y.cuda()
             decoder_output = selected_model(x)
             decoder_output = sigmoid(decoder_output)
             if len(decoder_output) == 1:
@@ -77,19 +78,18 @@ def test(test_loader, selected_model, npd):
             else:
                 output_rmse, output_jaccard = decoder_output[0], decoder_output[1]
 
-            x = x.cpu()
-            x = np.squeeze(x)
-            y = np.squeeze(y)
+            # x = x.cpu()
+            # x = np.squeeze(x)
+            # y = np.squeeze(y)
 
-            if output_rmse is not None:
-                # output_rmse = output_rmse.view(1, 128, 128)
-                output_rmse = output_rmse.cpu()
-                output_rmse = np.squeeze(output_rmse)
-            if output_jaccard is not None:
-                output_jaccard = output_jaccard.cpu()
-                output_jaccard = np.squeeze(output_jaccard)
-
-            nonzero = np.count_nonzero(output_rmse)
+            # if output_rmse is not None:
+            #     # output_rmse = output_rmse.view(1, 128, 128)
+            #     output_rmse = output_rmse.cpu()
+            #     output_rmse = np.squeeze(output_rmse)
+            # if output_jaccard is not None:
+            #     output_jaccard = output_jaccard.cpu()
+            #     output_jaccard = np.squeeze(output_jaccard)
+            # nonzero = np.count_nonzero(output_rmse)
             if True:
                 path = f'{res}/{batch_idx}.png'
                 gf_min, gf_max, vf_max = gf_min[0][0][0][0].item(), gf_max[0][0][0][0].item(), vf_max[0][0][0][0].item()
@@ -163,7 +163,7 @@ class RuntimeDLTransformation:
         
         self.LOSS_NAME = loss_function_name
         OUTPUT_ACTIVATION = loss_function(1).last_activation
-        self.selected_model = Selected_model(in_channels=GOES_Bands, out_channels=1)
+        self.selected_model = Selected_model(in_channels = GOES_Bands, out_channels = 1)
         self.sigmoid = nn.Sigmoid()
         model_name = type(self.selected_model).__name__
 
@@ -230,7 +230,7 @@ def prepare_dir(res):
 
 
 def main(config=None):
-    
+
     if config:
         wandb.config = config
     
@@ -239,15 +239,13 @@ def main(config=None):
     learning_rate=wandb.config.get(LEARNING_RATE)
     loss_function = wandb.config.get(LOSS_FUNCTION)
     loss_function_name = str(loss_function).split("'")[1].split(".")[1]
-    # config.py
 
-    # global encoder_path, decoder_path, res, OUTPUT_ACTIVATION, LOSS_NAME
-    global path, res, OUTPUT_ACTIVATION, LOSS_NAME
+    global res, LOSS_NAME
     
     LOSS_NAME = loss_function_name
     OUTPUT_ACTIVATION = loss_function(1).last_activation
 
-    selected_model = Selected_model(in_channels=GOES_Bands, out_channels=1)
+    selected_model = Selected_model(in_channels = GOES_Bands, out_channels = 1)
     model_name = type(selected_model).__name__
     
     project_name = project_name_template.format(
@@ -278,5 +276,5 @@ def main(config=None):
 
 
 if __name__ == "__main__":
-    config = use_config_UNET
+    config = use_config
     main(config)

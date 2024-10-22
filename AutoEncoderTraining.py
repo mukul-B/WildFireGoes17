@@ -10,11 +10,14 @@ from torch.utils.data import DataLoader
 import logging
 
 import wandb
-from Autoencoder import Autoencoder, Encoder, Decoder
+from ModelRunConfiguration import use_config
+# from AutoencoderWithFC import AutoencoderWithFC as Selected_model
+# from Autoencoder import Autoencoder as Selected_model
+from Autoencoder_small import Autoencoder_small as Selected_model
 from CustomDataset import npDataset
 from GlobalValues import RES_AUTOENCODER_PTH, GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
     LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template, validation_split, test_split, model_specific_postfix
-from ModelRunConfiguration import SWEEP_OPERATION, use_config,sweep_loss_funtion
+from ModelRunConfiguration import SWEEP_OPERATION,sweep_loss_funtion
 
 im_dir = training_dir
 log_interval = 10
@@ -197,7 +200,7 @@ def main(config=None):
     # criteria = two_branch_loss(beta)
     OUTPUT_ACTIVATION = criteria.last_activation if criteria.last_activation else "relu"
     # Set up the model. and optimizer
-    selected_model = Autoencoder(GOES_Bands,OUTPUT_ACTIVATION)
+    selected_model = Selected_model(in_channels = GOES_Bands, out_channels = 1, last_activation = OUTPUT_ACTIVATION)
     model_name = type(selected_model).__name__
     optimizer = optim.Adam(list(selected_model.parameters()), lr=learning_rate)
 

@@ -83,7 +83,7 @@ def plot_from_ImagePlot(title,img_seq,path,shape=(128,128),colection=True):
                 if(not colection):
                     filenamecorrection = lable_blocks.replace('\n','_').replace(' ','_').replace('.','_').replace('(','_').replace(')','_').replace(':','_')
                     condition = ''
-                    path ='/'.join(pl[:2]) + f'/{condition}_{filename}_{filenamecorrection}.png'
+                    path ='/'.join(pl[:-1]) + f'/{condition}_{filename}_{filenamecorrection}.png'
                     # path = '/'.join(pl[:1]) + f"/allresults/{condition}/{filename}_{filenamecorrection}.png" 
                     # print(path)
                     # prepareDirectory(path)

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
+import torch.nn.functional as F
 
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -20,12 +21,13 @@ class DoubleConv(nn.Module):
 
 class UNET(nn.Module):
     def __init__(
-            self, in_channels=3, out_channels=1, features=[64, 128, 256, 512],
+            self, in_channels=3, out_channels=1, last_activation = None, features=[64, 128, 256, 512],
     ):
         super(UNET, self).__init__()
         self.ups = nn.ModuleList()
         self.downs = nn.ModuleList()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.th = nn.LeakyReLU(0.1)
 
         # Down part of UNET
         for feature in features:
@@ -64,7 +66,7 @@ class UNET(nn.Module):
 
             concat_skip = torch.cat((skip_connection, x), dim=1)
             x = self.ups[idx+1](concat_skip)
-
+        # nn.ReLU(x) F.relu
         return self.final_conv(x)
 
 # def test():

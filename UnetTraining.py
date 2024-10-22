@@ -10,12 +10,11 @@ from torch.utils.data import DataLoader
 import logging
 
 import wandb
-# from AutoencoderDataset import npDataset
-from ModelRunConfiguration import Selected_model
+from ModelRunConfiguration import use_config_UNET as use_config , Selected_model
 from CustomDataset import npDataset
 from GlobalValues import RES_AUTOENCODER_PTH, GOES_Bands, training_dir, model_path, RES_ENCODER_PTH, RES_DECODER_PTH, RES_OPT_PTH, BATCH_SIZE, EPOCHS, \
     LEARNING_RATE, random_state, BETA, LOSS_FUNCTION, project_name_template, validation_split, test_split, model_specific_postfix
-from ModelRunConfiguration import SWEEP_OPERATION, use_config_UNET,sweep_loss_funtion
+from ModelRunConfiguration import SWEEP_OPERATION,sweep_loss_funtion
 
 im_dir = training_dir
 log_interval = 10
@@ -198,7 +197,7 @@ def main(config=None):
     # criteria = two_branch_loss(beta)
     OUTPUT_ACTIVATION = criteria.last_activation if criteria.last_activation else "relu"
     # Set up the model. and optimizer
-    selected_model = Selected_model(in_channels=GOES_Bands, out_channels=1)
+    selected_model = Selected_model(in_channels = GOES_Bands, out_channels = 1)
     model_name = type(selected_model).__name__
     optimizer = optim.Adam(list(selected_model.parameters()), lr=learning_rate)
 
@@ -283,7 +282,7 @@ if __name__ == "__main__":
         sweep_id = wandb.sweep(sweep=sweep_configuration, project='sweep_config')
         wandb.agent(sweep_id, function=main, count=14)
     else:
-        config = use_config_UNET
+        config = use_config
         main(config)
 
 # https://pytorch.org/tutorials/beginner/hyperparameter_tuning_tutorial.html

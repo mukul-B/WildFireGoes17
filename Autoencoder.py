@@ -126,10 +126,10 @@ class Decoder(nn.Module):
 
 
 class Autoencoder(nn.Module):
-    def __init__(self, in_features, outtype='relu'):
+    def __init__(self,in_channels=3, out_channels=1, last_activation='relu'):
         super(Autoencoder, self).__init__()
-        self.encoder = Encoder(in_features)
-        self.decoder = Decoder(256, outtype)
+        self.encoder = Encoder(in_channels)
+        self.decoder = Decoder(256, last_activation)
 
     def forward(self, x):
         x = self.encoder.forward(x)
